@@ -1,25 +1,15 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Sprout, ArrowLeft, Plus } from "lucide-react";
-import { fetchCultivares } from "@/lib/api";
+import { Sprout, ArrowLeft, Copy, Trash2, Plus } from "lucide-react";
+import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
+import { FormProgramacao } from "@/components/cultivares/FormProgramacao";
+import { Badge } from "@/components/ui/badge";
 
 const Cultivares = () => {
-  const {
-    data: cultivares,
-    isLoading,
-    error,
-    refetch,
-    isFetching,
-  } = useQuery({
-    queryKey: ["cultivares", { limit: 100 }],
-    queryFn: () => fetchCultivares(100),
-  });
-
-  const cultivaresList = cultivares ?? [];
+  const [showForm, setShowForm] = useState(false);
+  const { programacoes, isLoading, create, duplicate, remove, isCreating } = useProgramacaoCultivares();
 
   return (
     <div className="min-h-screen bg-background">
@@ -35,9 +25,6 @@ const Cultivares = () => {
               <Sprout className="h-6 w-6 text-primary" />
               <h1 className="text-xl font-bold">Cultivares</h1>
             </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-              Atualizar
-            </Button>
           </div>
         </div>
       </header>
@@ -48,76 +35,93 @@ const Cultivares = () => {
             <h2 className="text-2xl font-bold text-foreground">Gestao de cultivares</h2>
             <p className="text-muted-foreground">Programacao de plantio por area e safra</p>
           </div>
-          <Button>
+          <Button onClick={() => setShowForm(!showForm)}>
             <Plus className="mr-2 h-4 w-4" />
-            Nova programacao
+            Nova programação
           </Button>
         </div>
 
-        <Card className="p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">Filtros</h3>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Safra</Label>
-              <Input placeholder="2024/2025" />
-            </div>
-            <div className="space-y-2">
-              <Label>Cultura</Label>
-              <Input placeholder="Soja, Milho..." />
-            </div>
-            <div className="space-y-2">
-              <Label>Area</Label>
-              <Input placeholder="Area 1, 2..." />
-            </div>
-          </div>
-          <Button className="mt-4">Buscar</Button>
-        </Card>
+        {showForm && (
+          <FormProgramacao
+            onSubmit={(data) => {
+              create(data);
+              setShowForm(false);
+            }}
+            onCancel={() => setShowForm(false)}
+            isLoading={isCreating}
+          />
+        )}
 
         {isLoading ? (
-          <p className="text-muted-foreground">Carregando cultivares...</p>
-        ) : error ? (
-          <Card className="p-6 border-destructive text-destructive">
-            Ocorreu um erro ao carregar os dados. Tente novamente.
-          </Card>
+          <p className="text-muted-foreground">Carregando programações...</p>
         ) : (
           <div className="grid gap-4">
-            {cultivaresList.length === 0 ? (
+            {programacoes.length === 0 ? (
               <Card className="p-6">
-                <p className="text-muted-foreground">Nenhum cultivar encontrado.</p>
+                <p className="text-muted-foreground">Nenhuma programação encontrada.</p>
               </Card>
             ) : (
-              cultivaresList.map((item, index) => (
-                <Card key={index} className="p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-start justify-between">
+              programacoes.map((item) => (
+                <Card key={item.id} className="p-6 hover:shadow-lg transition-shadow">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-3">
                         <Sprout className="h-5 w-5 text-primary" />
-                        <h3 className="font-semibold text-lg">
-                          {String(item.cultivar ?? item.CULTIVAR ?? "Cultivar sem nome")}
-                        </h3>
+                        <h3 className="font-semibold text-lg">{item.cultivar}</h3>
+                        {item.semente_propria && (
+                          <Badge variant="secondary">Semente Própria</Badge>
+                        )}
                       </div>
+                      
                       <div className="grid gap-2 text-sm text-muted-foreground">
                         <p>
-                          <span className="font-medium">Area:</span>{" "}
-                          {String(item.area ?? item.AREA ?? "-")}
+                          <span className="font-medium">Área:</span> {item.area}
                         </p>
                         <p>
-                          <span className="font-medium">Quantidade:</span>{" "}
-                          {String(item.quantidade ?? item.QUANTIDADE ?? "-")}
+                          <span className="font-medium">Quantidade:</span> {item.quantidade} {item.unidade}
                         </p>
-                        <p>
-                          <span className="font-medium">Data plantio:</span>{" "}
-                          {String(item.data_plantio ?? item.DATA_PLANTIO ?? "-")}
-                        </p>
-                        <p>
-                          <span className="font-medium">Safra:</span>{" "}
-                          {String(item.safra ?? item.SAFRA ?? "-")}
-                        </p>
+                        {item.data_plantio && (
+                          <p>
+                            <span className="font-medium">Data plantio:</span>{" "}
+                            {new Date(item.data_plantio).toLocaleDateString("pt-BR")}
+                          </p>
+                        )}
+                        {item.safra && (
+                          <p>
+                            <span className="font-medium">Safra:</span> {item.safra}
+                          </p>
+                        )}
+                        {item.semente_propria && item.porcentagem_salva > 0 && (
+                          <p>
+                            <span className="font-medium">% Salva:</span> {item.porcentagem_salva}%
+                          </p>
+                        )}
+                        {item.referencia_rnc_mapa && (
+                          <p>
+                            <span className="font-medium">RNC MAPA:</span> {item.referencia_rnc_mapa}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Editar
-                    </Button>
+                    
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => duplicate(item.id)}
+                        title="Duplicar"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => remove(item.id)}
+                        title="Excluir"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               ))
