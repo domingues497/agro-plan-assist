@@ -14,7 +14,150 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      programacao_adubacao: {
+        Row: {
+          area: string
+          created_at: string | null
+          data_aplicacao: string | null
+          deve_faturar: boolean | null
+          dose: number
+          fertilizante_salvo: boolean | null
+          formulacao: string
+          id: string
+          porcentagem_salva: number | null
+          responsavel: string | null
+          total: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string | null
+          data_aplicacao?: string | null
+          deve_faturar?: boolean | null
+          dose: number
+          fertilizante_salvo?: boolean | null
+          formulacao: string
+          id?: string
+          porcentagem_salva?: number | null
+          responsavel?: string | null
+          total?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          area?: string
+          created_at?: string | null
+          data_aplicacao?: string | null
+          deve_faturar?: boolean | null
+          dose?: number
+          fertilizante_salvo?: boolean | null
+          formulacao?: string
+          id?: string
+          porcentagem_salva?: number | null
+          responsavel?: string | null
+          total?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      programacao_cultivares: {
+        Row: {
+          area: string
+          created_at: string | null
+          cultivar: string
+          data_plantio: string | null
+          id: string
+          porcentagem_salva: number | null
+          quantidade: number
+          referencia_rnc_mapa: string | null
+          safra: string | null
+          semente_propria: boolean | null
+          unidade: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string | null
+          cultivar: string
+          data_plantio?: string | null
+          id?: string
+          porcentagem_salva?: number | null
+          quantidade: number
+          referencia_rnc_mapa?: string | null
+          safra?: string | null
+          semente_propria?: boolean | null
+          unidade?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          area?: string
+          created_at?: string | null
+          cultivar?: string
+          data_plantio?: string | null
+          id?: string
+          porcentagem_salva?: number | null
+          quantidade?: number
+          referencia_rnc_mapa?: string | null
+          safra?: string | null
+          semente_propria?: boolean | null
+          unidade?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      programacao_defensivos: {
+        Row: {
+          alvo: string | null
+          area: string
+          created_at: string | null
+          data_aplicacao: string | null
+          defensivo: string
+          deve_faturar: boolean | null
+          dose: number
+          id: string
+          porcentagem_salva: number | null
+          produto_salvo: boolean | null
+          unidade: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          alvo?: string | null
+          area: string
+          created_at?: string | null
+          data_aplicacao?: string | null
+          defensivo: string
+          deve_faturar?: boolean | null
+          dose: number
+          id?: string
+          porcentagem_salva?: number | null
+          produto_salvo?: boolean | null
+          unidade?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          alvo?: string | null
+          area?: string
+          created_at?: string | null
+          data_aplicacao?: string | null
+          defensivo?: string
+          deve_faturar?: boolean | null
+          dose?: number
+          id?: string
+          porcentagem_salva?: number | null
+          produto_salvo?: boolean | null
+          unidade?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
