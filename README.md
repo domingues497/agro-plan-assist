@@ -71,3 +71,12 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Running the Oracle backend
+
+1. Create an isolated Python environment (optional but recommended).
+2. Install dependencies: `pip install -r backend/requirements.txt`.
+3. Copy `backend/.env.example` to `backend/.env` (or create `.env.backend` in the project root) and fill in `ORACLE_USER`, `ORACLE_PASSWORD`, and the SQL statements for cultivares, adubacoes, and defensivos.
+4. Start the API with `uvicorn backend.main:app --reload`.
+
+The frontend expects the API at `http://localhost:8000/api`. Adjust `VITE_API_BASE_URL` in `.env` if you expose the backend on another host or port.
