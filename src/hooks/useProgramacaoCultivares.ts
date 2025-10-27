@@ -41,11 +41,10 @@ export const useProgramacaoCultivares = () => {
     mutationFn: async (programacao: CreateProgramacaoCultivar) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
-
-      const payload = { ...programacao, user_id: user.id };
+      const payload = { ...programacao, user_id: user.id } as any;
       const { data, error } = await supabase
         .from("programacao_cultivares")
-        .insert(payload as any)
+        .insert(payload)
         .select()
         .single();
 

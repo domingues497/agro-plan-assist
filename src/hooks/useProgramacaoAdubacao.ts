@@ -42,13 +42,28 @@ export const useProgramacaoAdubacao = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      const payload = { ...programacao, user_id: user.id } as any;
       const { data, error } = await supabase
         .from("programacao_adubacao")
-        .insert({ ...programacao, user_id: user.id })
+        .insert(payload)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        const missingColumn = /schema cache/i.test(error.message) && /produtor_numerocm/.test(error.message);
+        if (missingColumn) {
+          const { produtor_numerocm, ...rest } = payload;
+          const fallback = await supabase
+            .from("programacao_adubacao")
+            .insert(rest as any)
+            .select()
+            .single();
+          if (fallback.error) throw fallback.error;
+          toast.message("Migração pendente: vínculo com produtor será aplicado após atualização do schema.");
+          return fallback.data;
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
@@ -108,14 +123,28 @@ export const useProgramacaoAdubacao = () => {
       if (!user) throw new Error("Usuário não autenticado");
 
       const { id: _, created_at, updated_at, ...duplicateData } = original;
-      
+      const payload = { ...duplicateData, user_id: user.id } as any;
       const { data, error } = await supabase
         .from("programacao_adubacao")
-        .insert({ ...duplicateData, user_id: user.id })
+        .insert(payload)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        const missingColumn = /schema cache/i.test(error.message) && /produtor_numerocm/.test(error.message);
+        if (missingColumn) {
+          const { produtor_numerocm, ...rest } = payload;
+          const fallback = await supabase
+            .from("programacao_adubacao")
+            .insert(rest as any)
+            .select()
+            .single();
+          if (fallback.error) throw fallback.error;
+          toast.message("Migração pendente: duplicação realizada sem vínculo de produtor.");
+          return fallback.data;
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {

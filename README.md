@@ -8,6 +8,12 @@ Para desenvolver e executar a aplicação, utilize o README do diretório raiz e
 
 **URL**: https://lovable.dev/projects/f7deb657-6563-48cc-82f2-fabdd72fc8dc
 
+## Centralização do Projeto
+
+- Todo o desenvolvimento e execução ficam centralizados neste diretório raiz.
+- A subpasta `agro-plan-assist/` contém uma cópia antiga para referência. Não utilize a subpasta para desenvolvimento.
+- `.env` e `supabase/config.toml` aqui no raiz estão alinhados ao mesmo projeto Supabase remoto.
+
 ## How can I edit this code?
 
 There are several ways of editing your application.
