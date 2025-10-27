@@ -23,12 +23,12 @@ const Relatorios = () => {
 
   const resumo = useMemo(() => {
     const totalQuantidade = cultivaresList.reduce(
-      (acc, item) => acc + parseNumber(item.quantidade ?? item.QUANTIDADE),
+      (acc, item) => acc + parseNumber(item.quantidade),
       0
     );
 
     const totalHectares = cultivaresList.reduce((acc, item) => {
-      const areaValue = item.area ?? item.AREA;
+      const areaValue = item.area;
       const match = typeof areaValue === "string" ? areaValue.match(/(\d+(\.\d+)?)/) : null;
       if (match) {
         return acc + parseFloat(match[1]);
@@ -37,12 +37,12 @@ const Relatorios = () => {
     }, 0);
 
     const totalAdubacao = adubacoesList.reduce(
-      (acc, item) => acc + parseNumber(item.total ?? item.TOTAL),
+      (acc, item) => acc + parseNumber(item.total),
       0
     );
 
     const totalDefensivo = defensivosList.reduce(
-      (acc, item) => acc + parseNumber(item.dose ?? item.DOSE),
+      (acc, item) => acc + parseNumber(item.dose),
       0
     );
 
@@ -161,7 +161,7 @@ const Relatorios = () => {
                     <span className="font-semibold">
                       {
                         cultivaresList.filter(
-                          (item) => String(item.safra ?? item.SAFRA ?? "") === safra
+                          (item) => String(item.safra ?? "") === safra
                         ).length
                       }
                     </span>
