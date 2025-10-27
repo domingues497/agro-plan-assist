@@ -7,24 +7,37 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload } from "lucide-react";
 import * as XLSX from "xlsx";
+import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 export const ImportDefensivos = () => {
   const [isImporting, setIsImporting] = useState(false);
+  const [totalRows, setTotalRows] = useState(0);
+  const [importedRows, setImportedRows] = useState(0);
+  const [showSummary, setShowSummary] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsImporting(true);
+    setShowSummary(false);
+    setImportedRows(0);
 
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-      let inserted = 0;
-      let updated = 0;
+      setTotalRows(jsonData.length);
 
       for (const row of jsonData as any[]) {
         const defensivoData = {
@@ -45,21 +58,11 @@ export const ImportDefensivos = () => {
         if (error) {
           console.error("Erro ao importar defensivo:", error);
         } else {
-          const { data: existing } = await supabase
-            .from("defensivos_catalog")
-            .select("id")
-            .eq("cod_item", defensivoData.cod_item)
-            .single();
-          
-          if (existing) {
-            updated++;
-          } else {
-            inserted++;
-          }
+          setImportedRows((prev) => prev + 1);
         }
       }
-
-      toast.success(`Importação concluída! ${inserted} inseridos, ${updated} atualizados`);
+      toast.success(`Importação concluída! ${importedRows} de ${totalRows} processadas`);
+      setShowSummary(true);
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar arquivo. Verifique o formato.");
@@ -95,9 +98,30 @@ export const ImportDefensivos = () => {
           </div>
         </div>
         {isImporting && (
-          <p className="text-sm text-muted-foreground">Importando dados...</p>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Importando {importedRows} de {totalRows} linhas...
+            </p>
+            <Progress value={totalRows ? Math.round((importedRows / totalRows) * 100) : 0} />
+          </div>
         )}
       </CardContent>
+
+      <AlertDialog open={showSummary} onOpenChange={setShowSummary}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resumo da Importação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Total na planilha: {totalRows}
+              <br />
+              Linhas importadas: {importedRows}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
