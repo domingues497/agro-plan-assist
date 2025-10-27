@@ -116,7 +116,7 @@ CREATE POLICY "Users can update own cultivares"
     )
   );
 
--- Adubacao
+-- Adubacao Teste
 DROP POLICY IF EXISTS "Users can insert own adubacao" ON public.programacao_adubacao;
 CREATE POLICY "Users can insert own adubacao"
   ON public.programacao_adubacao FOR INSERT
