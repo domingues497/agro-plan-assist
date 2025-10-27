@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      consultores: {
+        Row: {
+          consultor: string
+          created_at: string | null
+          email: string
+          id: string
+          numerocm_consultor: string
+          updated_at: string | null
+        }
+        Insert: {
+          consultor: string
+          created_at?: string | null
+          email: string
+          id?: string
+          numerocm_consultor: string
+          updated_at?: string | null
+        }
+        Update: {
+          consultor?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          numerocm_consultor?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       cultivares_catalog: {
         Row: {
           created_at: string | null
@@ -128,10 +155,39 @@ export type Database = {
         }
         Relationships: []
       }
+      produtores: {
+        Row: {
+          consultor: string | null
+          created_at: string | null
+          id: string
+          nome: string
+          numerocm: string
+          numerocm_consultor: string
+          updated_at: string | null
+        }
+        Insert: {
+          consultor?: string | null
+          created_at?: string | null
+          id?: string
+          nome: string
+          numerocm: string
+          numerocm_consultor: string
+          updated_at?: string | null
+        }
+        Update: {
+          consultor?: string | null
+          created_at?: string | null
+          id?: string
+          nome?: string
+          numerocm?: string
+          numerocm_consultor?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       programacao_adubacao: {
         Row: {
           area: string
-          produtor_numerocm: string
           created_at: string | null
           data_aplicacao: string | null
           deve_faturar: boolean | null
@@ -147,7 +203,6 @@ export type Database = {
         }
         Insert: {
           area: string
-          produtor_numerocm: string
           created_at?: string | null
           data_aplicacao?: string | null
           deve_faturar?: boolean | null
@@ -163,7 +218,6 @@ export type Database = {
         }
         Update: {
           area?: string
-          produtor_numerocm?: string
           created_at?: string | null
           data_aplicacao?: string | null
           deve_faturar?: boolean | null
@@ -182,7 +236,6 @@ export type Database = {
       programacao_cultivares: {
         Row: {
           area: string
-          produtor_numerocm: string
           created_at: string | null
           cultivar: string
           data_plantio: string | null
@@ -198,7 +251,6 @@ export type Database = {
         }
         Insert: {
           area: string
-          produtor_numerocm: string
           created_at?: string | null
           cultivar: string
           data_plantio?: string | null
@@ -214,7 +266,6 @@ export type Database = {
         }
         Update: {
           area?: string
-          produtor_numerocm?: string
           created_at?: string | null
           cultivar?: string
           data_plantio?: string | null
@@ -234,7 +285,6 @@ export type Database = {
         Row: {
           alvo: string | null
           area: string
-          produtor_numerocm: string
           created_at: string | null
           data_aplicacao: string | null
           defensivo: string
@@ -250,7 +300,6 @@ export type Database = {
         Insert: {
           alvo?: string | null
           area: string
-          produtor_numerocm: string
           created_at?: string | null
           data_aplicacao?: string | null
           defensivo: string
@@ -266,7 +315,6 @@ export type Database = {
         Update: {
           alvo?: string | null
           area?: string
-          produtor_numerocm?: string
           created_at?: string | null
           data_aplicacao?: string | null
           defensivo?: string
@@ -280,85 +328,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      consultores: {
-        Row: {
-          id: string
-          numerocm_consultor: string
-          consultor: string
-          email: string
-          created_at: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          id?: string
-          numerocm_consultor: string
-          consultor: string
-          email: string
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          id?: string
-          numerocm_consultor?: string
-          consultor?: string
-          email?: string
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      produtores: {
-        Row: {
-          id: string
-          numerocm: string
-          nome: string
-          numerocm_consultor: string
-          consultor: string | null
-          created_at: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          id?: string
-          numerocm: string
-          nome: string
-          numerocm_consultor: string
-          consultor?: string | null
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          id?: string
-          numerocm?: string
-          nome?: string
-          numerocm_consultor?: string
-          consultor?: string | null
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_programacao_cultivares_produtor",
-            columns: ["numerocm"],
-            isOneToOne: false,
-            referencedRelation: "programacao_cultivares",
-            referencedColumns: ["produtor_numerocm"],
-          },
-          {
-            foreignKeyName: "fk_programacao_adubacao_produtor",
-            columns: ["numerocm"],
-            isOneToOne: false,
-            referencedRelation: "programacao_adubacao",
-            referencedColumns: ["produtor_numerocm"],
-          },
-          {
-            foreignKeyName: "fk_programacao_defensivos_produtor",
-            columns: ["numerocm"],
-            isOneToOne: false,
-            referencedRelation: "programacao_defensivos",
-            referencedColumns: ["produtor_numerocm"],
-          },
-        ]
       }
       user_roles: {
         Row: {
