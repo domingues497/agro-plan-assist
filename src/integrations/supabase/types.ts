@@ -14,6 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
+      cultivares_catalog: {
+        Row: {
+          created_at: string | null
+          cultivar: string | null
+          data_registro: string | null
+          data_validade_registro: string | null
+          grupo_especie: string | null
+          id: string
+          mantenedor: string | null
+          nome_cientifico: string | null
+          nome_comum: string | null
+          numero_formulario: string | null
+          numero_registro: string
+          situacao: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          cultivar?: string | null
+          data_registro?: string | null
+          data_validade_registro?: string | null
+          grupo_especie?: string | null
+          id?: string
+          mantenedor?: string | null
+          nome_cientifico?: string | null
+          nome_comum?: string | null
+          numero_formulario?: string | null
+          numero_registro: string
+          situacao?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          cultivar?: string | null
+          data_registro?: string | null
+          data_validade_registro?: string | null
+          grupo_especie?: string | null
+          id?: string
+          mantenedor?: string | null
+          nome_cientifico?: string | null
+          nome_comum?: string | null
+          numero_formulario?: string | null
+          numero_registro?: string
+          situacao?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      defensivos_catalog: {
+        Row: {
+          cod_item: string
+          created_at: string | null
+          grupo: string | null
+          id: string
+          item: string | null
+          marca: string | null
+          principio_ativo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cod_item: string
+          created_at?: string | null
+          grupo?: string | null
+          id?: string
+          item?: string | null
+          marca?: string | null
+          principio_ativo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cod_item?: string
+          created_at?: string | null
+          grupo?: string | null
+          id?: string
+          item?: string | null
+          marca?: string | null
+          principio_ativo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fertilizantes_catalog: {
+        Row: {
+          cod_item: string
+          created_at: string | null
+          grupo: string | null
+          id: string
+          item: string | null
+          marca: string | null
+          principio_ativo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cod_item: string
+          created_at?: string | null
+          grupo?: string | null
+          id?: string
+          item?: string | null
+          marca?: string | null
+          principio_ativo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cod_item?: string
+          created_at?: string | null
+          grupo?: string | null
+          id?: string
+          item?: string | null
+          marca?: string | null
+          principio_ativo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       programacao_adubacao: {
         Row: {
           area: string
@@ -158,15 +272,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -293,6 +434,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const

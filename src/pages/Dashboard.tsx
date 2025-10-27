@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sprout, Droplet, Shield, FileText, Plus } from "lucide-react";
+import { Sprout, Droplet, Shield, FileText, Plus, Settings } from "lucide-react";
 import { fetchAdubacoes, fetchCultivares, fetchDefensivos } from "@/lib/api";
 
 const Dashboard = () => {
@@ -59,7 +59,15 @@ const Dashboard = () => {
               <Sprout className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-bold text-foreground">AgroPlan</h1>
             </div>
-            <Button variant="outline" size="sm">Sair</Button>
+            <div className="flex gap-2">
+              <Link to="/admin">
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Admin
+                </Button>
+              </Link>
+              <Button variant="outline" size="sm">Sair</Button>
+            </div>
           </div>
         </div>
       </header>

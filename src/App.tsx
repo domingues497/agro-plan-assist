@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
+import Admin from "./pages/Admin";
 import Cultivares from "./pages/Cultivares";
 import Adubacao from "./pages/Adubacao";
 import Defensivos from "./pages/Defensivos";
@@ -55,6 +56,7 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
           <Route path="/cultivares" element={<ProtectedRoute><Cultivares /></ProtectedRoute>} />
           <Route path="/adubacao" element={<ProtectedRoute><Adubacao /></ProtectedRoute>} />
           <Route path="/defensivos" element={<ProtectedRoute><Defensivos /></ProtectedRoute>} />
