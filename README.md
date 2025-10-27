@@ -1,5 +1,9 @@
 # Welcome to your Lovable project
 
+> AVISO: Este diretório é uma cópia antiga. O desenvolvimento está centralizado no diretório raiz `../`.
+
+Para desenvolver e executar a aplicação, utilize o README do diretório raiz e rode os comandos a partir de `c:\projetos\projeto_lovable\agro-plan-assist`.
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/f7deb657-6563-48cc-82f2-fabdd72fc8dc
