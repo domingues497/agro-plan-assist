@@ -1,25 +1,20 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Shield, ArrowLeft, Plus } from "lucide-react";
-import { fetchDefensivos } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { Shield, ArrowLeft, Copy, Trash2, Plus } from "lucide-react";
+import { useProgramacaoDefensivos } from "@/hooks/useProgramacaoDefensivos";
+import { FormDefensivo } from "@/components/defensivos/FormDefensivo";
 
 const Defensivos = () => {
-  const {
-    data: defensivos,
-    isLoading,
-    error,
-    refetch,
-    isFetching,
-  } = useQuery({
-    queryKey: ["defensivos", { limit: 100 }],
-    queryFn: () => fetchDefensivos(100),
-  });
+  const [showForm, setShowForm] = useState(false);
+  const { programacoes, isLoading, create, duplicate, remove, isCreating } = useProgramacaoDefensivos();
 
-  const defensivosList = defensivos ?? [];
+  const handleSubmit = (data: any) => {
+    create(data);
+    setShowForm(false);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -35,9 +30,6 @@ const Defensivos = () => {
               <Shield className="h-6 w-6 text-primary" />
               <h1 className="text-xl font-bold">Defensivos</h1>
             </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-              Atualizar
-            </Button>
           </div>
         </div>
       </header>
@@ -45,79 +37,92 @@ const Defensivos = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Programacao de defensivos</h2>
-            <p className="text-muted-foreground">Aplicacoes quimicas planejadas por area</p>
+            <h2 className="text-2xl font-bold text-foreground">Programação de Defensivos</h2>
+            <p className="text-muted-foreground">Aplicações químicas planejadas por área</p>
           </div>
-          <Button>
+          <Button onClick={() => setShowForm(!showForm)}>
             <Plus className="mr-2 h-4 w-4" />
-            Nova aplicacao
+            Nova aplicação
           </Button>
         </div>
 
-        <Card className="p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">Filtros</h3>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Safra</Label>
-              <Input placeholder="2024/2025" />
-            </div>
-            <div className="space-y-2">
-              <Label>Alvo</Label>
-              <Input placeholder="Praga, doenca..." />
-            </div>
-            <div className="space-y-2">
-              <Label>Defensivo</Label>
-              <Input placeholder="Inseticida, Fungicida..." />
-            </div>
-          </div>
-          <Button className="mt-4">Buscar</Button>
-        </Card>
+        {showForm && (
+          <FormDefensivo
+            onSubmit={handleSubmit}
+            onCancel={() => setShowForm(false)}
+            isLoading={isCreating}
+          />
+        )}
 
         {isLoading ? (
-          <p className="text-muted-foreground">Carregando defensivos...</p>
-        ) : error ? (
-          <Card className="p-6 border-destructive text-destructive">
-            Ocorreu um erro ao carregar os dados. Tente novamente.
-          </Card>
+          <p className="text-muted-foreground">Carregando programações...</p>
         ) : (
           <div className="grid gap-4">
-            {defensivosList.length === 0 ? (
+            {programacoes.length === 0 ? (
               <Card className="p-6">
-                <p className="text-muted-foreground">Nenhuma aplicacao cadastrada.</p>
+                <p className="text-muted-foreground">Nenhuma programação cadastrada.</p>
               </Card>
             ) : (
-              defensivosList.map((item, index) => (
-                <Card key={index} className="p-6 hover:shadow-lg transition-shadow">
+              programacoes.map((item) => (
+                <Card key={item.id} className="p-6 hover:shadow-lg transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-3">
                         <Shield className="h-5 w-5 text-primary" />
-                        <h3 className="font-semibold text-lg">
-                          {String(item.defensivo ?? item.DEFENSIVO ?? "Defensivo nao informado")}
-                        </h3>
+                        <h3 className="font-semibold text-lg">{item.defensivo}</h3>
+                        {item.produto_salvo && (
+                          <Badge variant="secondary">Produto Salvo</Badge>
+                        )}
                       </div>
-                      <div className="grid gap-2 text-sm text-muted-foreground">
+                      <div className="grid gap-2 text-sm">
                         <p>
-                          <span className="font-medium">Area:</span>{" "}
-                          {String(item.area ?? item.AREA ?? "-")}
+                          <span className="font-medium text-muted-foreground">Área:</span>{" "}
+                          <span className="text-foreground">{item.area}</span>
                         </p>
                         <p>
-                          <span className="font-medium">Dose:</span>{" "}
-                          {String(item.dose ?? item.DOSE ?? "-")}
+                          <span className="font-medium text-muted-foreground">Dose:</span>{" "}
+                          <span className="text-foreground">{item.dose} {item.unidade || "L/ha"}</span>
                         </p>
-                        <p>
-                          <span className="font-medium">Data aplicacao:</span>{" "}
-                          {String(item.data_aplicacao ?? item.DATA_APLICACAO ?? "-")}
-                        </p>
-                        <p>
-                          <span className="font-medium">Alvo:</span>{" "}
-                          {String(item.alvo ?? item.ALVO ?? "-")}
-                        </p>
+                        {item.data_aplicacao && (
+                          <p>
+                            <span className="font-medium text-muted-foreground">Data aplicação:</span>{" "}
+                            <span className="text-foreground">
+                              {new Date(item.data_aplicacao).toLocaleDateString("pt-BR")}
+                            </span>
+                          </p>
+                        )}
+                        {item.alvo && (
+                          <p>
+                            <span className="font-medium text-muted-foreground">Alvo:</span>{" "}
+                            <span className="text-foreground">{item.alvo}</span>
+                          </p>
+                        )}
+                        {item.produto_salvo && item.porcentagem_salva > 0 && (
+                          <p>
+                            <span className="font-medium text-muted-foreground">% Produto salvo:</span>{" "}
+                            <span className="text-foreground">{item.porcentagem_salva}%</span>
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Editar
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => duplicate(item.id)}
+                        title="Duplicar programação"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => remove(item.id)}
+                        title="Excluir programação"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               ))

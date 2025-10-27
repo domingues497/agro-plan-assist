@@ -4,31 +4,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { X, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useFertilizantesCatalog } from "@/hooks/useFertilizantesCatalog";
-import { CreateProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
+import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
+import { CreateProgramacaoDefensivo } from "@/hooks/useProgramacaoDefensivos";
 
-type FormAdubacaoProps = {
-  onSubmit: (data: CreateProgramacaoAdubacao) => void;
+type FormDefensivoProps = {
+  onSubmit: (data: CreateProgramacaoDefensivo) => void;
   onCancel: () => void;
   isLoading?: boolean;
 };
 
-export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProps) => {
+export const FormDefensivo = ({ onSubmit, onCancel, isLoading }: FormDefensivoProps) => {
   const [open, setOpen] = useState(false);
-  const { data: fertilizantes } = useFertilizantesCatalog();
+  const { data: defensivos } = useDefensivosCatalog();
   
-  const [formData, setFormData] = useState<CreateProgramacaoAdubacao>({
-    formulacao: "",
+  const [formData, setFormData] = useState<CreateProgramacaoDefensivo>({
+    defensivo: "",
     area: "",
     dose: 0,
-    total: null,
+    unidade: "L/ha",
     data_aplicacao: null,
-    responsavel: null,
-    fertilizante_salvo: false,
+    alvo: null,
+    produto_salvo: false,
     deve_faturar: true,
     porcentagem_salva: 0,
   });
@@ -41,7 +42,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
   return (
     <Card className="p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Nova Adubação</h3>
+        <h3 className="text-lg font-semibold">Nova Aplicação de Defensivo</h3>
         <Button variant="ghost" size="icon" onClick={onCancel}>
           <X className="h-4 w-4" />
         </Button>
@@ -50,7 +51,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="formulacao">Formulação NPK *</Label>
+            <Label htmlFor="defensivo">Defensivo *</Label>
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -59,35 +60,35 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
                   aria-expanded={open}
                   className="w-full justify-between"
                 >
-                  {formData.formulacao || "Selecione uma formulação..."}
+                  {formData.defensivo || "Selecione um defensivo..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0">
                 <Command>
-                  <CommandInput placeholder="Buscar formulação..." />
+                  <CommandInput placeholder="Buscar defensivo..." />
                   <CommandList>
-                    <CommandEmpty>Nenhuma formulação encontrada.</CommandEmpty>
+                    <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
                     <CommandGroup>
-                      {fertilizantes?.map((fertilizante) => (
+                      {defensivos?.map((defensivo) => (
                         <CommandItem
-                          key={fertilizante.cod_item}
-                          value={fertilizante.item || ""}
+                          key={defensivo.cod_item}
+                          value={defensivo.item || ""}
                           onSelect={(currentValue) => {
-                            setFormData({ ...formData, formulacao: currentValue });
+                            setFormData({ ...formData, defensivo: currentValue });
                             setOpen(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              formData.formulacao === fertilizante.item ? "opacity-100" : "opacity-0"
+                              formData.defensivo === defensivo.item ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          {fertilizante.item}
-                          {fertilizante.marca && (
+                          {defensivo.item}
+                          {defensivo.marca && (
                             <span className="ml-2 text-xs text-muted-foreground">
-                              ({fertilizante.marca})
+                              ({defensivo.marca})
                             </span>
                           )}
                         </CommandItem>
@@ -110,7 +111,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dose">Dose (kg/ha) *</Label>
+            <Label htmlFor="dose">Dose *</Label>
             <Input
               id="dose"
               type="number"
@@ -122,14 +123,18 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="total">Total (kg)</Label>
-            <Input
-              id="total"
-              type="number"
-              step="0.01"
-              value={formData.total || ""}
-              onChange={(e) => setFormData({ ...formData, total: e.target.value ? parseFloat(e.target.value) : null })}
-            />
+            <Label htmlFor="unidade">Unidade</Label>
+            <Select value={formData.unidade || "L/ha"} onValueChange={(value) => setFormData({ ...formData, unidade: value })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="L/ha">L/ha</SelectItem>
+                <SelectItem value="kg/ha">kg/ha</SelectItem>
+                <SelectItem value="ml/ha">ml/ha</SelectItem>
+                <SelectItem value="g/ha">g/ha</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -143,11 +148,12 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="responsavel">Responsável</Label>
+            <Label htmlFor="alvo">Alvo</Label>
             <Input
-              id="responsavel"
-              value={formData.responsavel || ""}
-              onChange={(e) => setFormData({ ...formData, responsavel: e.target.value || null })}
+              id="alvo"
+              placeholder="Ex: Lagarta, Ferrugem..."
+              value={formData.alvo || ""}
+              onChange={(e) => setFormData({ ...formData, alvo: e.target.value || null })}
             />
           </div>
         </div>
@@ -155,16 +161,16 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
         <div className="space-y-4 pt-4 border-t">
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="fertilizante_salvo"
-              checked={formData.fertilizante_salvo}
-              onCheckedChange={(checked) => setFormData({ ...formData, fertilizante_salvo: !!checked })}
+              id="produto_salvo"
+              checked={formData.produto_salvo}
+              onCheckedChange={(checked) => setFormData({ ...formData, produto_salvo: !!checked })}
             />
-            <Label htmlFor="fertilizante_salvo" className="font-medium">
-              Fertilizante salvo de safra anterior (RN012)
+            <Label htmlFor="produto_salvo" className="font-medium">
+              Produto salvo de safra anterior (RN012)
             </Label>
           </div>
 
-          {formData.fertilizante_salvo && (
+          {formData.produto_salvo && (
             <>
               <div className="flex items-center space-x-2 pl-6">
                 <Checkbox
@@ -178,7 +184,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
               </div>
 
               <div className="space-y-2 pl-6">
-                <Label htmlFor="porcentagem_salva">% de fertilizante salvo (RN013)</Label>
+                <Label htmlFor="porcentagem_salva">% de produto salvo (RN013)</Label>
                 <Input
                   id="porcentagem_salva"
                   type="number"
@@ -189,7 +195,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
                   onChange={(e) => setFormData({ ...formData, porcentagem_salva: parseFloat(e.target.value) || 0 })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Porcentagem da área que usará fertilizante salvo
+                  Porcentagem da área que usará produto salvo
                 </p>
               </div>
             </>
@@ -198,7 +204,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
 
         <div className="flex gap-2 pt-4">
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Salvando..." : "Salvar adubação"}
+            {isLoading ? "Salvando..." : "Salvar aplicação"}
           </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar

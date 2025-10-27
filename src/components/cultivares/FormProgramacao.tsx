@@ -5,7 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { X, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { CreateProgramacaoCultivar } from "@/hooks/useProgramacaoCultivares";
 
 type FormProgramacaoProps = {
@@ -15,6 +19,9 @@ type FormProgramacaoProps = {
 };
 
 export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramacaoProps) => {
+  const [open, setOpen] = useState(false);
+  const { data: cultivares } = useCultivaresCatalog();
+  
   const [formData, setFormData] = useState<CreateProgramacaoCultivar>({
     cultivar: "",
     area: "",
@@ -45,12 +52,52 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramac
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="cultivar">Cultivar *</Label>
-            <Input
-              id="cultivar"
-              value={formData.cultivar}
-              onChange={(e) => setFormData({ ...formData, cultivar: e.target.value })}
-              required
-            />
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between"
+                >
+                  {formData.cultivar || "Selecione um cultivar..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar cultivar..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum cultivar encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {cultivares?.map((cultivar) => (
+                        <CommandItem
+                          key={cultivar.numero_registro}
+                          value={cultivar.cultivar || ""}
+                          onSelect={(currentValue) => {
+                            setFormData({ ...formData, cultivar: currentValue });
+                            setOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.cultivar === cultivar.cultivar ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {cultivar.cultivar}
+                          {cultivar.nome_comum && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              ({cultivar.nome_comum})
+                            </span>
+                          )}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           
           <div className="space-y-2">
