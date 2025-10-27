@@ -33,25 +33,31 @@ export default function Admin() {
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (password === ADMIN_PASSWORD) {
-      // Add admin role to user if not already admin
-      if (!roleData?.isAdmin) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { error } = await supabase
-            .from("user_roles")
-            .upsert({ user_id: user.id, role: "admin" });
-          
-          if (error) {
-            toast.error("Erro ao definir permissões de admin");
-            return;
-          }
-        }
+    try {
+      // Call edge function to verify password and grant admin role
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
+        body: { password }
+      });
+
+      if (error) {
+        console.error("Error calling admin-auth:", error);
+        toast.error("Erro ao verificar senha");
+        return;
       }
+
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
       setIsAuthenticated(true);
       toast.success("Acesso autorizado!");
-    } else {
-      toast.error("Senha incorreta!");
+      
+      // Invalidate the query to refresh admin status
+      window.location.reload();
+    } catch (error) {
+      console.error("Error in handlePasswordSubmit:", error);
+      toast.error("Erro ao processar autenticação");
     }
   };
 
