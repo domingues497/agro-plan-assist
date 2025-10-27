@@ -4,8 +4,10 @@ import { toast } from "sonner";
 
 export type ProgramacaoAdubacao = {
   id: string;
+  user_id?: string;
   formulacao: string;
   area: string;
+  produtor_numerocm: string;
   dose: number;
   total: number | null;
   data_aplicacao: string | null;

@@ -11,6 +11,7 @@ import { X, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { CreateProgramacaoDefensivo } from "@/hooks/useProgramacaoDefensivos";
+import { useProdutores } from "@/hooks/useProdutores";
 
 type FormDefensivoProps = {
   onSubmit: (data: CreateProgramacaoDefensivo) => void;
@@ -21,10 +22,13 @@ type FormDefensivoProps = {
 export const FormDefensivo = ({ onSubmit, onCancel, isLoading }: FormDefensivoProps) => {
   const [open, setOpen] = useState(false);
   const { data: defensivos } = useDefensivosCatalog();
+  const { data: produtores } = useProdutores();
+  const [openProdutor, setOpenProdutor] = useState(false);
   
   const [formData, setFormData] = useState<CreateProgramacaoDefensivo>({
     defensivo: "",
     area: "",
+    produtor_numerocm: "",
     dose: 0,
     unidade: "L/ha",
     data_aplicacao: null,
@@ -50,6 +54,52 @@ export const FormDefensivo = ({ onSubmit, onCancel, isLoading }: FormDefensivoPr
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="produtor">Produtor *</Label>
+            <Popover open={openProdutor} onOpenChange={setOpenProdutor}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openProdutor}
+                  className="w-full justify-between"
+                >
+                  {formData.produtor_numerocm
+                    ? `${formData.produtor_numerocm} - ${(produtores.find(p => p.numerocm === formData.produtor_numerocm)?.nome) || ""}`
+                    : "Selecione um produtor..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar produtor..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {produtores?.map((p) => (
+                        <CommandItem
+                          key={p.numerocm}
+                          value={p.numerocm}
+                          onSelect={(currentValue) => {
+                            setFormData({ ...formData, produtor_numerocm: currentValue });
+                            setOpenProdutor(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.produtor_numerocm === p.numerocm ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {p.numerocm} - {p.nome}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="defensivo">Defensivo *</Label>
             <Popover open={open} onOpenChange={setOpen}>

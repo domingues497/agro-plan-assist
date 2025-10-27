@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, ArrowLeft, Download } from "lucide-react";
-import { fetchAdubacoes, fetchCultivares, fetchDefensivos } from "@/lib/api";
+import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
+import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
+import { useProgramacaoDefensivos } from "@/hooks/useProgramacaoDefensivos";
 
 const parseNumber = (value: unknown): number => {
   const numeric = Number(value);
@@ -12,20 +13,9 @@ const parseNumber = (value: unknown): number => {
 };
 
 const Relatorios = () => {
-  const { data: cultivares } = useQuery({
-    queryKey: ["cultivares", { limit: 200 }],
-    queryFn: () => fetchCultivares(200),
-  });
-
-  const { data: adubacoes } = useQuery({
-    queryKey: ["adubacoes", { limit: 200 }],
-    queryFn: () => fetchAdubacoes(200),
-  });
-
-  const { data: defensivos } = useQuery({
-    queryKey: ["defensivos", { limit: 200 }],
-    queryFn: () => fetchDefensivos(200),
-  });
+  const { programacoes: cultivares } = useProgramacaoCultivares();
+  const { programacoes: adubacoes } = useProgramacaoAdubacao();
+  const { programacoes: defensivos } = useProgramacaoDefensivos();
 
   const cultivaresList = cultivares ?? [];
   const adubacoesList = adubacoes ?? [];
@@ -58,7 +48,7 @@ const Relatorios = () => {
 
     const safras = new Set<string>();
     cultivaresList.forEach((item) => {
-      const safra = String(item.safra ?? item.SAFRA ?? "").trim();
+      const safra = String(item.safra ?? "").trim();
       if (safra) {
         safras.add(safra);
       }
@@ -97,9 +87,7 @@ const Relatorios = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-foreground">Relatorios consolidados</h2>
-          <p className="text-muted-foreground">
-            Visualize dados consolidados a partir do banco Oracle
-          </p>
+          <p className="text-muted-foreground">Visualize dados consolidados via Supabase</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">

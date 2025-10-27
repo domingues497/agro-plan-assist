@@ -1,42 +1,34 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sprout, Droplet, Shield, FileText, Plus, Settings } from "lucide-react";
-import { fetchAdubacoes, fetchCultivares, fetchDefensivos } from "@/lib/api";
+import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
+import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
+import { useProgramacaoDefensivos } from "@/hooks/useProgramacaoDefensivos";
 
 const Dashboard = () => {
   const {
-    data: cultivares,
+    programacoes: cultivaresProgramacoes,
     isLoading: cultivaresLoading,
     error: cultivaresError,
-  } = useQuery({
-    queryKey: ["cultivares", { limit: 50 }],
-    queryFn: () => fetchCultivares(50),
-  });
+  } = useProgramacaoCultivares();
 
   const {
-    data: adubacoes,
+    programacoes: adubacoesProgramacoes,
     isLoading: adubacoesLoading,
     error: adubacoesError,
-  } = useQuery({
-    queryKey: ["adubacoes", { limit: 50 }],
-    queryFn: () => fetchAdubacoes(50),
-  });
+  } = useProgramacaoAdubacao();
 
   const {
-    data: defensivos,
+    programacoes: defensivosProgramacoes,
     isLoading: defensivosLoading,
     error: defensivosError,
-  } = useQuery({
-    queryKey: ["defensivos", { limit: 50 }],
-    queryFn: () => fetchDefensivos(50),
-  });
+  } = useProgramacaoDefensivos();
 
-  const cultivaresList = cultivares ?? [];
-  const adubacoesList = adubacoes ?? [];
-  const defensivosList = defensivos ?? [];
+  const cultivaresList = cultivaresProgramacoes ?? [];
+  const adubacoesList = adubacoesProgramacoes ?? [];
+  const defensivosList = defensivosProgramacoes ?? [];
 
   const lastSync = useMemo(() => new Date().toLocaleString(), []);
 

@@ -20,6 +20,25 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Permitir cadastro apenas se email consta na base de consultores
+    const { data: consultantRows, error: consultError } = await supabase
+      .from("consultores")
+      .select("email")
+      .eq("email", email.toLowerCase())
+      .limit(1);
+
+    if (consultError) {
+      toast({ title: "Erro ao verificar consultor", description: consultError.message, variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    if (!consultantRows || consultantRows.length === 0) {
+      toast({ title: "Cadastro bloqueado", description: "Email não encontrado na base de consultores.", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -46,6 +65,25 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Permitir login apenas para emails de consultores cadastrados
+    const { data: consultantRows, error: consultError } = await supabase
+      .from("consultores")
+      .select("email")
+      .eq("email", email.toLowerCase())
+      .limit(1);
+
+    if (consultError) {
+      toast({ title: "Erro ao verificar consultor", description: consultError.message, variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    if (!consultantRows || consultantRows.length === 0) {
+      toast({ title: "Login bloqueado", description: "Email não encontrado na base de consultores.", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email,

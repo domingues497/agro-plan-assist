@@ -4,8 +4,10 @@ import { toast } from "sonner";
 
 export type ProgramacaoCultivar = {
   id: string;
+  user_id?: string;
   cultivar: string;
   area: string;
+  produtor_numerocm: string;
   quantidade: number;
   unidade: string;
   data_plantio: string | null;

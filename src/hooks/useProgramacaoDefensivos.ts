@@ -7,6 +7,7 @@ export type ProgramacaoDefensivo = {
   user_id: string;
   defensivo: string;
   area: string;
+  produtor_numerocm: string;
   dose: number;
   unidade?: string | null;
   data_aplicacao?: string | null;

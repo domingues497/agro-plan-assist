@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { ImportCultivares } from "@/components/admin/ImportCultivares";
 import { ImportFertilizantes } from "@/components/admin/ImportFertilizantes";
 import { ImportDefensivos } from "@/components/admin/ImportDefensivos";
+import { ImportConsultores } from "@/components/admin/ImportConsultores";
+import { ImportProdutores } from "@/components/admin/ImportProdutores";
 
 const ADMIN_PASSWORD = "Co0p@gr!#0la";
 
@@ -112,10 +114,12 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="cultivares" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="cultivares">Cultivares</TabsTrigger>
           <TabsTrigger value="fertilizantes">Fertilizantes</TabsTrigger>
           <TabsTrigger value="defensivos">Defensivos</TabsTrigger>
+          <TabsTrigger value="consultores">Consultores</TabsTrigger>
+          <TabsTrigger value="produtores">Produtores</TabsTrigger>
         </TabsList>
 
         <TabsContent value="cultivares">
@@ -128,6 +132,14 @@ export default function Admin() {
 
         <TabsContent value="defensivos">
           <ImportDefensivos />
+        </TabsContent>
+
+        <TabsContent value="consultores">
+          <ImportConsultores />
+        </TabsContent>
+
+        <TabsContent value="produtores">
+          <ImportProdutores />
         </TabsContent>
       </Tabs>
     </div>
