@@ -50,11 +50,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramac
     const nome = (c.nome_comum || "").toLowerCase();
     return nome.includes(filtroNomeComum.toLowerCase());
   });
-
   const nomesComuns = Array.from(
     new Set((cultivares || []).map((c) => (c.nome_comum || "").trim()).filter(Boolean))
   ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
-
   return (
     <Card className="p-6 mb-6">
       <div className="flex items-center justify-between mb-4">

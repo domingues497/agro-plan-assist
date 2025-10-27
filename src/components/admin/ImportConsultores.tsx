@@ -56,20 +56,37 @@ export function ImportConsultores() {
         setIsImporting(false);
         return;
       }
-      setTotalRows(payload.length);
+      // Deduplicar por email (conflito) para evitar erro 21000
+      const dedupMap = new Map<string, typeof payload[0]>();
+      for (const item of payload) {
+        dedupMap.set(item.email, item); // último vence
+      }
+      const uniquePayload = Array.from(dedupMap.values());
+      const removed = payload.length - uniquePayload.length;
+      if (removed > 0) {
+        toast.info(`${removed} registros duplicados de email foram ignorados`);
+      }
+
+      setTotalRows(uniquePayload.length);
 
       const batchSize = 100;
-      for (let i = 0; i < payload.length; i += batchSize) {
-        const chunk = payload.slice(i, i + batchSize);
+      let imported = 0;
+      for (let i = 0; i < uniquePayload.length; i += batchSize) {
+        const chunk = uniquePayload.slice(i, i + batchSize);
         const { error } = await supabase.from("consultores").upsert(chunk, { onConflict: "email" });
         if (error) {
           console.error("Erro ao importar chunk de consultores:", error);
+          // Mensagem amigável para erro 21000
+          if (String((error as any).code) === "21000" || String((error as any).message).includes("ON CONFLICT DO UPDATE command cannot affect row a second time")) {
+            toast.error("Arquivo contém entradas duplicadas para o mesmo email no mesmo lote. Revise a planilha.");
+          }
         } else {
-          setImportedRows((prev) => prev + chunk.length);
+          imported += chunk.length;
+          setImportedRows(imported);
         }
       }
 
-      toast.success(`Importação de consultores concluída (${importedRows} de ${totalRows})`);
+      toast.success(`Importação de consultores concluída (${imported} de ${uniquePayload.length})`);
       setShowSummary(true);
     } catch (err: any) {
       console.error(err);
