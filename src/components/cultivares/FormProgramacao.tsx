@@ -24,6 +24,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramac
   const { data: cultivares } = useCultivaresCatalog();
   const { data: produtores } = useProdutores();
   const [openProdutor, setOpenProdutor] = useState(false);
+  const [openNomeComum, setOpenNomeComum] = useState(false);
+  const [filtroNomeComum, setFiltroNomeComum] = useState("");
   
   const [formData, setFormData] = useState<CreateProgramacaoCultivar>({
     cultivar: "",
@@ -42,6 +44,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramac
     e.preventDefault();
     onSubmit(formData);
   };
+
+  const cultivaresFiltrados = (cultivares || []).filter((c) => {
+    if (!filtroNomeComum) return true;
+    const nome = (c.nome_comum || "").toLowerCase();
+    return nome.includes(filtroNomeComum.toLowerCase());
+  });
+
+  const nomesComuns = Array.from(
+    new Set((cultivares || []).map((c) => (c.nome_comum || "").trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
 
   return (
     <Card className="p-6 mb-6">
@@ -100,54 +112,113 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramac
               </PopoverContent>
             </Popover>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="cultivar">Cultivar *</Label>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-full justify-between"
-                >
-                  {formData.cultivar || "Selecione um cultivar..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0">
-                <Command>
-                  <CommandInput placeholder="Buscar cultivar..." />
-                  <CommandList>
-                    <CommandEmpty>Nenhum cultivar encontrado.</CommandEmpty>
-                    <CommandGroup>
-                      {cultivares?.map((cultivar) => (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nome_comum">Nome comum</Label>
+              <Popover open={openNomeComum} onOpenChange={setOpenNomeComum}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openNomeComum}
+                    className="w-full justify-between"
+                  >
+                    {filtroNomeComum ? filtroNomeComum : "Selecione o nome comum..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar nome comum..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum nome comum encontrado.</CommandEmpty>
+                      <CommandGroup>
                         <CommandItem
-                          key={cultivar.numero_registro}
-                          value={cultivar.cultivar || ""}
-                          onSelect={(currentValue) => {
-                            setFormData({ ...formData, cultivar: currentValue });
-                            setOpen(false);
+                          key="todos"
+                          value=""
+                          onSelect={() => {
+                            setFiltroNomeComum("");
+                            setOpenNomeComum(false);
                           }}
                         >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              formData.cultivar === cultivar.cultivar ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {cultivar.cultivar}
-                          {cultivar.nome_comum && (
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              ({cultivar.nome_comum})
-                            </span>
-                          )}
+                          <Check className={cn("mr-2 h-4 w-4", !filtroNomeComum ? "opacity-100" : "opacity-0")} />
+                          Todos
                         </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+                        {nomesComuns.map((nome) => (
+                          <CommandItem
+                            key={nome}
+                            value={nome}
+                            onSelect={(currentValue) => {
+                              setFiltroNomeComum(currentValue);
+                              setOpenNomeComum(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                filtroNomeComum.toLowerCase() === nome.toLowerCase()
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cultivar">Cultivar *</Label>
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between"
+                  >
+                    {formData.cultivar || "Selecione um cultivar..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar cultivar..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum cultivar encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {cultivaresFiltrados?.map((cultivar) => (
+                          <CommandItem
+                            key={cultivar.numero_registro}
+                            value={cultivar.cultivar || ""}
+                            onSelect={(currentValue) => {
+                              setFormData({ ...formData, cultivar: currentValue });
+                              setOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.cultivar === cultivar.cultivar ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {cultivar.cultivar}
+                            {cultivar.nome_comum && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                ({cultivar.nome_comum})
+                              </span>
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           
           <div className="space-y-2">
