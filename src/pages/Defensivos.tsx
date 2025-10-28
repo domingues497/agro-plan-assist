@@ -3,9 +3,15 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, ArrowLeft, Copy, Trash2, Plus, Pencil } from "lucide-react";
+import { Shield, ArrowLeft, Copy, Trash2, Plus, Pencil, ChevronDown } from "lucide-react";
 import { useAplicacoesDefensivos, AplicacaoDefensivo } from "@/hooks/useAplicacoesDefensivos";
 import { FormAplicacaoDefensivo } from "@/components/defensivos/FormAplicacaoDefensivo";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const Defensivos = () => {
   const [showForm, setShowForm] = useState(false);
@@ -83,85 +89,86 @@ const Defensivos = () => {
               </Card>
             ) : (
               aplicacoes.map((aplicacao) => (
-                <Card key={aplicacao.id} className="p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Shield className="h-5 w-5 text-primary" />
-                        <h3 className="font-semibold text-lg">Aplicação - {aplicacao.area}</h3>
-                      </div>
-                      <div className="grid gap-2 text-sm mb-4">
-                        {aplicacao.produtor_numerocm && (
-                          <p>
-                            <span className="font-medium text-muted-foreground">Produtor:</span>{" "}
-                            <span className="text-foreground">{aplicacao.produtor_numerocm}</span>
-                          </p>
-                        )}
-                        <p>
-                          <span className="font-medium text-muted-foreground">Área:</span>{" "}
-                          <span className="text-foreground">{aplicacao.area}</span>
-                        </p>
-                      </div>
-
-                      {/* Lista de defensivos */}
-                      <div className="space-y-3 border-t pt-3">
-                        <h4 className="font-medium text-sm text-muted-foreground">Defensivos aplicados:</h4>
-                        {aplicacao.defensivos.map((def, idx) => (
-                          <div key={def.id || idx} className="bg-muted/50 p-3 rounded-md">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="font-semibold">{def.defensivo}</span>
-                              {def.produto_salvo && (
-                                <Badge variant="secondary" className="text-xs">Produto Salvo</Badge>
-                              )}
-                            </div>
-                            <div className="grid gap-1 text-sm">
-                              <p>
-                                <span className="text-muted-foreground">Dose:</span>{" "}
-                                {def.dose} {def.unidade}
+                <Card key={aplicacao.id} className="hover:shadow-lg transition-shadow">
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1" className="border-none">
+                      <div className="flex items-center justify-between p-6 pb-0">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Shield className="h-5 w-5 text-primary" />
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg">Aplicação - {aplicacao.area}</h3>
+                            {aplicacao.produtor_numerocm && (
+                              <p className="text-sm text-muted-foreground">
+                                Produtor: {aplicacao.produtor_numerocm}
                               </p>
-                              {def.alvo && (
-                                <p>
-                                  <span className="text-muted-foreground">Alvo:</span> {def.alvo}
-                                </p>
-                              )}
-                              {def.produto_salvo && def.porcentagem_salva > 0 && (
-                                <p>
-                                  <span className="text-muted-foreground">% Salva:</span> {def.porcentagem_salva}%
-                                </p>
-                              )}
-                            </div>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {aplicacao.defensivos.length} defensivo(s) programado(s)
+                            </p>
                           </div>
-                        ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setEditing(aplicacao)}
+                            title="Editar aplicação"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => duplicate(aplicacao.id)}
+                            title="Duplicar aplicação"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => remove(aplicacao.id)}
+                            title="Excluir aplicação"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setEditing(aplicacao)}
-                        title="Editar aplicação"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => duplicate(aplicacao.id)}
-                        title="Duplicar aplicação"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => remove(aplicacao.id)}
-                        title="Excluir aplicação"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                      <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                        <span className="text-sm font-medium">Ver defensivos aplicados</span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6 pb-6">
+                        <div className="space-y-3 pt-2">
+                          {aplicacao.defensivos.map((def, idx) => (
+                            <div key={def.id || idx} className="bg-muted/50 p-4 rounded-md">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="font-semibold">{def.defensivo}</span>
+                                {def.produto_salvo && (
+                                  <Badge variant="secondary" className="text-xs">Produto Salvo</Badge>
+                                )}
+                              </div>
+                              <div className="grid gap-1 text-sm">
+                                <p>
+                                  <span className="text-muted-foreground">Dose:</span>{" "}
+                                  {def.dose} {def.unidade}
+                                </p>
+                                {def.alvo && (
+                                  <p>
+                                    <span className="text-muted-foreground">Alvo:</span> {def.alvo}
+                                  </p>
+                                )}
+                                {def.produto_salvo && def.porcentagem_salva > 0 && (
+                                  <p>
+                                    <span className="text-muted-foreground">% Salva:</span> {def.porcentagem_salva}%
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </Card>
               ))
             )}
