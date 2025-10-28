@@ -68,10 +68,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     if (filtroGrupo) return; // evita sobrescrever escolhas do usuário
     const target = (formData.cultivar || "").trim().toLowerCase();
     const match = (cultivares || []).find(
-      (c) => (c.cultivar || "").trim().toLowerCase() === target
+      (c) => (c.item || "").trim().toLowerCase() === target
     );
-    if (match?.grupo) {
-      setFiltroGrupo(match.grupo);
+    if (match?.cultivar) {
+      setFiltroGrupo(match.cultivar);
     }
   }, [formData.cultivar, cultivares, filtroGrupo]);
 
@@ -81,10 +81,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   };
 
   const cultivaresFiltrados = (cultivares || []).filter((c) => {
-    // Filtro por grupo
+    // Filtro por grupo (agora mostra cultivar)
     if (filtroGrupo) {
-      const grupo = (c.grupo || "").toLowerCase();
-      if (!grupo.includes(filtroGrupo.toLowerCase())) {
+      const cultivar = (c.cultivar || "").toLowerCase();
+      if (!cultivar.includes(filtroGrupo.toLowerCase())) {
         return false;
       }
     }
@@ -92,17 +92,17 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     // Filtro por busca de texto
     if (searchCultivar) {
       const searchTerm = searchCultivar.toLowerCase();
-      const cultivarMatch = (c.cultivar || "").toLowerCase().includes(searchTerm);
       const itemMatch = (c.item || "").toLowerCase().includes(searchTerm);
+      const cultivarMatch = (c.cultivar || "").toLowerCase().includes(searchTerm);
       const marcaMatch = (c.marca || "").toLowerCase().includes(searchTerm);
       const codItemMatch = (c.cod_item || "").toLowerCase().includes(searchTerm);
-      return cultivarMatch || itemMatch || marcaMatch || codItemMatch;
+      return itemMatch || cultivarMatch || marcaMatch || codItemMatch;
     }
     
     return true;
   });
   const grupos = Array.from(
-    new Set((cultivares || []).map((c) => (c.grupo || "").trim()).filter(Boolean))
+    new Set((cultivares || []).map((c) => (c.cultivar || "").trim()).filter(Boolean))
   ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
   return (
     <Card className="p-6 mb-6">
@@ -246,9 +246,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                         {cultivaresFiltrados?.map((cultivar) => (
                           <CommandItem
                             key={cultivar.cod_item}
-                            value={cultivar.cultivar || ""}
+                            value={cultivar.item || ""}
                             onSelect={() => {
-                              setFormData({ ...formData, cultivar: cultivar.cultivar || "" });
+                              setFormData({ ...formData, cultivar: cultivar.item || "" });
                               setSearchCultivar("");
                               setOpen(false);
                             }}
@@ -256,10 +256,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                formData.cultivar === cultivar.cultivar ? "opacity-100" : "opacity-0"
+                                formData.cultivar === cultivar.item ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            {cultivar.cultivar}
+                            {cultivar.item}
                             {cultivar.marca && (
                               <span className="ml-2 text-xs text-muted-foreground">
                                 ({cultivar.marca})
