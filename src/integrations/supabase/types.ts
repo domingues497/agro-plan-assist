@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      aplicacoes_defensivos: {
+        Row: {
+          area: string
+          created_at: string | null
+          id: string
+          produtor_numerocm: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string | null
+          id?: string
+          produtor_numerocm?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          area?: string
+          created_at?: string | null
+          id?: string
+          produtor_numerocm?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       consultores: {
         Row: {
           consultor: string
@@ -290,53 +317,55 @@ export type Database = {
       programacao_defensivos: {
         Row: {
           alvo: string | null
-          area: string
+          aplicacao_id: string | null
           created_at: string | null
-          data_aplicacao: string | null
           defensivo: string
           deve_faturar: boolean | null
           dose: number
           id: string
           porcentagem_salva: number | null
           produto_salvo: boolean | null
-          produtor_numerocm: string | null
           unidade: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           alvo?: string | null
-          area: string
+          aplicacao_id?: string | null
           created_at?: string | null
-          data_aplicacao?: string | null
           defensivo: string
           deve_faturar?: boolean | null
           dose: number
           id?: string
           porcentagem_salva?: number | null
           produto_salvo?: boolean | null
-          produtor_numerocm?: string | null
           unidade?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           alvo?: string | null
-          area?: string
+          aplicacao_id?: string | null
           created_at?: string | null
-          data_aplicacao?: string | null
           defensivo?: string
           deve_faturar?: boolean | null
           dose?: number
           id?: string
           porcentagem_salva?: number | null
           produto_salvo?: boolean | null
-          produtor_numerocm?: string | null
           unidade?: string | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "programacao_defensivos_aplicacao_id_fkey"
+            columns: ["aplicacao_id"]
+            isOneToOne: false
+            referencedRelation: "aplicacoes_defensivos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, ArrowLeft, Download } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
-import { useProgramacaoDefensivos } from "@/hooks/useProgramacaoDefensivos";
+import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 
 const parseNumber = (value: unknown): number => {
   const numeric = Number(value);
@@ -15,7 +15,7 @@ const parseNumber = (value: unknown): number => {
 const Relatorios = () => {
   const { programacoes: cultivares } = useProgramacaoCultivares();
   const { programacoes: adubacoes } = useProgramacaoAdubacao();
-  const { programacoes: defensivos } = useProgramacaoDefensivos();
+  const { aplicacoes: defensivos } = useAplicacoesDefensivos();
 
   const cultivaresList = cultivares ?? [];
   const adubacoesList = adubacoes ?? [];
@@ -41,10 +41,13 @@ const Relatorios = () => {
       0
     );
 
-    const totalDefensivo = defensivosList.reduce(
-      (acc, item) => acc + parseNumber(item.dose),
-      0
-    );
+    const totalDefensivo = defensivosList.reduce((acc, aplicacao) => {
+      const somaAplicacao = aplicacao.defensivos.reduce(
+        (sum, def) => sum + parseNumber(def.dose),
+        0
+      );
+      return acc + somaAplicacao;
+    }, 0);
 
     const safras = new Set<string>();
     cultivaresList.forEach((item) => {

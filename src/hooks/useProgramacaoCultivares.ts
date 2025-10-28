@@ -76,10 +76,12 @@ export const useProgramacaoCultivares = () => {
           const fallback = String(map[item.id] || "").trim();
           if (fallback) {
             updates.push(
-              supabase
-                .from("programacao_cultivares")
-                .update({ produtor_numerocm: fallback })
-                .eq("id", item.id)
+              Promise.resolve(
+                supabase
+                  .from("programacao_cultivares")
+                  .update({ produtor_numerocm: fallback })
+                  .eq("id", item.id)
+              )
             );
             return { ...item, produtor_numerocm: fallback } as ProgramacaoCultivar;
           }

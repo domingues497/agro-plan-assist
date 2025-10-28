@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sprout, Droplet, Shield, FileText, Plus, Settings } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
-import { useProgramacaoDefensivos } from "@/hooks/useProgramacaoDefensivos";
+import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 
 const Dashboard = () => {
   const {
@@ -21,10 +21,10 @@ const Dashboard = () => {
   } = useProgramacaoAdubacao();
 
   const {
-    programacoes: defensivosProgramacoes,
+    aplicacoes: defensivosProgramacoes,
     isLoading: defensivosLoading,
     error: defensivosError,
-  } = useProgramacaoDefensivos();
+  } = useAplicacoesDefensivos();
 
   const cultivaresList = cultivaresProgramacoes ?? [];
   const adubacoesList = adubacoesProgramacoes ?? [];

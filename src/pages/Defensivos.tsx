@@ -4,29 +4,17 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, ArrowLeft, Copy, Trash2, Plus, Pencil } from "lucide-react";
-import { useProgramacaoDefensivos, ProgramacaoDefensivo } from "@/hooks/useProgramacaoDefensivos";
-import { FormDefensivo } from "@/components/defensivos/FormDefensivo";
+import { useAplicacoesDefensivos, AplicacaoDefensivo } from "@/hooks/useAplicacoesDefensivos";
+import { FormAplicacaoDefensivo } from "@/components/defensivos/FormAplicacaoDefensivo";
 
 const Defensivos = () => {
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<ProgramacaoDefensivo | null>(null);
-  const { programacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating } = useProgramacaoDefensivos();
+  const [editing, setEditing] = useState<AplicacaoDefensivo | null>(null);
+  const { aplicacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating } = useAplicacoesDefensivos();
 
   const handleSubmit = (data: any) => {
     create(data);
     setShowForm(false);
-  };
-
-  const getProdutorNumerocmFallback = (id?: string) => {
-    try {
-      if (!id) return "";
-      const key = "programacao_defensivos_produtor_map";
-      const raw = localStorage.getItem(key);
-      const map = raw ? JSON.parse(raw) : {};
-      return (map[id] || "").trim();
-    } catch (e) {
-      return "";
-    }
   };
 
   return (
@@ -60,7 +48,7 @@ const Defensivos = () => {
         </div>
 
         {showForm && !editing && (
-          <FormDefensivo
+          <FormAplicacaoDefensivo
             onSubmit={handleSubmit}
             onCancel={() => setShowForm(false)}
             isLoading={isCreating}
@@ -68,20 +56,13 @@ const Defensivos = () => {
         )}
 
         {editing && (
-          <FormDefensivo
+          <FormAplicacaoDefensivo
             title="Editar Aplicação de Defensivo"
             submitLabel="Salvar alterações"
             initialData={{
-              defensivo: editing.defensivo,
+              produtor_numerocm: editing.produtor_numerocm || "",
               area: editing.area,
-              produtor_numerocm: (editing.produtor_numerocm || getProdutorNumerocmFallback(editing.id))?.trim(),
-              dose: editing.dose,
-              unidade: editing.unidade || undefined,
-              data_aplicacao: editing.data_aplicacao || null,
-              alvo: editing.alvo || null,
-              produto_salvo: editing.produto_salvo,
-              deve_faturar: editing.deve_faturar,
-              porcentagem_salva: editing.porcentagem_salva,
+              defensivos: editing.defensivos,
             }}
             onSubmit={(data) => {
               update({ id: editing.id, ...data });
@@ -93,78 +74,89 @@ const Defensivos = () => {
         )}
 
         {isLoading ? (
-          <p className="text-muted-foreground">Carregando programações...</p>
+          <p className="text-muted-foreground">Carregando aplicações...</p>
         ) : (
           <div className="grid gap-4">
-            {programacoes.length === 0 ? (
+            {aplicacoes.length === 0 ? (
               <Card className="p-6">
-                <p className="text-muted-foreground">Nenhuma programação cadastrada.</p>
+                <p className="text-muted-foreground">Nenhuma aplicação cadastrada.</p>
               </Card>
             ) : (
-              programacoes.map((item) => (
-                <Card key={item.id} className="p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-start justify-between">
+              aplicacoes.map((aplicacao) => (
+                <Card key={aplicacao.id} className="p-6 hover:shadow-lg transition-shadow">
+                  <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
                         <Shield className="h-5 w-5 text-primary" />
-                        <h3 className="font-semibold text-lg">{item.defensivo}</h3>
-                        {item.produto_salvo && (
-                          <Badge variant="secondary">Produto Salvo</Badge>
-                        )}
+                        <h3 className="font-semibold text-lg">Aplicação - {aplicacao.area}</h3>
                       </div>
-                      <div className="grid gap-2 text-sm">
+                      <div className="grid gap-2 text-sm mb-4">
+                        {aplicacao.produtor_numerocm && (
+                          <p>
+                            <span className="font-medium text-muted-foreground">Produtor:</span>{" "}
+                            <span className="text-foreground">{aplicacao.produtor_numerocm}</span>
+                          </p>
+                        )}
                         <p>
                           <span className="font-medium text-muted-foreground">Área:</span>{" "}
-                          <span className="text-foreground">{item.area}</span>
+                          <span className="text-foreground">{aplicacao.area}</span>
                         </p>
-                        <p>
-                          <span className="font-medium text-muted-foreground">Dose:</span>{" "}
-                          <span className="text-foreground">{item.dose} {item.unidade || "L/ha"}</span>
-                        </p>
-                        {item.data_aplicacao && (
-                          <p>
-                            <span className="font-medium text-muted-foreground">Data aplicação:</span>{" "}
-                            <span className="text-foreground">
-                              {new Date(item.data_aplicacao).toLocaleDateString("pt-BR")}
-                            </span>
-                          </p>
-                        )}
-                        {item.alvo && (
-                          <p>
-                            <span className="font-medium text-muted-foreground">Alvo:</span>{" "}
-                            <span className="text-foreground">{item.alvo}</span>
-                          </p>
-                        )}
-                        {item.produto_salvo && item.porcentagem_salva > 0 && (
-                          <p>
-                            <span className="font-medium text-muted-foreground">% Produto salvo:</span>{" "}
-                            <span className="text-foreground">{item.porcentagem_salva}%</span>
-                          </p>
-                        )}
+                      </div>
+
+                      {/* Lista de defensivos */}
+                      <div className="space-y-3 border-t pt-3">
+                        <h4 className="font-medium text-sm text-muted-foreground">Defensivos aplicados:</h4>
+                        {aplicacao.defensivos.map((def, idx) => (
+                          <div key={def.id || idx} className="bg-muted/50 p-3 rounded-md">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-semibold">{def.defensivo}</span>
+                              {def.produto_salvo && (
+                                <Badge variant="secondary" className="text-xs">Produto Salvo</Badge>
+                              )}
+                            </div>
+                            <div className="grid gap-1 text-sm">
+                              <p>
+                                <span className="text-muted-foreground">Dose:</span>{" "}
+                                {def.dose} {def.unidade}
+                              </p>
+                              {def.alvo && (
+                                <p>
+                                  <span className="text-muted-foreground">Alvo:</span> {def.alvo}
+                                </p>
+                              )}
+                              {def.produto_salvo && def.porcentagem_salva > 0 && (
+                                <p>
+                                  <span className="text-muted-foreground">% Salva:</span> {def.porcentagem_salva}%
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
+
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => setEditing(item)}
-                        title="Editar programação"
+                        onClick={() => setEditing(aplicacao)}
+                        title="Editar aplicação"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => duplicate(item.id)}
-                        title="Duplicar programação"
+                        onClick={() => duplicate(aplicacao.id)}
+                        title="Duplicar aplicação"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => remove(item.id)}
-                        title="Excluir programação"
+                        onClick={() => remove(aplicacao.id)}
+                        title="Excluir aplicação"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
