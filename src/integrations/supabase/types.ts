@@ -196,6 +196,7 @@ export type Database = {
           formulacao: string
           id: string
           porcentagem_salva: number | null
+          produtor_numerocm: string | null
           responsavel: string | null
           total: number | null
           updated_at: string | null
@@ -211,6 +212,7 @@ export type Database = {
           formulacao: string
           id?: string
           porcentagem_salva?: number | null
+          produtor_numerocm?: string | null
           responsavel?: string | null
           total?: number | null
           updated_at?: string | null
@@ -226,6 +228,7 @@ export type Database = {
           formulacao?: string
           id?: string
           porcentagem_salva?: number | null
+          produtor_numerocm?: string | null
           responsavel?: string | null
           total?: number | null
           updated_at?: string | null
@@ -241,6 +244,7 @@ export type Database = {
           data_plantio: string | null
           id: string
           porcentagem_salva: number | null
+          produtor_numerocm: string | null
           quantidade: number
           referencia_rnc_mapa: string | null
           safra: string | null
@@ -256,6 +260,7 @@ export type Database = {
           data_plantio?: string | null
           id?: string
           porcentagem_salva?: number | null
+          produtor_numerocm?: string | null
           quantidade: number
           referencia_rnc_mapa?: string | null
           safra?: string | null
@@ -271,6 +276,7 @@ export type Database = {
           data_plantio?: string | null
           id?: string
           porcentagem_salva?: number | null
+          produtor_numerocm?: string | null
           quantidade?: number
           referencia_rnc_mapa?: string | null
           safra?: string | null
@@ -293,6 +299,7 @@ export type Database = {
           id: string
           porcentagem_salva: number | null
           produto_salvo: boolean | null
+          produtor_numerocm: string | null
           unidade: string | null
           updated_at: string | null
           user_id: string
@@ -308,6 +315,7 @@ export type Database = {
           id?: string
           porcentagem_salva?: number | null
           produto_salvo?: boolean | null
+          produtor_numerocm?: string | null
           unidade?: string | null
           updated_at?: string | null
           user_id: string
@@ -323,6 +331,7 @@ export type Database = {
           id?: string
           porcentagem_salva?: number | null
           produto_salvo?: boolean | null
+          produtor_numerocm?: string | null
           unidade?: string | null
           updated_at?: string | null
           user_id?: string
