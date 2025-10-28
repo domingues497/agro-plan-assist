@@ -7,12 +7,26 @@ import { useProgramacaoCultivares, ProgramacaoCultivar } from "@/hooks/useProgra
 import { FormProgramacao } from "@/components/cultivares/FormProgramacao";
 import { Badge } from "@/components/ui/badge";
 import { useProdutores } from "@/hooks/useProdutores";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useFazendas } from "@/hooks/useFazendas";
 
 const Cultivares = () => {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProgramacaoCultivar | null>(null);
-  const { programacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating } = useProgramacaoCultivares();
+  const { programacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating, replicate, isReplicating } = useProgramacaoCultivares();
   const { data: produtores = [] } = useProdutores();
+  const [replicateOpen, setReplicateOpen] = useState(false);
+  const [replicateTargetId, setReplicateTargetId] = useState<string | null>(null);
+  const [replicateProdutorNumerocm, setReplicateProdutorNumerocm] = useState<string>("");
+  const [replicateArea, setReplicateArea] = useState<string>("");
+  const [replicateTargets, setReplicateTargets] = useState<Array<{ produtor_numerocm: string; area: string }>>([]);
+  const [openReplicateProdutorPopover, setOpenReplicateProdutorPopover] = useState(false);
+  const [openReplicateFazendaPopover, setOpenReplicateFazendaPopover] = useState(false);
+  const { data: fazendas = [] } = useFazendas(replicateProdutorNumerocm);
   const getProdutorMapping = (id: string) => {
     try {
       const raw = localStorage.getItem("programacao_cultivares_produtor_map");
@@ -158,8 +172,13 @@ const Cultivares = () => {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => duplicate(item.id)}
-                        title="Duplicar"
+                        onClick={() => {
+                          setReplicateTargetId(item.id);
+                          setReplicateProdutorNumerocm("");
+                          setReplicateArea("");
+                          setReplicateOpen(true);
+                        }}
+                        title="Replicar"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -179,6 +198,190 @@ const Cultivares = () => {
           </div>
         )}
       </main>
+      {/* Dialog de Replicação */}
+      <Dialog open={replicateOpen} onOpenChange={(o) => setReplicateOpen(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Replicar programação</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Produtor</label>
+              <Popover open={openReplicateProdutorPopover} onOpenChange={setOpenReplicateProdutorPopover}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-full justify-between">
+                    {replicateProdutorNumerocm
+                      ? `${replicateProdutorNumerocm} - ${produtores.find(p => p.numerocm === replicateProdutorNumerocm)?.nome || ""}`
+                      : "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar produtor..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {produtores.map((produtor) => (
+                          <CommandItem
+                            key={produtor.id}
+                            value={`${produtor.numerocm} ${produtor.nome}`}
+                            onSelect={() => {
+                              setReplicateProdutorNumerocm(produtor.numerocm);
+                              setReplicateArea("");
+                              setOpenReplicateProdutorPopover(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                replicateProdutorNumerocm === produtor.numerocm ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {produtor.numerocm} - {produtor.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fazenda</label>
+              <Popover open={openReplicateFazendaPopover} onOpenChange={setOpenReplicateFazendaPopover}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openReplicateFazendaPopover}
+                    className="w-full justify-between"
+                    disabled={!replicateProdutorNumerocm}
+                  >
+                    {replicateArea
+                      ? fazendas.find(f => f.nomefazenda === replicateArea)?.nomefazenda || replicateArea
+                      : "Selecione uma fazenda..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar fazenda..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma fazenda encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        {fazendas?.map((f) => (
+                          <CommandItem
+                            key={f.id}
+                            value={f.nomefazenda}
+                            onSelect={(currentValue) => {
+                              setReplicateArea(currentValue);
+                              setOpenReplicateFazendaPopover(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                replicateArea === f.nomefazenda ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {f.nomefazenda} {f.area_cultivavel && `(${f.area_cultivavel} ha)`}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <div className="mt-4 flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!replicateProdutorNumerocm || !replicateArea) return;
+                const exists = replicateTargets.some(
+                  (t) => t.produtor_numerocm === replicateProdutorNumerocm && t.area === replicateArea
+                );
+                if (exists) return;
+                setReplicateTargets([
+                  ...replicateTargets,
+                  { produtor_numerocm: replicateProdutorNumerocm, area: replicateArea },
+                ]);
+                setReplicateArea("");
+              }}
+              disabled={!replicateProdutorNumerocm || !replicateArea}
+            >
+              Adicionar destino
+            </Button>
+          </div>
+          {replicateTargets.length > 0 && (
+            <div className="mt-2 space-y-2">
+              <label className="text-sm font-medium">Destinos selecionados</label>
+              <div className="space-y-2">
+                {replicateTargets.map((t, idx) => (
+                  <div
+                    key={`${t.produtor_numerocm}-${t.area}-${idx}`}
+                    className="flex items-center justify-between rounded-md border p-2"
+                  >
+                    <div className="text-sm">
+                      <span className="font-medium">
+                        {t.produtor_numerocm} - {produtores.find(p => p.numerocm === t.produtor_numerocm)?.nome || ""}
+                      </span>
+                      <span className="ml-2 text-muted-foreground">/ {t.area}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setReplicateTargets(replicateTargets.filter((rt, i) => i !== idx));
+                      }}
+                      title="Remover destino"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setReplicateOpen(false);
+                setReplicateTargetId(null);
+                setReplicateProdutorNumerocm("");
+                setReplicateArea("");
+                setReplicateTargets([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!replicateTargetId || replicateTargets.length === 0) return;
+                for (const t of replicateTargets) {
+                  try {
+                    await replicate({ id: replicateTargetId, produtor_numerocm: t.produtor_numerocm, area: t.area });
+                  } catch (e) {
+                    // Erro individual tratado via toast no hook
+                  }
+                }
+                setReplicateOpen(false);
+                setReplicateTargetId(null);
+                setReplicateProdutorNumerocm("");
+                setReplicateArea("");
+                setReplicateTargets([]);
+              }}
+              disabled={isReplicating || !replicateTargetId || replicateTargets.length === 0}
+            >
+              Replicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

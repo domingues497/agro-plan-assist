@@ -239,6 +239,25 @@ export const useProgramacaoCultivares = () => {
     },
   });
 
+  // Replicate mutation: cria uma cópia em outro produtor/fazenda
+  const replicateMutation = useMutation({
+    mutationFn: async ({ id, produtor_numerocm, area }: { id: string; produtor_numerocm: string; area: string }) => {
+      const original = programacoes?.find((p) => p.id === id);
+      if (!original) throw new Error("Programação não encontrada");
+
+      const { id: _, created_at, updated_at, user_id, produtor_numerocm: _cm, area: _area, ...rest } = original as any;
+      const payload = { ...rest, produtor_numerocm, area } as CreateProgramacaoCultivar;
+      return createMutation.mutateAsync(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["programacao-cultivares"] });
+      toast.success("Programação replicada com sucesso");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao replicar programação: ${error.message}`);
+    },
+  });
+
   return {
     programacoes: programacoes ?? [],
     isLoading,
@@ -247,9 +266,11 @@ export const useProgramacaoCultivares = () => {
     update: updateMutation.mutate,
     remove: deleteMutation.mutate,
     duplicate: duplicateMutation.mutate,
+    replicate: replicateMutation.mutate,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isDuplicating: duplicateMutation.isPending,
+    isReplicating: replicateMutation.isPending,
   };
 };

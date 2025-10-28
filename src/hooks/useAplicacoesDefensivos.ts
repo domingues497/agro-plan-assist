@@ -198,6 +198,27 @@ export const useAplicacoesDefensivos = () => {
     },
   });
 
+  // Replicate mutation: copy defensivos but allow selecting target produtor and fazenda
+  const replicateMutation = useMutation({
+    mutationFn: async ({ id, produtor_numerocm, area }: { id: string; produtor_numerocm: string; area: string }) => {
+      const aplicacao = aplicacoes.find((a) => a.id === id);
+      if (!aplicacao) throw new Error("Aplicação não encontrada");
+
+      return createMutation.mutateAsync({
+        produtor_numerocm,
+        area,
+        defensivos: aplicacao.defensivos.map(({ id, ...def }) => def),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
+      toast.success("Aplicação replicada com sucesso!");
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao replicar aplicação: " + error.message);
+    },
+  });
+
   return {
     aplicacoes,
     isLoading,
@@ -206,9 +227,11 @@ export const useAplicacoesDefensivos = () => {
     update: updateMutation.mutateAsync,
     remove: deleteMutation.mutateAsync,
     duplicate: duplicateMutation.mutateAsync,
+    replicate: replicateMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isDuplicating: duplicateMutation.isPending,
+    isReplicating: replicateMutation.isPending,
   };
 };
