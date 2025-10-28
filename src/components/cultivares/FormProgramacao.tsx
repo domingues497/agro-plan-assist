@@ -31,6 +31,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const [openNomeComum, setOpenNomeComum] = useState(false);
   const [openFazenda, setOpenFazenda] = useState(false);
   const [filtroNomeComum, setFiltroNomeComum] = useState("");
+  const [searchCultivar, setSearchCultivar] = useState("");
   const normalizeCM = (v: string | undefined | null) => String(v ?? "").trim().toLowerCase();
   
   const [formData, setFormData] = useState<CreateProgramacaoCultivar>({
@@ -80,9 +81,24 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   };
 
   const cultivaresFiltrados = (cultivares || []).filter((c) => {
-    if (!filtroNomeComum) return true;
-    const nome = (c.nome_comum || "").toLowerCase();
-    return nome.includes(filtroNomeComum.toLowerCase());
+    // Filtro por nome comum
+    if (filtroNomeComum) {
+      const nome = (c.nome_comum || "").toLowerCase();
+      if (!nome.includes(filtroNomeComum.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    // Filtro por busca de texto
+    if (searchCultivar) {
+      const searchTerm = searchCultivar.toLowerCase();
+      const cultivarMatch = (c.cultivar || "").toLowerCase().includes(searchTerm);
+      const nomeComumMatch = (c.nome_comum || "").toLowerCase().includes(searchTerm);
+      const registroMatch = (c.numero_registro || "").toLowerCase().includes(searchTerm);
+      return cultivarMatch || nomeComumMatch || registroMatch;
+    }
+    
+    return true;
   });
   const nomesComuns = Array.from(
     new Set((cultivares || []).map((c) => (c.nome_comum || "").trim()).filter(Boolean))
@@ -217,8 +233,12 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar cultivar..." />
+                  <Command shouldFilter={false}>
+                    <CommandInput 
+                      placeholder="Buscar cultivar..." 
+                      value={searchCultivar}
+                      onValueChange={setSearchCultivar}
+                    />
                     <CommandList>
                       <CommandEmpty>Nenhum cultivar encontrado.</CommandEmpty>
                       <CommandGroup>
@@ -226,8 +246,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                           <CommandItem
                             key={cultivar.numero_registro}
                             value={cultivar.cultivar || ""}
-                            onSelect={(currentValue) => {
-                              setFormData({ ...formData, cultivar: currentValue });
+                            onSelect={() => {
+                              setFormData({ ...formData, cultivar: cultivar.cultivar || "" });
+                              setSearchCultivar("");
                               setOpen(false);
                             }}
                           >
