@@ -28,9 +28,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const { data: cultivares } = useCultivaresCatalog();
   const { data: produtores } = useProdutores();
   const [openProdutor, setOpenProdutor] = useState(false);
-  const [openNomeComum, setOpenNomeComum] = useState(false);
+  const [openGrupo, setOpenGrupo] = useState(false);
   const [openFazenda, setOpenFazenda] = useState(false);
-  const [filtroNomeComum, setFiltroNomeComum] = useState("");
+  const [filtroGrupo, setFiltroGrupo] = useState("");
   const [searchCultivar, setSearchCultivar] = useState("");
   const normalizeCM = (v: string | undefined | null) => String(v ?? "").trim().toLowerCase();
   
@@ -61,19 +61,19 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData?.produtor_numerocm, initialData?.cultivar]);
 
-  // Preenche automaticamente o filtro de "Nome comum" quando estamos editando
+  // Preenche automaticamente o filtro de "Grupo" quando estamos editando
   // e o catálogo de cultivares já está carregado.
   useEffect(() => {
     if (!formData.cultivar) return;
-    if (filtroNomeComum) return; // evita sobrescrever escolhas do usuário
+    if (filtroGrupo) return; // evita sobrescrever escolhas do usuário
     const target = (formData.cultivar || "").trim().toLowerCase();
     const match = (cultivares || []).find(
       (c) => (c.cultivar || "").trim().toLowerCase() === target
     );
-    if (match?.nome_comum) {
-      setFiltroNomeComum(match.nome_comum);
+    if (match?.grupo) {
+      setFiltroGrupo(match.grupo);
     }
-  }, [formData.cultivar, cultivares, filtroNomeComum]);
+  }, [formData.cultivar, cultivares, filtroGrupo]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,10 +81,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   };
 
   const cultivaresFiltrados = (cultivares || []).filter((c) => {
-    // Filtro por nome comum
-    if (filtroNomeComum) {
-      const nome = (c.nome_comum || "").toLowerCase();
-      if (!nome.includes(filtroNomeComum.toLowerCase())) {
+    // Filtro por grupo
+    if (filtroGrupo) {
+      const grupo = (c.grupo || "").toLowerCase();
+      if (!grupo.includes(filtroGrupo.toLowerCase())) {
         return false;
       }
     }
@@ -93,15 +93,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     if (searchCultivar) {
       const searchTerm = searchCultivar.toLowerCase();
       const cultivarMatch = (c.cultivar || "").toLowerCase().includes(searchTerm);
-      const nomeComumMatch = (c.nome_comum || "").toLowerCase().includes(searchTerm);
-      const registroMatch = (c.numero_registro || "").toLowerCase().includes(searchTerm);
-      return cultivarMatch || nomeComumMatch || registroMatch;
+      const itemMatch = (c.item || "").toLowerCase().includes(searchTerm);
+      const marcaMatch = (c.marca || "").toLowerCase().includes(searchTerm);
+      const codItemMatch = (c.cod_item || "").toLowerCase().includes(searchTerm);
+      return cultivarMatch || itemMatch || marcaMatch || codItemMatch;
     }
     
     return true;
   });
-  const nomesComuns = Array.from(
-    new Set((cultivares || []).map((c) => (c.nome_comum || "").trim()).filter(Boolean))
+  const grupos = Array.from(
+    new Set((cultivares || []).map((c) => (c.grupo || "").trim()).filter(Boolean))
   ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
   return (
     <Card className="p-6 mb-6">
@@ -162,54 +163,54 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
           </div>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="nome_comum">Nome comum</Label>
-              <Popover open={openNomeComum} onOpenChange={setOpenNomeComum}>
+              <Label htmlFor="grupo">Grupo</Label>
+              <Popover open={openGrupo} onOpenChange={setOpenGrupo}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     role="combobox"
-                    aria-expanded={openNomeComum}
+                    aria-expanded={openGrupo}
                     className="w-full justify-between"
                   >
-                    {filtroNomeComum ? filtroNomeComum : "Selecione o nome comum..."}
+                    {filtroGrupo ? filtroGrupo : "Selecione o grupo..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput placeholder="Buscar nome comum..." />
+                    <CommandInput placeholder="Buscar grupo..." />
                     <CommandList>
-                      <CommandEmpty>Nenhum nome comum encontrado.</CommandEmpty>
+                      <CommandEmpty>Nenhum grupo encontrado.</CommandEmpty>
                       <CommandGroup>
                         <CommandItem
                           key="todos"
                           value=""
                           onSelect={() => {
-                            setFiltroNomeComum("");
-                            setOpenNomeComum(false);
+                            setFiltroGrupo("");
+                            setOpenGrupo(false);
                           }}
                         >
-                          <Check className={cn("mr-2 h-4 w-4", !filtroNomeComum ? "opacity-100" : "opacity-0")} />
+                          <Check className={cn("mr-2 h-4 w-4", !filtroGrupo ? "opacity-100" : "opacity-0")} />
                           Todos
                         </CommandItem>
-                        {nomesComuns.map((nome) => (
+                        {grupos.map((grupo) => (
                           <CommandItem
-                            key={nome}
-                            value={nome}
+                            key={grupo}
+                            value={grupo}
                             onSelect={(currentValue) => {
-                              setFiltroNomeComum(currentValue);
-                              setOpenNomeComum(false);
+                              setFiltroGrupo(currentValue);
+                              setOpenGrupo(false);
                             }}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                filtroNomeComum.toLowerCase() === nome.toLowerCase()
+                                filtroGrupo.toLowerCase() === grupo.toLowerCase()
                                   ? "opacity-100"
                                   : "opacity-0"
                               )}
                             />
-                            {nome}
+                            {grupo}
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -244,7 +245,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                       <CommandGroup>
                         {cultivaresFiltrados?.map((cultivar) => (
                           <CommandItem
-                            key={cultivar.numero_registro}
+                            key={cultivar.cod_item}
                             value={cultivar.cultivar || ""}
                             onSelect={() => {
                               setFormData({ ...formData, cultivar: cultivar.cultivar || "" });
@@ -259,9 +260,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                               )}
                             />
                             {cultivar.cultivar}
-                            {cultivar.nome_comum && (
+                            {cultivar.marca && (
                               <span className="ml-2 text-xs text-muted-foreground">
-                                ({cultivar.nome_comum})
+                                ({cultivar.marca})
                               </span>
                             )}
                           </CommandItem>

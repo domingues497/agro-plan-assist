@@ -24,27 +24,6 @@ export const ImportCultivares = () => {
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
 
-  const parseExcelDate = (value: any): string | null => {
-    if (!value) return null;
-    
-    // Se for um número (data do Excel)
-    if (typeof value === 'number') {
-      const date = new Date((value - 25569) * 86400 * 1000);
-      return date.toISOString().split('T')[0];
-    }
-    
-    // Se for string em formato DD/MM/YYYY
-    if (typeof value === 'string' && value.includes('/')) {
-      const [day, month, year] = value.split('/');
-      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      if (!isNaN(date.getTime())) {
-        return date.toISOString().split('T')[0];
-      }
-    }
-    
-    return null;
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -62,22 +41,17 @@ export const ImportCultivares = () => {
 
       for (const row of jsonData as any[]) {
         const cultivarData = {
-          numero_registro: row["Nº REGISTRO"] || row["N° REGISTRO"],
+          cod_item: row["COD.ITEM"] || row["COD. ITEM"] || null,
+          item: row["ITEM"] || null,
+          grupo: row["GRUPO"] || null,
+          marca: row["MARCA"] || null,
           cultivar: row["CULTIVAR"] || null,
-          nome_comum: row["NOME COMUM"] || null,
-          nome_cientifico: row["NOME CIENTÍFICO"] || null,
-          grupo_especie: row["GRUPO DA ESPÉCIE"] || null,
-          situacao: row["SITUAÇÃO"] || null,
-          numero_formulario: row["Nº FORMULÁRIO"] || row["N° FORMULÁRIO"] || null,
-          data_registro: parseExcelDate(row["DATA DO REGISTRO"]),
-          data_validade_registro: parseExcelDate(row["DATA DE VALIDADE DO REGISTRO"]),
-          mantenedor: row["MANTENEDOR, (REQUERENTE) (NOME)"] || row["MANTENEDOR"] || null,
         };
 
         const { error } = await supabase
           .from("cultivares_catalog")
           .upsert(cultivarData, { 
-            onConflict: "numero_registro",
+            onConflict: "cod_item",
             ignoreDuplicates: false 
           });
 
@@ -103,8 +77,7 @@ export const ImportCultivares = () => {
       <CardHeader>
         <CardTitle>Importar Cultivares</CardTitle>
         <CardDescription>
-          Faça upload de uma planilha Excel (.xlsx ou .xls) com as colunas: CULTIVAR, NOME COMUM, NOME CIENTÍFICO, 
-          GRUPO DA ESPÉCIE, SITUAÇÃO, Nº FORMULÁRIO, Nº REGISTRO, DATA DO REGISTRO, DATA DE VALIDADE DO REGISTRO, MANTENEDOR
+          Faça upload de uma planilha Excel (.xlsx ou .xls) com as colunas: COD. ITEM, ITEM, GRUPO, MARCA, CULTIVAR
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

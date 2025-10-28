@@ -70,48 +70,33 @@ export type Database = {
       }
       cultivares_catalog: {
         Row: {
+          cod_item: string
           created_at: string | null
           cultivar: string | null
-          data_registro: string | null
-          data_validade_registro: string | null
-          grupo_especie: string | null
+          grupo: string | null
           id: string
-          mantenedor: string | null
-          nome_cientifico: string | null
-          nome_comum: string | null
-          numero_formulario: string | null
-          numero_registro: string
-          situacao: string | null
+          item: string | null
+          marca: string | null
           updated_at: string | null
         }
         Insert: {
+          cod_item: string
           created_at?: string | null
           cultivar?: string | null
-          data_registro?: string | null
-          data_validade_registro?: string | null
-          grupo_especie?: string | null
+          grupo?: string | null
           id?: string
-          mantenedor?: string | null
-          nome_cientifico?: string | null
-          nome_comum?: string | null
-          numero_formulario?: string | null
-          numero_registro: string
-          situacao?: string | null
+          item?: string | null
+          marca?: string | null
           updated_at?: string | null
         }
         Update: {
+          cod_item?: string
           created_at?: string | null
           cultivar?: string | null
-          data_registro?: string | null
-          data_validade_registro?: string | null
-          grupo_especie?: string | null
+          grupo?: string | null
           id?: string
-          mantenedor?: string | null
-          nome_cientifico?: string | null
-          nome_comum?: string | null
-          numero_formulario?: string | null
-          numero_registro?: string
-          situacao?: string | null
+          item?: string | null
+          marca?: string | null
           updated_at?: string | null
         }
         Relationships: []

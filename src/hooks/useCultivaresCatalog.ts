@@ -7,7 +7,7 @@ export const useCultivaresCatalog = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cultivares_catalog")
-        .select("cultivar, numero_registro, nome_comum, grupo_especie")
+        .select("cod_item, item, grupo, marca, cultivar")
         .order("cultivar");
 
       if (error) throw error;
