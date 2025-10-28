@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { CreateProgramacaoCultivar } from "@/hooks/useProgramacaoCultivares";
 import { useProdutores } from "@/hooks/useProdutores";
+import { useFazendas } from "@/hooks/useFazendas";
 
 type FormProgramacaoProps = {
   onSubmit: (data: CreateProgramacaoCultivar) => void;
@@ -28,6 +29,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const { data: produtores } = useProdutores();
   const [openProdutor, setOpenProdutor] = useState(false);
   const [openNomeComum, setOpenNomeComum] = useState(false);
+  const [openFazenda, setOpenFazenda] = useState(false);
   const [filtroNomeComum, setFiltroNomeComum] = useState("");
   const normalizeCM = (v: string | undefined | null) => String(v ?? "").trim().toLowerCase();
   
@@ -43,6 +45,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     referencia_rnc_mapa: initialData?.referencia_rnc_mapa ?? null,
     porcentagem_salva: initialData?.porcentagem_salva ?? 0,
   });
+
+  const { data: fazendas } = useFazendas(formData.produtor_numerocm);
 
   useEffect(() => {
     if (initialData) {
@@ -119,9 +123,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                       {produtores?.map((p) => (
                         <CommandItem
                           key={p.numerocm}
-                          value={p.numerocm}
+                           value={p.numerocm}
                           onSelect={(currentValue) => {
-                            setFormData({ ...formData, produtor_numerocm: currentValue.trim() });
+                            setFormData({ ...formData, produtor_numerocm: currentValue.trim(), area: "" });
                             setOpenProdutor(false);
                           }}
                         >
@@ -250,26 +254,66 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="area">Área *</Label>
+            <Label htmlFor="fazenda">Fazenda *</Label>
+            <Popover open={openFazenda} onOpenChange={setOpenFazenda}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openFazenda}
+                  className="w-full justify-between"
+                  disabled={!formData.produtor_numerocm}
+                >
+                  {formData.area
+                    ? fazendas.find(f => f.nomefazenda === formData.area)?.nomefazenda || formData.area
+                    : "Selecione uma fazenda..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar fazenda..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma fazenda encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {fazendas?.map((f) => (
+                        <CommandItem
+                          key={f.id}
+                          value={f.nomefazenda}
+                          onSelect={(currentValue) => {
+                            setFormData({ ...formData, area: currentValue });
+                            setOpenFazenda(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.area === f.nomefazenda ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {f.nomefazenda} {f.area_cultivavel && `(${f.area_cultivavel} ha)`}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="area_ha">Área (ha) *</Label>
             <Input
-              id="area"
-              value={formData.area}
-              onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+              id="area_ha"
+              type="number"
+              step="0.01"
+              placeholder="Digite a área em hectares"
+              value={formData.quantidade}
+              onChange={(e) => setFormData({ ...formData, quantidade: parseFloat(e.target.value) || 0 })}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="quantidade">Quantidade *</Label>
-            <Input
-              id="quantidade"
-              type="number"
-              step="0.01"
-              value={formData.quantidade}
-              onChange={(e) => setFormData({ ...formData, quantidade: parseFloat(e.target.value) })}
-              required
-            />
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="unidade">Unidade</Label>

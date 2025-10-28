@@ -149,6 +149,39 @@ export type Database = {
         }
         Relationships: []
       }
+      fazendas: {
+        Row: {
+          area_cultivavel: number | null
+          created_at: string | null
+          id: string
+          idfazenda: string
+          nomefazenda: string
+          numerocm: string
+          numerocm_consultor: string
+          updated_at: string | null
+        }
+        Insert: {
+          area_cultivavel?: number | null
+          created_at?: string | null
+          id?: string
+          idfazenda: string
+          nomefazenda: string
+          numerocm: string
+          numerocm_consultor: string
+          updated_at?: string | null
+        }
+        Update: {
+          area_cultivavel?: number | null
+          created_at?: string | null
+          id?: string
+          idfazenda?: string
+          nomefazenda?: string
+          numerocm?: string
+          numerocm_consultor?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       fertilizantes_catalog: {
         Row: {
           cod_item: string

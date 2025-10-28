@@ -10,6 +10,7 @@ import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
+import { useFazendas } from "@/hooks/useFazendas";
 import type { DefensivoItem } from "@/hooks/useAplicacoesDefensivos";
 
 type FormAplicacaoDefensivoProps = {
@@ -38,6 +39,9 @@ export const FormAplicacaoDefensivo = ({
 
   const [produtorNumerocm, setProdutorNumerocm] = useState("");
   const [area, setArea] = useState("");
+  const [openFazenda, setOpenFazenda] = useState(false);
+  const { data: fazendas } = useFazendas(produtorNumerocm);
+  
   const [defensivos, setDefensivos] = useState<Array<Omit<DefensivoItem, "id"> & { tempId: string }>>([
     {
       tempId: crypto.randomUUID(),
@@ -143,6 +147,7 @@ export const FormAplicacaoDefensivo = ({
                           value={`${produtor.numerocm} ${produtor.nome}`}
                           onSelect={() => {
                             setProdutorNumerocm(produtor.numerocm);
+                            setArea("");
                             setOpenProdutorPopover(false);
                           }}
                         >
@@ -163,14 +168,51 @@ export const FormAplicacaoDefensivo = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="area">Área *</Label>
-            <Input
-              id="area"
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              placeholder="Ex: Talhão 01"
-              required
-            />
+            <Label htmlFor="fazenda">Fazenda *</Label>
+            <Popover open={openFazenda} onOpenChange={setOpenFazenda}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openFazenda}
+                  className="w-full justify-between"
+                  disabled={!produtorNumerocm}
+                >
+                  {area
+                    ? fazendas.find(f => f.nomefazenda === area)?.nomefazenda || area
+                    : "Selecione uma fazenda..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar fazenda..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma fazenda encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {fazendas?.map((f) => (
+                        <CommandItem
+                          key={f.id}
+                          value={f.nomefazenda}
+                          onSelect={(currentValue) => {
+                            setArea(currentValue);
+                            setOpenFazenda(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              area === f.nomefazenda ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {f.nomefazenda} {f.area_cultivavel && `(${f.area_cultivavel} ha)`}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 

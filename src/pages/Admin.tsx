@@ -13,6 +13,7 @@ import { ImportFertilizantes } from "@/components/admin/ImportFertilizantes";
 import { ImportDefensivos } from "@/components/admin/ImportDefensivos";
 import { ImportConsultores } from "@/components/admin/ImportConsultores";
 import { ImportProdutores } from "@/components/admin/ImportProdutores";
+import { ImportFazendas } from "@/components/admin/ImportFazendas";
 
 const ADMIN_PASSWORD = "Co0p@gr!#0la";
 
@@ -114,12 +115,13 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="cultivares" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="cultivares">Cultivares</TabsTrigger>
           <TabsTrigger value="fertilizantes">Fertilizantes</TabsTrigger>
           <TabsTrigger value="defensivos">Defensivos</TabsTrigger>
           <TabsTrigger value="consultores">Consultores</TabsTrigger>
           <TabsTrigger value="produtores">Produtores</TabsTrigger>
+          <TabsTrigger value="fazendas">Fazendas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="cultivares">
@@ -140,6 +142,10 @@ export default function Admin() {
 
         <TabsContent value="produtores">
           <ImportProdutores />
+        </TabsContent>
+
+        <TabsContent value="fazendas">
+          <ImportFazendas />
         </TabsContent>
       </Tabs>
     </div>

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useFertilizantesCatalog } from "@/hooks/useFertilizantesCatalog";
 import { CreateProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useProdutores } from "@/hooks/useProdutores";
+import { useFazendas } from "@/hooks/useFazendas";
 
 type FormAdubacaoProps = {
   onSubmit: (data: CreateProgramacaoAdubacao) => void;
@@ -26,6 +27,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
   const { data: fertilizantes } = useFertilizantesCatalog();
   const { data: produtores } = useProdutores();
   const [openProdutor, setOpenProdutor] = useState(false);
+  const [openFazenda, setOpenFazenda] = useState(false);
   
   const normalizeNumerocm = (v?: string) => (v || "").trim().toLowerCase();
   const parseNumber = (v: string | number | null | undefined) => {
@@ -47,6 +49,8 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
     deve_faturar: initialData?.deve_faturar ?? true,
     porcentagem_salva: initialData?.porcentagem_salva ?? 0,
   });
+
+  const { data: fazendas } = useFazendas(formData.produtor_numerocm);
 
   useEffect(() => {
     if (initialData) {
@@ -117,7 +121,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
                           key={p.numerocm}
                           value={p.numerocm}
                           onSelect={(currentValue) => {
-                            setFormData({ ...formData, produtor_numerocm: currentValue.trim() });
+                            setFormData({ ...formData, produtor_numerocm: currentValue.trim(), area: "" });
                             setOpenProdutor(false);
                           }}
                         >
@@ -189,23 +193,71 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="area">Área *</Label>
+            <Label htmlFor="fazenda">Fazenda *</Label>
+            <Popover open={openFazenda} onOpenChange={setOpenFazenda}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openFazenda}
+                  className="w-full justify-between"
+                  disabled={!formData.produtor_numerocm}
+                >
+                  {formData.area
+                    ? fazendas.find(f => f.nomefazenda === formData.area)?.nomefazenda || formData.area
+                    : "Selecione uma fazenda..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar fazenda..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma fazenda encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {fazendas?.map((f) => (
+                        <CommandItem
+                          key={f.id}
+                          value={f.nomefazenda}
+                          onSelect={(currentValue) => {
+                            setFormData({ ...formData, area: currentValue });
+                            setOpenFazenda(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.area === f.nomefazenda ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {f.nomefazenda} {f.area_cultivavel && `(${f.area_cultivavel} ha)`}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="area_ha">Área (ha) *</Label>
             <Input
-              id="area"
-              value={formData.area}
+              id="area_ha"
+              type="number"
+              step="0.01"
+              placeholder="Digite a área em hectares"
               onChange={(e) => {
                 const areaVal = e.target.value;
                 const areaNum = parseNumber(areaVal);
                 if (Number.isFinite(areaNum)) {
                   if (lastEdited === "total") {
                     const dose = areaNum > 0 && formData.total ? (formData.total as number) / areaNum : 0;
-                    setFormData({ ...formData, area: areaVal, dose });
+                    setFormData({ ...formData, dose });
                   } else {
                     const total = formData.dose > 0 ? areaNum * formData.dose : null;
-                    setFormData({ ...formData, area: areaVal, total });
+                    setFormData({ ...formData, total });
                   }
-                } else {
-                  setFormData({ ...formData, area: areaVal });
                 }
                 setLastEdited("area");
               }}
