@@ -6,11 +6,13 @@ import { Sprout, ArrowLeft, Copy, Trash2, Plus, Pencil } from "lucide-react";
 import { useProgramacaoCultivares, ProgramacaoCultivar } from "@/hooks/useProgramacaoCultivares";
 import { FormProgramacao } from "@/components/cultivares/FormProgramacao";
 import { Badge } from "@/components/ui/badge";
+import { useProdutores } from "@/hooks/useProdutores";
 
 const Cultivares = () => {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProgramacaoCultivar | null>(null);
   const { programacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating } = useProgramacaoCultivares();
+  const { data: produtores = [] } = useProdutores();
   const getProdutorMapping = (id: string) => {
     try {
       const raw = localStorage.getItem("programacao_cultivares_produtor_map");
@@ -102,7 +104,9 @@ const Cultivares = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
                         <Sprout className="h-5 w-5 text-primary" />
-                        <h3 className="font-semibold text-lg">{item.cultivar}</h3>
+                        <h3 className="font-semibold text-lg">
+                          {item.produtor_numerocm} - {produtores.find(p => p.numerocm === item.produtor_numerocm)?.nome || ""}
+                        </h3>
                         {item.semente_propria && (
                           <Badge variant="secondary">Semente Própria</Badge>
                         )}
@@ -110,20 +114,23 @@ const Cultivares = () => {
                       
                       <div className="grid gap-2 text-sm text-muted-foreground">
                         <p>
-                          <span className="font-medium">Área:</span> {item.area}
+                          <span className="font-medium">Cultivar:</span> {item.cultivar}
                         </p>
                         <p>
-                          <span className="font-medium">Quantidade:</span> {item.quantidade} {item.unidade}
+                          <span className="font-medium">Fazenda:</span> {item.area}
                         </p>
+                        <p>
+                          <span className="font-medium">Área:</span> {item.quantidade} ha
+                        </p>
+                        {item.safra && (
+                          <p>
+                            <span className="font-medium">Safra:</span> {item.safra}
+                          </p>
+                        )}
                         {item.data_plantio && (
                           <p>
                             <span className="font-medium">Data plantio:</span>{" "}
                             {new Date(item.data_plantio).toLocaleDateString("pt-BR")}
-                          </p>
-                        )}
-                        {item.safra && (
-                          <p>
-                            <span className="font-medium">Safra:</span> {item.safra}
                           </p>
                         )}
                         {item.semente_propria && item.porcentagem_salva > 0 && (

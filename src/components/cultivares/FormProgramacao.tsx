@@ -161,120 +161,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               </PopoverContent>
             </Popover>
           </div>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="grupo">Grupo</Label>
-              <Popover open={openGrupo} onOpenChange={setOpenGrupo}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openGrupo}
-                    className="w-full justify-between"
-                  >
-                    {filtroGrupo ? filtroGrupo : "Selecione o grupo..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar grupo..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhum grupo encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem
-                          key="todos"
-                          value=""
-                          onSelect={() => {
-                            setFiltroGrupo("");
-                            setOpenGrupo(false);
-                          }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", !filtroGrupo ? "opacity-100" : "opacity-0")} />
-                          Todos
-                        </CommandItem>
-                        {grupos.map((grupo) => (
-                          <CommandItem
-                            key={grupo}
-                            value={grupo}
-                            onSelect={(currentValue) => {
-                              setFiltroGrupo(currentValue);
-                              setOpenGrupo(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                filtroGrupo.toLowerCase() === grupo.toLowerCase()
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              )}
-                            />
-                            {grupo}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cultivar">Cultivar *</Label>
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-full justify-between"
-                  >
-                    {formData.cultivar || "Selecione um cultivar..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command shouldFilter={false}>
-                    <CommandInput 
-                      placeholder="Buscar cultivar..." 
-                      value={searchCultivar}
-                      onValueChange={setSearchCultivar}
-                    />
-                    <CommandList>
-                      <CommandEmpty>Nenhum cultivar encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        {cultivaresFiltrados?.map((cultivar) => (
-                          <CommandItem
-                            key={cultivar.cod_item}
-                            value={cultivar.item || ""}
-                            onSelect={() => {
-                              setFormData({ ...formData, cultivar: cultivar.item || "" });
-                              setSearchCultivar("");
-                              setOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.cultivar === cultivar.item ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {cultivar.item}
-                            {cultivar.marca && (
-                              <span className="ml-2 text-xs text-muted-foreground">
-                                ({cultivar.marca})
-                              </span>
-                            )}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="fazenda">Fazenda *</Label>
             <Popover open={openFazenda} onOpenChange={setOpenFazenda}>
@@ -336,6 +223,128 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="safra">Safra</Label>
+            <Input
+              id="safra"
+              placeholder="2024/2025"
+              value={formData.safra || ""}
+              onChange={(e) => setFormData({ ...formData, safra: e.target.value || null })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="grupo">Grupo</Label>
+            <Popover open={openGrupo} onOpenChange={setOpenGrupo}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openGrupo}
+                  className="w-full justify-between"
+                >
+                  {filtroGrupo ? filtroGrupo : "Selecione o grupo..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar grupo..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum grupo encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        key="todos"
+                        value=""
+                        onSelect={() => {
+                          setFiltroGrupo("");
+                          setOpenGrupo(false);
+                        }}
+                      >
+                        <Check className={cn("mr-2 h-4 w-4", !filtroGrupo ? "opacity-100" : "opacity-0")} />
+                        Todos
+                      </CommandItem>
+                      {grupos.map((grupo) => (
+                        <CommandItem
+                          key={grupo}
+                          value={grupo}
+                          onSelect={(currentValue) => {
+                            setFiltroGrupo(currentValue);
+                            setOpenGrupo(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              filtroGrupo.toLowerCase() === grupo.toLowerCase()
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          {grupo}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cultivar">Cultivar *</Label>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between"
+                >
+                  {formData.cultivar || "Selecione um cultivar..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Buscar cultivar..." 
+                    value={searchCultivar}
+                    onValueChange={setSearchCultivar}
+                  />
+                  <CommandList>
+                    <CommandEmpty>Nenhum cultivar encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {cultivaresFiltrados?.map((cultivar) => (
+                        <CommandItem
+                          key={cultivar.cod_item}
+                          value={cultivar.item || ""}
+                          onSelect={() => {
+                            setFormData({ ...formData, cultivar: cultivar.item || "" });
+                            setSearchCultivar("");
+                            setOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.cultivar === cultivar.item ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {cultivar.item}
+                          {cultivar.marca && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              ({cultivar.marca})
+                            </span>
+                          )}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="unidade">Unidade</Label>
@@ -360,16 +369,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               onChange={(e) => setFormData({ ...formData, data_plantio: e.target.value || null })}
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="safra">Safra</Label>
-            <Input
-              id="safra"
-              placeholder="2024/2025"
-              value={formData.safra || ""}
-              onChange={(e) => setFormData({ ...formData, safra: e.target.value || null })}
-            />
-          </div>
         </div>
 
         <div className="space-y-4 pt-4 border-t">
@@ -387,12 +386,50 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
           {formData.semente_propria && (
             <div className="space-y-2 pl-6">
               <Label htmlFor="referencia_rnc_mapa">Referência RNC MAPA</Label>
-              <Input
-                id="referencia_rnc_mapa"
-                placeholder="Ex: RNC-2024-1234"
-                value={formData.referencia_rnc_mapa || ""}
-                onChange={(e) => setFormData({ ...formData, referencia_rnc_mapa: e.target.value || null })}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    {formData.referencia_rnc_mapa || "Selecione o cultivar de referência..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar cultivar..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum cultivar encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {cultivares?.map((cultivar) => (
+                          <CommandItem
+                            key={cultivar.cod_item}
+                            value={cultivar.item || ""}
+                            onSelect={() => {
+                              setFormData({ ...formData, referencia_rnc_mapa: cultivar.item || null });
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.referencia_rnc_mapa === cultivar.item ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {cultivar.item}
+                            {cultivar.marca && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                ({cultivar.marca})
+                              </span>
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
