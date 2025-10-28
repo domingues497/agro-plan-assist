@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,28 +17,58 @@ type FormProgramacaoProps = {
   onSubmit: (data: CreateProgramacaoCultivar) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  initialData?: Partial<CreateProgramacaoCultivar>;
+  title?: string;
+  submitLabel?: string;
 };
 
-export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramacaoProps) => {
+export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, title = "Nova Programação", submitLabel = "Salvar programação" }: FormProgramacaoProps) => {
   const [open, setOpen] = useState(false);
   const { data: cultivares } = useCultivaresCatalog();
   const { data: produtores } = useProdutores();
   const [openProdutor, setOpenProdutor] = useState(false);
   const [openNomeComum, setOpenNomeComum] = useState(false);
   const [filtroNomeComum, setFiltroNomeComum] = useState("");
+  const normalizeCM = (v: string | undefined | null) => String(v ?? "").trim().toLowerCase();
   
   const [formData, setFormData] = useState<CreateProgramacaoCultivar>({
-    cultivar: "",
-    area: "",
-    produtor_numerocm: "",
-    quantidade: 0,
-    unidade: "kg",
-    data_plantio: null,
-    safra: null,
-    semente_propria: false,
-    referencia_rnc_mapa: null,
-    porcentagem_salva: 0,
+    cultivar: initialData?.cultivar ?? "",
+    area: initialData?.area ?? "",
+    produtor_numerocm: initialData?.produtor_numerocm ?? "",
+    quantidade: initialData?.quantidade ?? 0,
+    unidade: initialData?.unidade ?? "kg",
+    data_plantio: initialData?.data_plantio ?? null,
+    safra: initialData?.safra ?? null,
+    semente_propria: initialData?.semente_propria ?? false,
+    referencia_rnc_mapa: initialData?.referencia_rnc_mapa ?? null,
+    porcentagem_salva: initialData?.porcentagem_salva ?? 0,
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData((prev) => ({
+        ...prev,
+        ...initialData,
+        produtor_numerocm: typeof initialData.produtor_numerocm === "string" ? initialData.produtor_numerocm.trim() : prev.produtor_numerocm,
+        cultivar: initialData.cultivar ?? prev.cultivar,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.produtor_numerocm, initialData?.cultivar]);
+
+  // Preenche automaticamente o filtro de "Nome comum" quando estamos editando
+  // e o catálogo de cultivares já está carregado.
+  useEffect(() => {
+    if (!formData.cultivar) return;
+    if (filtroNomeComum) return; // evita sobrescrever escolhas do usuário
+    const target = (formData.cultivar || "").trim().toLowerCase();
+    const match = (cultivares || []).find(
+      (c) => (c.cultivar || "").trim().toLowerCase() === target
+    );
+    if (match?.nome_comum) {
+      setFiltroNomeComum(match.nome_comum);
+    }
+  }, [formData.cultivar, cultivares, filtroNomeComum]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +86,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramac
   return (
     <Card className="p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Nova Programação</h3>
+        <h3 className="text-lg font-semibold">{title}</h3>
         <Button variant="ghost" size="icon" onClick={onCancel}>
           <X className="h-4 w-4" />
         </Button>
@@ -75,7 +105,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramac
                   className="w-full justify-between"
                 >
                   {formData.produtor_numerocm
-                    ? `${formData.produtor_numerocm} - ${(produtores.find(p => p.numerocm === formData.produtor_numerocm)?.nome) || ""}`
+                    ? `${formData.produtor_numerocm} - ${(produtores.find(p => normalizeCM(p.numerocm) === normalizeCM(formData.produtor_numerocm))?.nome) || ""}`
                     : "Selecione um produtor..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -91,14 +121,14 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramac
                           key={p.numerocm}
                           value={p.numerocm}
                           onSelect={(currentValue) => {
-                            setFormData({ ...formData, produtor_numerocm: currentValue });
+                            setFormData({ ...formData, produtor_numerocm: currentValue.trim() });
                             setOpenProdutor(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              formData.produtor_numerocm === p.numerocm ? "opacity-100" : "opacity-0"
+                              normalizeCM(formData.produtor_numerocm) === normalizeCM(p.numerocm) ? "opacity-100" : "opacity-0"
                             )}
                           />
                           {p.numerocm} - {p.nome}
@@ -321,7 +351,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading }: FormProgramac
 
         <div className="flex gap-2 pt-4">
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Salvando..." : "Salvar programação"}
+            {isLoading ? "Salvando..." : submitLabel}
           </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar

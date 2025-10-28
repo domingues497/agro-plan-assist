@@ -24,6 +24,34 @@ export type CreateProgramacaoAdubacao = Omit<ProgramacaoAdubacao, "id" | "create
 export const useProgramacaoAdubacao = () => {
   const queryClient = useQueryClient();
 
+  const setProdutorMapping = (id: string | undefined, numerocm: string | undefined) => {
+    try {
+      if (!id || !numerocm) return;
+      const key = "programacao_adubacao_produtor_map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      map[id] = (numerocm || "").trim();
+      localStorage.setItem(key, JSON.stringify(map));
+    } catch (e) {
+      // armazenamento local pode não estar disponível
+    }
+  };
+
+  const removeProdutorMapping = (id: string | undefined) => {
+    try {
+      if (!id) return;
+      const key = "programacao_adubacao_produtor_map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      if (map[id]) {
+        delete map[id];
+        localStorage.setItem(key, JSON.stringify(map));
+      }
+    } catch (e) {
+      // silencioso
+    }
+  };
+
   const { data: programacoes, isLoading, error } = useQuery({
     queryKey: ["programacao-adubacao"],
     queryFn: async () => {
@@ -33,7 +61,38 @@ export const useProgramacaoAdubacao = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as ProgramacaoAdubacao[];
+      // Sincroniza produtor_numerocm do localStorage para BD quando ausente
+      const list = (data as ProgramacaoAdubacao[]) || [];
+      const key = "programacao_adubacao_produtor_map";
+      let map: Record<string, string> = {};
+      try {
+        const raw = localStorage.getItem(key);
+        map = raw ? JSON.parse(raw) : {};
+      } catch (_) {}
+
+      const updates: Promise<any>[] = [];
+      const hydrated = list.map((item) => {
+        const cm = String(item.produtor_numerocm || "").trim();
+        if (!cm) {
+          const fallback = String(map[item.id] || "").trim();
+          if (fallback) {
+            updates.push(
+              supabase
+                .from("programacao_adubacao")
+                .update({ produtor_numerocm: fallback })
+                .eq("id", item.id)
+            );
+            return { ...item, produtor_numerocm: fallback } as ProgramacaoAdubacao;
+          }
+        }
+        return item;
+      });
+      try {
+        if (updates.length) await Promise.all(updates);
+      } catch (_) {
+        // silencioso: se falhar, continuamos com dados locais
+      }
+      return hydrated;
     },
   });
 
@@ -60,10 +119,12 @@ export const useProgramacaoAdubacao = () => {
             .single();
           if (fallback.error) throw fallback.error;
           toast.message("Migração pendente: vínculo com produtor será aplicado após atualização do schema.");
+          setProdutorMapping(fallback.data?.id, programacao.produtor_numerocm);
           return fallback.data;
         }
         throw error;
       }
+      setProdutorMapping(data?.id, programacao.produtor_numerocm);
       return data;
     },
     onSuccess: () => {
@@ -84,7 +145,24 @@ export const useProgramacaoAdubacao = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        const missingColumn = /schema cache/i.test(error.message) && /produtor_numerocm/.test(error.message);
+        if (missingColumn) {
+          const { produtor_numerocm, ...rest } = updates;
+          const fallback = await supabase
+            .from("programacao_adubacao")
+            .update(rest)
+            .eq("id", id)
+            .select()
+            .single();
+          if (fallback.error) throw fallback.error;
+          toast.message("Migração pendente: atualização realizada sem vínculo de produtor.");
+          if (produtor_numerocm) setProdutorMapping(id, produtor_numerocm as string);
+          return fallback.data;
+        }
+        throw error;
+      }
+      if (updates.produtor_numerocm) setProdutorMapping(id, updates.produtor_numerocm as string);
       return data;
     },
     onSuccess: () => {
@@ -108,6 +186,8 @@ export const useProgramacaoAdubacao = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programacao-adubacao"] });
       toast.success("Adubação excluída com sucesso");
+      // remover o mapeamento local
+      // como onSuccess não tem id, usamos onSettled no mutate; mas aqui removemos via success handler encadeado usando último id
     },
     onError: (error: Error) => {
       toast.error(`Erro ao excluir adubação: ${error.message}`);
@@ -141,10 +221,12 @@ export const useProgramacaoAdubacao = () => {
             .single();
           if (fallback.error) throw fallback.error;
           toast.message("Migração pendente: duplicação realizada sem vínculo de produtor.");
+          setProdutorMapping(fallback.data?.id, (duplicateData as any).produtor_numerocm);
           return fallback.data;
         }
         throw error;
       }
+      setProdutorMapping(data?.id, (duplicateData as any).produtor_numerocm);
       return data;
     },
     onSuccess: () => {
@@ -162,7 +244,11 @@ export const useProgramacaoAdubacao = () => {
     error,
     create: createMutation.mutate,
     update: updateMutation.mutate,
-    remove: deleteMutation.mutate,
+    remove: (id: string) => {
+      deleteMutation.mutate(id, {
+        onSuccess: () => removeProdutorMapping(id),
+      });
+    },
     duplicate: duplicateMutation.mutate,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,

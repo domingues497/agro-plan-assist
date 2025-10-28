@@ -24,6 +24,33 @@ export type CreateProgramacaoCultivar = Omit<ProgramacaoCultivar, "id" | "create
 export const useProgramacaoCultivares = () => {
   const queryClient = useQueryClient();
 
+  const setProdutorMapping = (id: string | undefined, numerocm: string | undefined) => {
+    try {
+      if (!id || !numerocm) return;
+      const key = "programacao_cultivares_produtor_map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      map[id] = numerocm;
+      localStorage.setItem(key, JSON.stringify(map));
+    } catch (e) {
+      // silencioso: armazenamento local pode não estar disponível
+    }
+  };
+  const removeProdutorMapping = (id: string | undefined) => {
+    try {
+      if (!id) return;
+      const key = "programacao_cultivares_produtor_map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      if (map[id]) {
+        delete map[id];
+        localStorage.setItem(key, JSON.stringify(map));
+      }
+    } catch (e) {
+      // silencioso
+    }
+  };
+
   const { data: programacoes, isLoading, error } = useQuery({
     queryKey: ["programacao-cultivares"],
     queryFn: async () => {
@@ -33,7 +60,38 @@ export const useProgramacaoCultivares = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as ProgramacaoCultivar[];
+      // Sincroniza produtor_numerocm do localStorage para BD quando ausente
+      const list = (data as ProgramacaoCultivar[]) || [];
+      const key = "programacao_cultivares_produtor_map";
+      let map: Record<string, string> = {};
+      try {
+        const raw = localStorage.getItem(key);
+        map = raw ? JSON.parse(raw) : {};
+      } catch (_) {}
+
+      const updates: Promise<any>[] = [];
+      const hydrated = list.map((item) => {
+        const cm = String(item.produtor_numerocm || "").trim();
+        if (!cm) {
+          const fallback = String(map[item.id] || "").trim();
+          if (fallback) {
+            updates.push(
+              supabase
+                .from("programacao_cultivares")
+                .update({ produtor_numerocm: fallback })
+                .eq("id", item.id)
+            );
+            return { ...item, produtor_numerocm: fallback } as ProgramacaoCultivar;
+          }
+        }
+        return item;
+      });
+      try {
+        if (updates.length) await Promise.all(updates);
+      } catch (_) {
+        // silencioso
+      }
+      return hydrated;
     },
   });
 
@@ -58,14 +116,18 @@ export const useProgramacaoCultivares = () => {
             .select()
             .single();
           if (fallback.error) throw fallback.error;
+          // Persistimos o vínculo localmente até o schema estar atualizado
+          setProdutorMapping(fallback.data?.id, programacao.produtor_numerocm);
           toast.message("Migração pendente: vínculo com produtor será aplicado após atualização do schema.");
           return fallback.data;
         }
         throw error;
       }
+      // Em cenários normais, também persistimos o vínculo para consistência
+      setProdutorMapping(data?.id, programacao.produtor_numerocm);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, _variables) => {
       queryClient.invalidateQueries({ queryKey: ["programacao-cultivares"] });
       toast.success("Programação criada com sucesso");
     },
@@ -78,15 +140,32 @@ export const useProgramacaoCultivares = () => {
     mutationFn: async ({ id, ...updates }: Partial<ProgramacaoCultivar> & { id: string }) => {
       const { data, error } = await supabase
         .from("programacao_cultivares")
-        .update(updates)
+        .update(updates as any)
         .eq("id", id)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        const missingColumn = /schema cache/i.test(error.message) && /produtor_numerocm/.test(error.message);
+        if (missingColumn) {
+          const { produtor_numerocm, ...rest } = updates as any;
+          const fallback = await supabase
+            .from("programacao_cultivares")
+            .update(rest as any)
+            .eq("id", id)
+            .select()
+            .single();
+          if (fallback.error) throw fallback.error;
+          setProdutorMapping(id, (updates as any)?.produtor_numerocm);
+          toast.message("Migração pendente: vínculo com produtor será aplicado após atualização do schema.");
+          return fallback.data;
+        }
+        throw error;
+      }
+      setProdutorMapping(id, (updates as any)?.produtor_numerocm);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, _variables) => {
       queryClient.invalidateQueries({ queryKey: ["programacao-cultivares"] });
       toast.success("Programação atualizada com sucesso");
     },
@@ -104,7 +183,8 @@ export const useProgramacaoCultivares = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      removeProdutorMapping(variables);
       queryClient.invalidateQueries({ queryKey: ["programacao-cultivares"] });
       toast.success("Programação excluída com sucesso");
     },
@@ -139,11 +219,13 @@ export const useProgramacaoCultivares = () => {
             .select()
             .single();
           if (fallback.error) throw fallback.error;
+          setProdutorMapping(fallback.data?.id, original.produtor_numerocm);
           toast.message("Migração pendente: duplicação realizada sem vínculo de produtor.");
           return fallback.data;
         }
         throw error;
       }
+      setProdutorMapping(data?.id, original.produtor_numerocm);
       return data;
     },
     onSuccess: () => {

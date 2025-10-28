@@ -2,14 +2,24 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sprout, ArrowLeft, Copy, Trash2, Plus } from "lucide-react";
-import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
+import { Sprout, ArrowLeft, Copy, Trash2, Plus, Pencil } from "lucide-react";
+import { useProgramacaoCultivares, ProgramacaoCultivar } from "@/hooks/useProgramacaoCultivares";
 import { FormProgramacao } from "@/components/cultivares/FormProgramacao";
 import { Badge } from "@/components/ui/badge";
 
 const Cultivares = () => {
   const [showForm, setShowForm] = useState(false);
-  const { programacoes, isLoading, create, duplicate, remove, isCreating } = useProgramacaoCultivares();
+  const [editing, setEditing] = useState<ProgramacaoCultivar | null>(null);
+  const { programacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating } = useProgramacaoCultivares();
+  const getProdutorMapping = (id: string) => {
+    try {
+      const raw = localStorage.getItem("programacao_cultivares_produtor_map");
+      const map = raw ? JSON.parse(raw) : {};
+      return typeof map[id] === "string" ? map[id] : "";
+    } catch (e) {
+      return "";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,7 +51,7 @@ const Cultivares = () => {
           </Button>
         </div>
 
-        {showForm && (
+        {showForm && !editing && (
           <FormProgramacao
             onSubmit={(data) => {
               create(data);
@@ -49,6 +59,31 @@ const Cultivares = () => {
             }}
             onCancel={() => setShowForm(false)}
             isLoading={isCreating}
+          />
+        )}
+
+        {editing && (
+          <FormProgramacao
+            title="Editar Programação"
+            submitLabel="Salvar alterações"
+            initialData={{
+              cultivar: editing.cultivar,
+              area: editing.area,
+              produtor_numerocm: (editing.produtor_numerocm && editing.produtor_numerocm.trim()) ? editing.produtor_numerocm : getProdutorMapping(editing.id),
+              quantidade: editing.quantidade,
+              unidade: editing.unidade,
+              data_plantio: editing.data_plantio,
+              safra: editing.safra,
+              semente_propria: editing.semente_propria,
+              referencia_rnc_mapa: editing.referencia_rnc_mapa,
+              porcentagem_salva: editing.porcentagem_salva,
+            }}
+            onSubmit={(data) => {
+              update({ id: editing.id, ...data });
+              setEditing(null);
+            }}
+            onCancel={() => setEditing(null)}
+            isLoading={isUpdating}
           />
         )}
 
@@ -105,6 +140,14 @@ const Cultivares = () => {
                     </div>
                     
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setEditing(item)}
+                        title="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="outline"
                         size="icon"

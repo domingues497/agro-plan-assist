@@ -3,17 +3,30 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, ArrowLeft, Copy, Trash2, Plus } from "lucide-react";
-import { useProgramacaoDefensivos } from "@/hooks/useProgramacaoDefensivos";
+import { Shield, ArrowLeft, Copy, Trash2, Plus, Pencil } from "lucide-react";
+import { useProgramacaoDefensivos, ProgramacaoDefensivo } from "@/hooks/useProgramacaoDefensivos";
 import { FormDefensivo } from "@/components/defensivos/FormDefensivo";
 
 const Defensivos = () => {
   const [showForm, setShowForm] = useState(false);
-  const { programacoes, isLoading, create, duplicate, remove, isCreating } = useProgramacaoDefensivos();
+  const [editing, setEditing] = useState<ProgramacaoDefensivo | null>(null);
+  const { programacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating } = useProgramacaoDefensivos();
 
   const handleSubmit = (data: any) => {
     create(data);
     setShowForm(false);
+  };
+
+  const getProdutorNumerocmFallback = (id?: string) => {
+    try {
+      if (!id) return "";
+      const key = "programacao_defensivos_produtor_map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      return (map[id] || "").trim();
+    } catch (e) {
+      return "";
+    }
   };
 
   return (
@@ -46,11 +59,36 @@ const Defensivos = () => {
           </Button>
         </div>
 
-        {showForm && (
+        {showForm && !editing && (
           <FormDefensivo
             onSubmit={handleSubmit}
             onCancel={() => setShowForm(false)}
             isLoading={isCreating}
+          />
+        )}
+
+        {editing && (
+          <FormDefensivo
+            title="Editar Aplicação de Defensivo"
+            submitLabel="Salvar alterações"
+            initialData={{
+              defensivo: editing.defensivo,
+              area: editing.area,
+              produtor_numerocm: (editing.produtor_numerocm || getProdutorNumerocmFallback(editing.id))?.trim(),
+              dose: editing.dose,
+              unidade: editing.unidade || undefined,
+              data_aplicacao: editing.data_aplicacao || null,
+              alvo: editing.alvo || null,
+              produto_salvo: editing.produto_salvo,
+              deve_faturar: editing.deve_faturar,
+              porcentagem_salva: editing.porcentagem_salva,
+            }}
+            onSubmit={(data) => {
+              update({ id: editing.id, ...data });
+              setEditing(null);
+            }}
+            onCancel={() => setEditing(null)}
+            isLoading={isUpdating}
           />
         )}
 
@@ -106,6 +144,14 @@ const Defensivos = () => {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setEditing(item)}
+                        title="Editar programação"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="outline"
                         size="icon"

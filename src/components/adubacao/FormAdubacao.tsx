@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,26 +16,58 @@ type FormAdubacaoProps = {
   onSubmit: (data: CreateProgramacaoAdubacao) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  initialData?: Partial<CreateProgramacaoAdubacao>;
+  title?: string;
+  submitLabel?: string;
 };
 
-export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProps) => {
+export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title = "Nova Adubação", submitLabel = "Salvar adubação" }: FormAdubacaoProps) => {
   const [open, setOpen] = useState(false);
   const { data: fertilizantes } = useFertilizantesCatalog();
   const { data: produtores } = useProdutores();
   const [openProdutor, setOpenProdutor] = useState(false);
   
+  const normalizeNumerocm = (v?: string) => (v || "").trim().toLowerCase();
+  const parseNumber = (v: string | number | null | undefined) => {
+    const s = typeof v === "string" ? v.replace(",", ".") : v?.toString() || "";
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : NaN;
+  };
+  const [lastEdited, setLastEdited] = useState<"area" | "dose" | "total" | null>(null);
+  
   const [formData, setFormData] = useState<CreateProgramacaoAdubacao>({
-    formulacao: "",
-    area: "",
-    produtor_numerocm: "",
-    dose: 0,
-    total: null,
-    data_aplicacao: null,
-    responsavel: null,
-    fertilizante_salvo: false,
-    deve_faturar: true,
-    porcentagem_salva: 0,
+    formulacao: initialData?.formulacao ?? "",
+    area: initialData?.area ?? "",
+    produtor_numerocm: (initialData?.produtor_numerocm ?? "").trim(),
+    dose: initialData?.dose ?? 0,
+    total: initialData?.total ?? null,
+    data_aplicacao: initialData?.data_aplicacao ?? null,
+    responsavel: initialData?.responsavel ?? null,
+    fertilizante_salvo: initialData?.fertilizante_salvo ?? false,
+    deve_faturar: initialData?.deve_faturar ?? true,
+    porcentagem_salva: initialData?.porcentagem_salva ?? 0,
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData((prev) => ({
+        ...prev,
+        ...initialData,
+        produtor_numerocm: (initialData.produtor_numerocm ?? prev.produtor_numerocm)?.trim() || "",
+        formulacao: initialData.formulacao ?? prev.formulacao,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.produtor_numerocm, initialData?.formulacao]);
+
+  useEffect(() => {
+    const areaNum = parseNumber(formData.area);
+    if (!formData.total && Number.isFinite(areaNum) && formData.dose > 0) {
+      const computed = areaNum * formData.dose;
+      setFormData((prev) => ({ ...prev, total: computed }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +77,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
   return (
     <Card className="p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Nova Adubação</h3>
+        <h3 className="text-lg font-semibold">{title}</h3>
         <Button variant="ghost" size="icon" onClick={onCancel}>
           <X className="h-4 w-4" />
         </Button>
@@ -64,7 +96,12 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
                   className="w-full justify-between"
                 >
                   {formData.produtor_numerocm
-                    ? `${formData.produtor_numerocm} - ${(produtores.find(p => p.numerocm === formData.produtor_numerocm)?.nome) || ""}`
+                    ? (() => {
+                        const selected = produtores.find(
+                          (p) => normalizeNumerocm(p.numerocm) === normalizeNumerocm(formData.produtor_numerocm)
+                        );
+                        return `${formData.produtor_numerocm} - ${selected?.nome || ""}`;
+                      })()
                     : "Selecione um produtor..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -80,14 +117,16 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
                           key={p.numerocm}
                           value={p.numerocm}
                           onSelect={(currentValue) => {
-                            setFormData({ ...formData, produtor_numerocm: currentValue });
+                            setFormData({ ...formData, produtor_numerocm: currentValue.trim() });
                             setOpenProdutor(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              formData.produtor_numerocm === p.numerocm ? "opacity-100" : "opacity-0"
+                              normalizeNumerocm(formData.produtor_numerocm) === normalizeNumerocm(p.numerocm)
+                                ? "opacity-100"
+                                : "opacity-0"
                             )}
                           />
                           {p.numerocm} - {p.nome}
@@ -154,7 +193,22 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
             <Input
               id="area"
               value={formData.area}
-              onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+              onChange={(e) => {
+                const areaVal = e.target.value;
+                const areaNum = parseNumber(areaVal);
+                if (Number.isFinite(areaNum)) {
+                  if (lastEdited === "total") {
+                    const dose = areaNum > 0 && formData.total ? (formData.total as number) / areaNum : 0;
+                    setFormData({ ...formData, area: areaVal, dose });
+                  } else {
+                    const total = formData.dose > 0 ? areaNum * formData.dose : null;
+                    setFormData({ ...formData, area: areaVal, total });
+                  }
+                } else {
+                  setFormData({ ...formData, area: areaVal });
+                }
+                setLastEdited("area");
+              }}
               required
             />
           </div>
@@ -163,10 +217,20 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
             <Label htmlFor="dose">Dose (kg/ha) *</Label>
             <Input
               id="dose"
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={formData.dose}
-              onChange={(e) => setFormData({ ...formData, dose: parseFloat(e.target.value) })}
+              onChange={(e) => {
+                const doseNum = parseNumber(e.target.value);
+                if (Number.isFinite(doseNum)) {
+                  const areaNum = parseNumber(formData.area);
+                  const total = Number.isFinite(areaNum) ? areaNum * doseNum : null;
+                  setFormData({ ...formData, dose: doseNum, total });
+                } else {
+                  setFormData({ ...formData, dose: 0 });
+                }
+                setLastEdited("dose");
+              }}
               required
             />
           </div>
@@ -175,10 +239,23 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
             <Label htmlFor="total">Total (kg)</Label>
             <Input
               id="total"
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={formData.total || ""}
-              onChange={(e) => setFormData({ ...formData, total: e.target.value ? parseFloat(e.target.value) : null })}
+              onChange={(e) => {
+                const val = e.target.value;
+                const totalNum = val ? parseNumber(val) : NaN;
+                const areaNum = parseNumber(formData.area);
+                if (val === "") {
+                  setFormData({ ...formData, total: null });
+                } else if (Number.isFinite(totalNum) && Number.isFinite(areaNum) && areaNum > 0) {
+                  const dose = totalNum / areaNum;
+                  setFormData({ ...formData, total: totalNum, dose });
+                } else if (Number.isFinite(totalNum)) {
+                  setFormData({ ...formData, total: totalNum });
+                }
+                setLastEdited("total");
+              }}
             />
           </div>
 
@@ -248,7 +325,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading }: FormAdubacaoProp
 
         <div className="flex gap-2 pt-4">
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Salvando..." : "Salvar adubação"}
+            {isLoading ? "Salvando..." : submitLabel}
           </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar

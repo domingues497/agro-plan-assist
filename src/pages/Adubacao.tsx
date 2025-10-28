@@ -2,14 +2,27 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Droplet, ArrowLeft, Copy, Trash2, Plus } from "lucide-react";
-import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
+import { Droplet, ArrowLeft, Copy, Trash2, Plus, Pencil } from "lucide-react";
+import { useProgramacaoAdubacao, ProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { FormAdubacao } from "@/components/adubacao/FormAdubacao";
 import { Badge } from "@/components/ui/badge";
 
 const Adubacao = () => {
   const [showForm, setShowForm] = useState(false);
-  const { programacoes, isLoading, create, duplicate, remove, isCreating } = useProgramacaoAdubacao();
+  const [editing, setEditing] = useState<ProgramacaoAdubacao | null>(null);
+  const { programacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating } = useProgramacaoAdubacao();
+
+  const getProdutorNumerocmFallback = (id?: string) => {
+    try {
+      if (!id) return "";
+      const key = "programacao_adubacao_produtor_map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      return (map[id] || "").trim();
+    } catch (e) {
+      return "";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,7 +54,7 @@ const Adubacao = () => {
           </Button>
         </div>
 
-        {showForm && (
+        {showForm && !editing && (
           <FormAdubacao
             onSubmit={(data) => {
               create(data);
@@ -49,6 +62,31 @@ const Adubacao = () => {
             }}
             onCancel={() => setShowForm(false)}
             isLoading={isCreating}
+          />
+        )}
+
+        {editing && (
+          <FormAdubacao
+            title="Editar Adubação"
+            submitLabel="Salvar alterações"
+            initialData={{
+              formulacao: editing.formulacao,
+              area: editing.area,
+              produtor_numerocm: (editing.produtor_numerocm || getProdutorNumerocmFallback(editing.id))?.trim(),
+              dose: editing.dose,
+              total: editing.total,
+              data_aplicacao: editing.data_aplicacao,
+              responsavel: editing.responsavel,
+              fertilizante_salvo: editing.fertilizante_salvo,
+              deve_faturar: editing.deve_faturar,
+              porcentagem_salva: editing.porcentagem_salva,
+            }}
+            onSubmit={(data) => {
+              update({ id: editing.id, ...data });
+              setEditing(null);
+            }}
+            onCancel={() => setEditing(null)}
+            isLoading={isUpdating}
           />
         )}
 
@@ -108,6 +146,14 @@ const Adubacao = () => {
                     </div>
                     
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setEditing(item)}
+                        title="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="outline"
                         size="icon"

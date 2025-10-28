@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,26 +17,49 @@ type FormDefensivoProps = {
   onSubmit: (data: CreateProgramacaoDefensivo) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  initialData?: Partial<CreateProgramacaoDefensivo>;
+  title?: string;
+  submitLabel?: string;
 };
 
-export const FormDefensivo = ({ onSubmit, onCancel, isLoading }: FormDefensivoProps) => {
+export const FormDefensivo = ({ onSubmit, onCancel, isLoading, initialData, title = "Nova Aplicação de Defensivo", submitLabel = "Salvar aplicação" }: FormDefensivoProps) => {
   const [open, setOpen] = useState(false);
   const { data: defensivos } = useDefensivosCatalog();
   const { data: produtores } = useProdutores();
   const [openProdutor, setOpenProdutor] = useState(false);
   
+  const normalizeNumerocm = (v?: string) => (v || "").trim().toLowerCase();
+  const parseNumber = (val: string | number): number => {
+    if (typeof val === "number") return val;
+    const s = (val || "").trim().replace(/\./g, "").replace(",", ".");
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : NaN;
+  };
+  
   const [formData, setFormData] = useState<CreateProgramacaoDefensivo>({
-    defensivo: "",
-    area: "",
-    produtor_numerocm: "",
-    dose: 0,
-    unidade: "L/ha",
-    data_aplicacao: null,
-    alvo: null,
-    produto_salvo: false,
-    deve_faturar: true,
-    porcentagem_salva: 0,
+    defensivo: initialData?.defensivo ?? "",
+    area: initialData?.area ?? "",
+    produtor_numerocm: (initialData?.produtor_numerocm ?? "").trim(),
+    dose: initialData?.dose ?? 0,
+    unidade: initialData?.unidade ?? "L/ha",
+    data_aplicacao: initialData?.data_aplicacao ?? null,
+    alvo: initialData?.alvo ?? null,
+    produto_salvo: initialData?.produto_salvo ?? false,
+    deve_faturar: initialData?.deve_faturar ?? true,
+    porcentagem_salva: initialData?.porcentagem_salva ?? 0,
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData((prev) => ({
+        ...prev,
+        ...initialData,
+        produtor_numerocm: (initialData.produtor_numerocm ?? prev.produtor_numerocm)?.trim() || "",
+        defensivo: initialData.defensivo ?? prev.defensivo,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.produtor_numerocm, initialData?.defensivo]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +69,7 @@ export const FormDefensivo = ({ onSubmit, onCancel, isLoading }: FormDefensivoPr
   return (
     <Card className="p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Nova Aplicação de Defensivo</h3>
+        <h3 className="text-lg font-semibold">{title}</h3>
         <Button variant="ghost" size="icon" onClick={onCancel}>
           <X className="h-4 w-4" />
         </Button>
@@ -65,7 +88,12 @@ export const FormDefensivo = ({ onSubmit, onCancel, isLoading }: FormDefensivoPr
                   className="w-full justify-between"
                 >
                   {formData.produtor_numerocm
-                    ? `${formData.produtor_numerocm} - ${(produtores.find(p => p.numerocm === formData.produtor_numerocm)?.nome) || ""}`
+                    ? (() => {
+                        const selected = produtores.find(
+                          (p) => normalizeNumerocm(p.numerocm) === normalizeNumerocm(formData.produtor_numerocm)
+                        );
+                        return `${formData.produtor_numerocm} - ${selected?.nome || ""}`;
+                      })()
                     : "Selecione um produtor..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -81,14 +109,16 @@ export const FormDefensivo = ({ onSubmit, onCancel, isLoading }: FormDefensivoPr
                           key={p.numerocm}
                           value={p.numerocm}
                           onSelect={(currentValue) => {
-                            setFormData({ ...formData, produtor_numerocm: currentValue });
+                            setFormData({ ...formData, produtor_numerocm: currentValue.trim() });
                             setOpenProdutor(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              formData.produtor_numerocm === p.numerocm ? "opacity-100" : "opacity-0"
+                              normalizeNumerocm(formData.produtor_numerocm) === normalizeNumerocm(p.numerocm)
+                                ? "opacity-100"
+                                : "opacity-0"
                             )}
                           />
                           {p.numerocm} - {p.nome}
@@ -164,10 +194,13 @@ export const FormDefensivo = ({ onSubmit, onCancel, isLoading }: FormDefensivoPr
             <Label htmlFor="dose">Dose *</Label>
             <Input
               id="dose"
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={formData.dose}
-              onChange={(e) => setFormData({ ...formData, dose: parseFloat(e.target.value) })}
+              onChange={(e) => {
+                const n = parseNumber(e.target.value);
+                setFormData({ ...formData, dose: Number.isFinite(n) ? n : 0 });
+              }}
               required
             />
           </div>
@@ -234,27 +267,29 @@ export const FormDefensivo = ({ onSubmit, onCancel, isLoading }: FormDefensivoPr
               </div>
 
               <div className="space-y-2 pl-6">
-                <Label htmlFor="porcentagem_salva">% de produto salvo (RN013)</Label>
-                <Input
-                  id="porcentagem_salva"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={formData.porcentagem_salva}
-                  onChange={(e) => setFormData({ ...formData, porcentagem_salva: parseFloat(e.target.value) || 0 })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Porcentagem da área que usará produto salvo
-                </p>
-              </div>
+              <Label htmlFor="porcentagem_salva">% de produto salvo (RN013)</Label>
+              <Input
+                id="porcentagem_salva"
+                type="text"
+                inputMode="decimal"
+                value={formData.porcentagem_salva}
+                onChange={(e) => {
+                  const n = parseNumber(e.target.value);
+                  const clamped = Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
+                  setFormData({ ...formData, porcentagem_salva: clamped });
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Porcentagem da área que usará produto salvo
+              </p>
+            </div>
             </>
           )}
         </div>
 
         <div className="flex gap-2 pt-4">
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Salvando..." : "Salvar aplicação"}
+            {isLoading ? "Salvando..." : submitLabel}
           </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar
