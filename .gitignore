@@ -22,7 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-vite.config.ts
 
 # Python caches
 **/__pycache__/
