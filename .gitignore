@@ -26,4 +26,3 @@ dist-ssr
 # Python caches
 **/__pycache__/
 *.pyc
-backend/__pycache__/

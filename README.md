@@ -11,7 +11,7 @@ Para desenvolver e executar a aplicação, utilize o README do diretório raiz e
 ## Centralização do Projeto
 
 - Todo o desenvolvimento e execução ficam centralizados neste diretório raiz.
-- A subpasta `agro-plan-assist/` contém uma cópia antiga para referência. Não utilize a subpasta para desenvolvimento.
+- A antiga subpasta `agro-plan-assist/` foi removida deste repositório.
 - `.env` e `supabase/config.toml` aqui no raiz estão alinhados ao mesmo projeto Supabase remoto.
 
 ## How can I edit this code?
@@ -93,4 +93,4 @@ Este projeto utiliza Supabase para autenticação, banco de dados e regras de se
 2. Certifique-se de aplicar as migrações do diretório `supabase/migrations` no seu projeto Supabase.
 3. Inicie o frontend com `npm run dev` (porta padrão `5173`).
 
-Observação: O backend Oracle é opcional/legado e não é necessário para o funcionamento padrão. Se desejar utilizá-lo, consulte o diretório `backend/` e ajuste por conta própria.
+Observação: O backend Oracle foi removido do repositório por não ser necessário ao funcionamento padrão. Caso precise dele, recupere-o de um commit anterior.
