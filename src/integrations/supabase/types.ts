@@ -288,12 +288,14 @@ export type Database = {
           cultivar: string
           data_plantio: string | null
           id: string
+          populacao_recomendada: number | null
           porcentagem_salva: number | null
           produtor_numerocm: string | null
           quantidade: number
           referencia_rnc_mapa: string | null
           safra: string | null
           semente_propria: boolean | null
+          sementes_por_saca: number | null
           unidade: string | null
           updated_at: string | null
           user_id: string
@@ -304,12 +306,14 @@ export type Database = {
           cultivar: string
           data_plantio?: string | null
           id?: string
+          populacao_recomendada?: number | null
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
           quantidade: number
           referencia_rnc_mapa?: string | null
           safra?: string | null
           semente_propria?: boolean | null
+          sementes_por_saca?: number | null
           unidade?: string | null
           updated_at?: string | null
           user_id: string
@@ -320,12 +324,14 @@ export type Database = {
           cultivar?: string
           data_plantio?: string | null
           id?: string
+          populacao_recomendada?: number | null
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
           quantidade?: number
           referencia_rnc_mapa?: string | null
           safra?: string | null
           semente_propria?: boolean | null
+          sementes_por_saca?: number | null
           unidade?: string | null
           updated_at?: string | null
           user_id?: string

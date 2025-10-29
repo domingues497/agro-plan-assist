@@ -45,7 +45,23 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     semente_propria: initialData?.semente_propria ?? false,
     referencia_rnc_mapa: initialData?.referencia_rnc_mapa ?? null,
     porcentagem_salva: initialData?.porcentagem_salva ?? 0,
+    populacao_recomendada: initialData?.populacao_recomendada ?? 0,
+    sementes_por_saca: initialData?.sementes_por_saca ?? 0,
   });
+
+  // Calcula automaticamente a quantidade quando populacao_recomendada, area ou sementes_por_saca mudam
+  useEffect(() => {
+    const { populacao_recomendada, quantidade: areaHa, sementes_por_saca } = formData;
+    if (populacao_recomendada > 0 && areaHa > 0 && sementes_por_saca > 0) {
+      // Converte plantas/m² para plantas/ha (multiplica por 10.000)
+      const plantasHa = populacao_recomendada * 10000;
+      // Calcula total de plantas: População por ha × Área
+      const totalPlantas = plantasHa * areaHa;
+      // Calcula quantidade de sementes: Total de plantas ÷ Sementes por saca
+      const quantidadeCalculada = totalPlantas / sementes_por_saca;
+      setFormData(prev => ({ ...prev, quantidade: Math.round(quantidadeCalculada * 100) / 100 }));
+    }
+  }, [formData.populacao_recomendada, formData.quantidade, formData.sementes_por_saca]);
 
   const { data: fazendas } = useFazendas(formData.produtor_numerocm);
 
@@ -220,6 +236,33 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               value={formData.quantidade}
               onChange={(e) => setFormData({ ...formData, quantidade: parseFloat(e.target.value) || 0 })}
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="populacao_recomendada">População Recomendada (plantas/m²)</Label>
+            <Input
+              id="populacao_recomendada"
+              type="number"
+              step="0.01"
+              placeholder="Ex: 28"
+              value={formData.populacao_recomendada || ""}
+              onChange={(e) => setFormData({ ...formData, populacao_recomendada: parseFloat(e.target.value) || 0 })}
+            />
+            <p className="text-xs text-muted-foreground">
+              {formData.populacao_recomendada > 0 && `${(formData.populacao_recomendada * 10000).toLocaleString('pt-BR')} plantas/ha`}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sementes_por_saca">Sementes por Saca</Label>
+            <Input
+              id="sementes_por_saca"
+              type="number"
+              step="1"
+              placeholder="Quantidade de sementes"
+              value={formData.sementes_por_saca || ""}
+              onChange={(e) => setFormData({ ...formData, sementes_por_saca: parseFloat(e.target.value) || 0 })}
             />
           </div>
 

@@ -15,6 +15,8 @@ export type ProgramacaoCultivar = {
   semente_propria: boolean;
   referencia_rnc_mapa: string | null;
   porcentagem_salva: number;
+  populacao_recomendada: number;
+  sementes_por_saca: number;
   created_at: string;
   updated_at: string;
 };
