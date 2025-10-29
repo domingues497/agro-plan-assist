@@ -294,7 +294,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="grupo">Grupo</Label>
+            <Label htmlFor="grupo">Cultivar</Label>
             <Popover open={openGrupo} onOpenChange={setOpenGrupo}>
               <PopoverTrigger asChild>
                 <Button
@@ -303,15 +303,15 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                   aria-expanded={openGrupo}
                   className="w-full justify-between"
                 >
-                  {filtroGrupo ? filtroGrupo : "Selecione o grupo..."}
+                  {filtroGrupo ? filtroGrupo : "Selecione a cultivar..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0">
                 <Command>
-                  <CommandInput placeholder="Buscar grupo..." />
+                  <CommandInput placeholder="Buscar cultivar..." />
                   <CommandList>
-                    <CommandEmpty>Nenhum grupo encontrado.</CommandEmpty>
+                    <CommandEmpty>Nenhum cultivar encontrado.</CommandEmpty>
                     <CommandGroup>
                       <CommandItem
                         key="todos"
@@ -352,7 +352,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cultivar">Cultivar *</Label>
+            <Label htmlFor="cultivar">Item  *</Label>
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -373,7 +373,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                     onValueChange={setSearchCultivar}
                   />
                   <CommandList>
-                    <CommandEmpty>Nenhum cultivar encontrado.</CommandEmpty>
+                    <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
                     <CommandGroup>
                       {cultivaresFiltrados?.map((cultivar) => (
                         <CommandItem
@@ -439,13 +439,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               onCheckedChange={(checked) => setFormData({ ...formData, semente_propria: !!checked })}
             />
             <Label htmlFor="semente_propria" className="font-medium">
-              Semente própria (RN011)
+              Semente própria
             </Label>
           </div>
 
           {formData.semente_propria && (
             <div className="space-y-2 pl-6">
-              <Label htmlFor="referencia_rnc_mapa">Referência RNC MAPA</Label>
+              <Label htmlFor="referencia_rnc_mapa">Cultivar RNC</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -453,7 +453,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                     role="combobox"
                     className="w-full justify-between"
                   >
-                    {formData.referencia_rnc_mapa || "Selecione o cultivar de referência..."}
+                    {formData.referencia_rnc_mapa || "Selecione o cultivar..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -495,7 +495,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
 
           {formData.semente_propria && (
             <div className="space-y-2 pl-6">
-              <Label htmlFor="porcentagem_salva">% de semente salva (RN013)</Label>
+              <Label htmlFor="porcentagem_salva">% de semente salva</Label>
               <Input
                 id="porcentagem_salva"
                 type="number"

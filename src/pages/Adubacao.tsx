@@ -61,7 +61,7 @@ const Adubacao = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Programacao de adubacao</h2>
+            <h2 className="text-2xl font-bold text-foreground">Programação de adubação</h2>
             <p className="text-muted-foreground">Planejar formulacoes NPK e doses por hectare</p>
           </div>
           <Button onClick={() => setShowForm(!showForm)}>

@@ -58,8 +58,8 @@ const Cultivares = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Gestao de cultivares</h2>
-            <p className="text-muted-foreground">Programacao de plantio por area e safra</p>
+            <h2 className="text-2xl font-bold text-foreground">Gestão de cultivares</h2>
+            <p className="text-muted-foreground">Programação de plantio por área e safra</p>
           </div>
           <Button onClick={() => setShowForm(!showForm)}>
             <Plus className="mr-2 h-4 w-4" />
