@@ -83,7 +83,6 @@ const Defensivos = () => {
             initialData={{
               produtor_numerocm: editing.produtor_numerocm || "",
               area: editing.area,
-              area_hectares: editing.area_hectares,
               defensivos: editing.defensivos,
             }}
             onSubmit={(data) => {

@@ -11,6 +11,8 @@ export type DefensivoItem = {
   produto_salvo: boolean;
   deve_faturar: boolean;
   porcentagem_salva: number;
+  area_hectares: number;
+  total?: number;
 };
 
 export type AplicacaoDefensivo = {
@@ -18,7 +20,6 @@ export type AplicacaoDefensivo = {
   user_id: string;
   produtor_numerocm: string | null;
   area: string;
-  area_hectares: number;
   created_at: string;
   updated_at: string;
   defensivos: DefensivoItem[];
@@ -27,7 +28,6 @@ export type AplicacaoDefensivo = {
 export type CreateAplicacaoDefensivo = {
   produtor_numerocm: string;
   area: string;
-  area_hectares: number;
   defensivos: Omit<DefensivoItem, "id">[];
 };
 
@@ -80,7 +80,6 @@ export const useAplicacoesDefensivos = () => {
           user_id: user.id,
           produtor_numerocm: data.produtor_numerocm,
           area: data.area,
-          area_hectares: data.area_hectares,
         })
         .select()
         .single();
@@ -98,6 +97,7 @@ export const useAplicacoesDefensivos = () => {
         produto_salvo: def.produto_salvo,
         deve_faturar: def.deve_faturar,
         porcentagem_salva: def.porcentagem_salva,
+        area_hectares: def.area_hectares,
       }));
 
       const { error: defensivosError } = await supabase
@@ -129,7 +129,6 @@ export const useAplicacoesDefensivos = () => {
         .update({
           produtor_numerocm: data.produtor_numerocm,
           area: data.area,
-          area_hectares: data.area_hectares,
         })
         .eq("id", id);
 
@@ -152,6 +151,7 @@ export const useAplicacoesDefensivos = () => {
         produto_salvo: def.produto_salvo,
         deve_faturar: def.deve_faturar,
         porcentagem_salva: def.porcentagem_salva,
+        area_hectares: def.area_hectares,
       }));
 
       const { error: defensivosError } = await supabase
@@ -197,7 +197,6 @@ export const useAplicacoesDefensivos = () => {
       return createMutation.mutateAsync({
         produtor_numerocm: aplicacao.produtor_numerocm || "",
         area: aplicacao.area,
-        area_hectares: aplicacao.area_hectares,
         defensivos: aplicacao.defensivos.map(({ id, ...def }) => def),
       });
     },
@@ -212,7 +211,6 @@ export const useAplicacoesDefensivos = () => {
       return createMutation.mutateAsync({
         produtor_numerocm,
         area,
-        area_hectares: aplicacao.area_hectares,
         defensivos: aplicacao.defensivos.map(({ id, ...def }) => def),
       });
     },

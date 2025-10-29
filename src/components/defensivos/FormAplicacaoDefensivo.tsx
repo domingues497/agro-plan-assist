@@ -14,13 +14,12 @@ import { useFazendas } from "@/hooks/useFazendas";
 import type { DefensivoItem } from "@/hooks/useAplicacoesDefensivos";
 
 type FormAplicacaoDefensivoProps = {
-  onSubmit: (data: { produtor_numerocm: string; area: string; area_hectares: number; defensivos: Omit<DefensivoItem, "id">[] }) => void;
+  onSubmit: (data: { produtor_numerocm: string; area: string; defensivos: Omit<DefensivoItem, "id">[] }) => void;
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: {
     produtor_numerocm?: string;
     area?: string;
-    area_hectares?: number;
     defensivos?: DefensivoItem[];
   };
   title?: string;
@@ -40,7 +39,6 @@ export const FormAplicacaoDefensivo = ({
 
   const [produtorNumerocm, setProdutorNumerocm] = useState("");
   const [area, setArea] = useState("");
-  const [areaHectares, setAreaHectares] = useState(0);
   const [openFazenda, setOpenFazenda] = useState(false);
   const { data: fazendas } = useFazendas(produtorNumerocm);
   
@@ -54,6 +52,7 @@ export const FormAplicacaoDefensivo = ({
       produto_salvo: false,
       deve_faturar: true,
       porcentagem_salva: 0,
+      area_hectares: 0,
       total: 0,
     },
   ]);
@@ -64,13 +63,12 @@ export const FormAplicacaoDefensivo = ({
     if (initialData) {
       setProdutorNumerocm(initialData.produtor_numerocm || "");
       setArea(initialData.area || "");
-      setAreaHectares(initialData.area_hectares || 0);
       if (initialData.defensivos && initialData.defensivos.length > 0) {
         setDefensivos(
           initialData.defensivos.map((def) => ({
             ...def,
             tempId: crypto.randomUUID(),
-            total: (initialData.area_hectares || 0) * def.dose,
+            total: (def.area_hectares || 0) * def.dose,
           }))
         );
       }
@@ -89,6 +87,7 @@ export const FormAplicacaoDefensivo = ({
         produto_salvo: false,
         deve_faturar: true,
         porcentagem_salva: 0,
+        area_hectares: 0,
         total: 0,
       },
     ]);
@@ -104,8 +103,10 @@ export const FormAplicacaoDefensivo = ({
       defensivos.map((d) => {
         if (d.tempId === tempId) {
           const updated = { ...d, [field]: value };
-          if (field === "dose") {
-            updated.total = areaHectares * value;
+          if (field === "dose" || field === "area_hectares") {
+            const dose = field === "dose" ? value : updated.dose;
+            const area = field === "area_hectares" ? value : updated.area_hectares;
+            updated.total = dose * area;
           }
           return updated;
         }
@@ -117,18 +118,18 @@ export const FormAplicacaoDefensivo = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!produtorNumerocm || !area || areaHectares <= 0) {
-      alert("Por favor, preencha Produtor, Fazenda e Área (ha)");
+    if (!produtorNumerocm || !area) {
+      alert("Por favor, preencha Produtor e Fazenda");
       return;
     }
 
-    if (defensivos.length === 0 || defensivos.some((d) => !d.defensivo || d.dose <= 0)) {
-      alert("Por favor, adicione pelo menos um defensivo válido");
+    if (defensivos.length === 0 || defensivos.some((d) => !d.defensivo || d.dose <= 0 || d.area_hectares <= 0)) {
+      alert("Por favor, adicione pelo menos um defensivo válido com dose e área");
       return;
     }
 
     const defensivosToSubmit = defensivos.map(({ tempId, total, ...def }) => def);
-    onSubmit({ produtor_numerocm: produtorNumerocm, area, area_hectares: areaHectares, defensivos: defensivosToSubmit });
+    onSubmit({ produtor_numerocm: produtorNumerocm, area, defensivos: defensivosToSubmit });
   };
 
   const selectedProdutor = produtores.find((p) => p.numerocm === produtorNumerocm);
@@ -226,24 +227,6 @@ export const FormAplicacaoDefensivo = ({
                 </Command>
               </PopoverContent>
             </Popover>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="area_hectares">Área (ha) *</Label>
-            <Input
-              id="area_hectares"
-              type="number"
-              step="0.01"
-              value={areaHectares || ""}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value) || 0;
-                setAreaHectares(val);
-                // Recalcular totais de todos os defensivos
-                setDefensivos(defensivos.map(d => ({ ...d, total: val * d.dose })));
-              }}
-              placeholder="Digite a área em hectares"
-              required
-            />
           </div>
         </div>
 
@@ -357,6 +340,18 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, onChange, onRemove,
               value={defensivo.unidade}
               onChange={(e) => onChange("unidade", e.target.value)}
               placeholder="L/ha"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Área (ha) *</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={defensivo.area_hectares}
+              onChange={(e) => onChange("area_hectares", parseFloat(e.target.value) || 0)}
+              placeholder="0.00"
+              required
             />
           </div>
 
