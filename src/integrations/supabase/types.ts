@@ -17,6 +17,7 @@ export type Database = {
       aplicacoes_defensivos: {
         Row: {
           area: string
+          area_hectares: number | null
           created_at: string | null
           id: string
           produtor_numerocm: string | null
@@ -25,6 +26,7 @@ export type Database = {
         }
         Insert: {
           area: string
+          area_hectares?: number | null
           created_at?: string | null
           id?: string
           produtor_numerocm?: string | null
@@ -33,6 +35,7 @@ export type Database = {
         }
         Update: {
           area?: string
+          area_hectares?: number | null
           created_at?: string | null
           id?: string
           produtor_numerocm?: string | null
