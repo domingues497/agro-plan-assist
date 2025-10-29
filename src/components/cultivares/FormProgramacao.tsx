@@ -39,6 +39,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     area: initialData?.area ?? "",
     produtor_numerocm: initialData?.produtor_numerocm ?? "",
     quantidade: initialData?.quantidade ?? 0,
+    area_hectares: initialData?.area_hectares ?? 0,
     unidade: initialData?.unidade ?? "kg",
     data_plantio: initialData?.data_plantio ?? null,
     safra: initialData?.safra ?? null,
@@ -49,19 +50,19 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     sementes_por_saca: initialData?.sementes_por_saca ?? 0,
   });
 
-  // Calcula automaticamente a quantidade quando populacao_recomendada, area ou sementes_por_saca mudam
+  // Calcula automaticamente a quantidade quando populacao_recomendada, area_hectares ou sementes_por_saca mudam
   useEffect(() => {
-    const { populacao_recomendada, quantidade: areaHa, sementes_por_saca } = formData;
-    if (populacao_recomendada > 0 && areaHa > 0 && sementes_por_saca > 0) {
+    const { populacao_recomendada, area_hectares, sementes_por_saca } = formData;
+    if (populacao_recomendada > 0 && area_hectares > 0 && sementes_por_saca > 0) {
       // Converte plantas/m² para plantas/ha (multiplica por 10.000)
       const plantasHa = populacao_recomendada * 10000;
       // Calcula total de plantas: População por ha × Área
-      const totalPlantas = plantasHa * areaHa;
+      const totalPlantas = plantasHa * area_hectares;
       // Calcula quantidade de sementes: Total de plantas ÷ Sementes por saca
       const quantidadeCalculada = totalPlantas / sementes_por_saca;
       setFormData(prev => ({ ...prev, quantidade: Math.round(quantidadeCalculada * 100) / 100 }));
     }
-  }, [formData.populacao_recomendada, formData.quantidade, formData.sementes_por_saca]);
+  }, [formData.populacao_recomendada, formData.area_hectares, formData.sementes_por_saca]);
 
   const { data: fazendas } = useFazendas(formData.produtor_numerocm);
 
@@ -233,8 +234,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               type="number"
               step="0.01"
               placeholder="Digite a área em hectares"
-              value={formData.quantidade}
-              onChange={(e) => setFormData({ ...formData, quantidade: parseFloat(e.target.value) || 0 })}
+              value={formData.area_hectares || ""}
+              onChange={(e) => setFormData({ ...formData, area_hectares: parseFloat(e.target.value) || 0 })}
               required
             />
           </div>
@@ -264,6 +265,22 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               value={formData.sementes_por_saca || ""}
               onChange={(e) => setFormData({ ...formData, sementes_por_saca: parseFloat(e.target.value) || 0 })}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="quantidade">Quantidade Calculada</Label>
+            <Input
+              id="quantidade"
+              type="number"
+              step="0.01"
+              placeholder="Calculado automaticamente"
+              value={formData.quantidade || ""}
+              readOnly
+              className="bg-muted"
+            />
+            <p className="text-xs text-muted-foreground">
+              Calculado pela fórmula: (População × Área) ÷ Sementes por Saca
+            </p>
           </div>
 
           <div className="space-y-2">

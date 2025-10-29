@@ -9,6 +9,7 @@ export type ProgramacaoCultivar = {
   area: string;
   produtor_numerocm: string;
   quantidade: number;
+  area_hectares: number;
   unidade: string;
   data_plantio: string | null;
   safra: string | null;

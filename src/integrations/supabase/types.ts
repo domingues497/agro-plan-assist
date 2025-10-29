@@ -284,6 +284,7 @@ export type Database = {
       programacao_cultivares: {
         Row: {
           area: string
+          area_hectares: number | null
           created_at: string | null
           cultivar: string
           data_plantio: string | null
@@ -302,6 +303,7 @@ export type Database = {
         }
         Insert: {
           area: string
+          area_hectares?: number | null
           created_at?: string | null
           cultivar: string
           data_plantio?: string | null
@@ -320,6 +322,7 @@ export type Database = {
         }
         Update: {
           area?: string
+          area_hectares?: number | null
           created_at?: string | null
           cultivar?: string
           data_plantio?: string | null

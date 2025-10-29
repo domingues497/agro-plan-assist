@@ -134,8 +134,23 @@ const Cultivares = () => {
                           <span className="font-medium">Fazenda:</span> {item.area}
                         </p>
                         <p>
-                          <span className="font-medium">Área:</span> {item.quantidade} ha
+                          <span className="font-medium">Área:</span> {item.area_hectares} ha
                         </p>
+                        {item.populacao_recomendada > 0 && (
+                          <p>
+                            <span className="font-medium">População Recomendada:</span> {item.populacao_recomendada} plantas/m² ({(item.populacao_recomendada * 10000).toLocaleString('pt-BR')} plantas/ha)
+                          </p>
+                        )}
+                        {item.sementes_por_saca > 0 && (
+                          <p>
+                            <span className="font-medium">Sementes por Saca:</span> {item.sementes_por_saca}
+                          </p>
+                        )}
+                        {item.quantidade > 0 && (
+                          <p>
+                            <span className="font-medium">Quantidade:</span> {item.quantidade} {item.unidade}
+                          </p>
+                        )}
                         {item.safra && (
                           <p>
                             <span className="font-medium">Safra:</span> {item.safra}
