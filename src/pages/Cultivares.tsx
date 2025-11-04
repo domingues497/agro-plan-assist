@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Sprout, ArrowLeft, Copy, Trash2, Plus, Pencil } from "lucide-react";
 import { useProgramacaoCultivares, ProgramacaoCultivar } from "@/hooks/useProgramacaoCultivares";
 import { FormProgramacao } from "@/components/cultivares/FormProgramacao";
@@ -13,6 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFazendas } from "@/hooks/useFazendas";
+import { toast } from "sonner";
 
 const Cultivares = () => {
   const [showForm, setShowForm] = useState(false);
@@ -26,6 +28,7 @@ const Cultivares = () => {
   const [replicateTargets, setReplicateTargets] = useState<Array<{ produtor_numerocm: string; area: string }>>([]);
   const [openReplicateProdutorPopover, setOpenReplicateProdutorPopover] = useState(false);
   const [openReplicateFazendaPopover, setOpenReplicateFazendaPopover] = useState(false);
+  const [selectedAreaPairs, setSelectedAreaPairs] = useState<Array<{ produtor_numerocm: string; area: string }>>([]);
   const { data: fazendas = [] } = useFazendas(replicateProdutorNumerocm);
   const getProdutorMapping = (id: string) => {
     try {
@@ -227,7 +230,7 @@ const Cultivares = () => {
                   <Button variant="outline" role="combobox" className="w-full justify-between">
                     {replicateProdutorNumerocm
                       ? `${replicateProdutorNumerocm} - ${produtores.find(p => p.numerocm === replicateProdutorNumerocm)?.nome || ""}`
-                      : "Selecione..."}
+                      : "Selecione produtor..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -243,7 +246,8 @@ const Cultivares = () => {
                             value={`${produtor.numerocm} ${produtor.nome}`}
                             onSelect={() => {
                               setReplicateProdutorNumerocm(produtor.numerocm);
-                              setReplicateArea("");
+                              setSelectedAreaPairs([]);
+                              // Não limpar destinos ao trocar de produtor; permite acumular múltiplos
                               setOpenReplicateProdutorPopover(false);
                             }}
                           >
@@ -264,7 +268,7 @@ const Cultivares = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Fazenda</label>
+              <label className="text-sm font-medium">Áreas (fazendas)</label>
               <Popover open={openReplicateFazendaPopover} onOpenChange={setOpenReplicateFazendaPopover}>
                 <PopoverTrigger asChild>
                   <Button
@@ -274,36 +278,40 @@ const Cultivares = () => {
                     className="w-full justify-between"
                     disabled={!replicateProdutorNumerocm}
                   >
-                    {replicateArea
-                      ? fazendas.find(f => f.nomefazenda === replicateArea)?.nomefazenda || replicateArea
-                      : "Selecione uma fazenda..."}
+                    {selectedAreaPairs.length > 0
+                      ? `${selectedAreaPairs.length} área(s) selecionada(s)`
+                      : "Selecione áreas..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput placeholder="Buscar fazenda..." />
+                    <CommandInput placeholder="Buscar área..." />
                     <CommandList>
-                      <CommandEmpty>Nenhuma fazenda encontrada.</CommandEmpty>
+                      <CommandEmpty>Nenhuma área encontrada.</CommandEmpty>
                       <CommandGroup>
-                        {fazendas?.map((f) => (
-                          <CommandItem
-                            key={f.id}
-                            value={f.nomefazenda}
-                            onSelect={(currentValue) => {
-                              setReplicateArea(currentValue);
-                              setOpenReplicateFazendaPopover(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                replicateArea === f.nomefazenda ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {f.nomefazenda} {f.area_cultivavel && `(${f.area_cultivavel} ha)`}
-                          </CommandItem>
-                        ))}
+                        {fazendas?.map((f) => {
+                          const produtorNome = produtores.find(p => p.numerocm === f.numerocm)?.nome || "";
+                          const checked = selectedAreaPairs.some((ap) => ap.produtor_numerocm === replicateProdutorNumerocm && ap.area === f.nomefazenda);
+                          return (
+                            <CommandItem
+                              key={`${f.id}-${f.numerocm}`}
+                              value={`${f.numerocm} ${produtorNome} / ${f.nomefazenda}`}
+                              onSelect={() => {
+                                setSelectedAreaPairs((prev) => {
+                                  const exists = prev.some((ap) => ap.produtor_numerocm === replicateProdutorNumerocm && ap.area === f.nomefazenda);
+                                  if (exists) {
+                                    return prev.filter((ap) => !(ap.produtor_numerocm === replicateProdutorNumerocm && ap.area === f.nomefazenda));
+                                  }
+                                  return [...prev, { produtor_numerocm: replicateProdutorNumerocm, area: f.nomefazenda }];
+                                });
+                              }}
+                            >
+                              <Checkbox checked={checked} className="mr-2 h-4 w-4" />
+                              {f.numerocm} - {produtorNome} / {f.nomefazenda}
+                            </CommandItem>
+                          );
+                        })}
                       </CommandGroup>
                     </CommandList>
                   </Command>
@@ -315,18 +323,16 @@ const Cultivares = () => {
             <Button
               variant="outline"
               onClick={() => {
-                if (!replicateProdutorNumerocm || !replicateArea) return;
-                const exists = replicateTargets.some(
-                  (t) => t.produtor_numerocm === replicateProdutorNumerocm && t.area === replicateArea
-                );
-                if (exists) return;
-                setReplicateTargets([
-                  ...replicateTargets,
-                  { produtor_numerocm: replicateProdutorNumerocm, area: replicateArea },
-                ]);
-                setReplicateArea("");
+                if (selectedAreaPairs.length === 0) return;
+                const current = [...replicateTargets];
+                for (const ap of selectedAreaPairs) {
+                  const exists = current.some((t) => t.produtor_numerocm === ap.produtor_numerocm && t.area === ap.area);
+                  if (!exists) current.push(ap);
+                }
+                setReplicateTargets(current);
+                setSelectedAreaPairs([]);
               }}
-              disabled={!replicateProdutorNumerocm || !replicateArea}
+              disabled={selectedAreaPairs.length === 0}
             >
               Adicionar destino
             </Button>
@@ -370,6 +376,7 @@ const Cultivares = () => {
                 setReplicateProdutorNumerocm("");
                 setReplicateArea("");
                 setReplicateTargets([]);
+                setSelectedAreaPairs([]);
               }}
             >
               Cancelar
@@ -377,17 +384,20 @@ const Cultivares = () => {
             <Button
               onClick={async () => {
                 if (!replicateTargetId || replicateTargets.length === 0) return;
-                for (const t of replicateTargets) {
-                  try {
-                    await replicate({ id: replicateTargetId, produtor_numerocm: t.produtor_numerocm, area: t.area });
-                  } catch (e) {
-                    // Erro individual tratado via toast no hook
-                  }
-                }
+                const results = await Promise.allSettled(
+                  replicateTargets.map((t) =>
+                    replicate({ id: replicateTargetId!, produtor_numerocm: t.produtor_numerocm, area: t.area })
+                  )
+                );
+                const ok = results.filter((r) => r.status === "fulfilled").length;
+                const fail = results.filter((r) => r.status === "rejected").length;
+                if (ok > 0) toast.success(`Replicação concluída: ${ok} sucesso(s)`);
+                if (fail > 0) toast.error(`Falhas em ${fail} destino(s)`);
                 setReplicateOpen(false);
                 setReplicateTargetId(null);
                 setReplicateProdutorNumerocm("");
                 setReplicateArea("");
+                setSelectedAreaPairs([]);
                 setReplicateTargets([]);
               }}
               disabled={isReplicating || !replicateTargetId || replicateTargets.length === 0}

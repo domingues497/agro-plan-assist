@@ -34,6 +34,36 @@ export type CreateAplicacaoDefensivo = {
 export const useAplicacoesDefensivos = () => {
   const queryClient = useQueryClient();
 
+  // Mapeamento local para manter vínculo de produtor quando a coluna
+  // não existir ou registros antigos não possuírem o valor
+  const setProdutorMapping = (id: string | undefined, numerocm: string | undefined) => {
+    try {
+      if (!id || !numerocm) return;
+      const key = "aplicacoes_defensivos_produtor_map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      map[id] = (numerocm || "").trim();
+      localStorage.setItem(key, JSON.stringify(map));
+    } catch (e) {
+      // armazenamento local pode não estar disponível
+    }
+  };
+
+  const removeProdutorMapping = (id: string | undefined) => {
+    try {
+      if (!id) return;
+      const key = "aplicacoes_defensivos_produtor_map";
+      const raw = localStorage.getItem(key);
+      const map = raw ? JSON.parse(raw) : {};
+      if (map[id]) {
+        delete map[id];
+        localStorage.setItem(key, JSON.stringify(map));
+      }
+    } catch (e) {
+      // silencioso
+    }
+  };
+
   // Fetch all aplicacoes with their defensivos
   const { data: aplicacoes = [], isLoading, error } = useQuery({
     queryKey: ["aplicacoes-defensivos"],
@@ -45,7 +75,15 @@ export const useAplicacoesDefensivos = () => {
 
       if (aplicacoesError) throw aplicacoesError;
 
-      // Fetch defensivos for each aplicacao
+      // Carrega mapping local e hidrata produtor_numerocm ausente
+      const key = "aplicacoes_defensivos_produtor_map";
+      let map: Record<string, string> = {};
+      try {
+        const raw = localStorage.getItem(key);
+        map = raw ? JSON.parse(raw) : {};
+      } catch (_) {}
+
+      // Buscar defensivos e hidratar cada aplicação
       const aplicacoesComDefensivos = await Promise.all(
         aplicacoesData.map(async (aplicacao) => {
           const { data: defensivos, error: defensivosError } = await supabase
@@ -56,10 +94,27 @@ export const useAplicacoesDefensivos = () => {
 
           if (defensivosError) throw defensivosError;
 
+          let cm = String(aplicacao.produtor_numerocm || "").trim();
+          if (!cm) {
+            const fallback = String(map[aplicacao.id] || "").trim();
+            if (fallback) {
+              cm = fallback;
+              try {
+                await supabase
+                  .from("aplicacoes_defensivos")
+                  .update({ produtor_numerocm: fallback })
+                  .eq("id", aplicacao.id);
+              } catch (_) {
+                // silencioso
+              }
+            }
+          }
+
           return {
             ...aplicacao,
+            produtor_numerocm: cm || aplicacao.produtor_numerocm,
             defensivos: defensivos || [],
-          };
+          } as AplicacaoDefensivo;
         })
       );
 
@@ -106,6 +161,8 @@ export const useAplicacoesDefensivos = () => {
 
       if (defensivosError) throw defensivosError;
 
+      // Persiste vínculo de produtor localmente para edição futura
+      setProdutorMapping(aplicacao.id, data.produtor_numerocm);
       return aplicacao;
     },
     onSuccess: () => {
@@ -159,6 +216,9 @@ export const useAplicacoesDefensivos = () => {
         .insert(defensivosToInsert);
 
       if (defensivosError) throw defensivosError;
+
+      // Atualiza mapeamento local
+      setProdutorMapping(id, data.produtor_numerocm);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
@@ -179,8 +239,9 @@ export const useAplicacoesDefensivos = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
+      removeProdutorMapping(variables);
       toast.success("Aplicação excluída com sucesso!");
     },
     onError: (error: any) => {

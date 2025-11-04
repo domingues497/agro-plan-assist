@@ -270,7 +270,7 @@ export const useProgramacaoAdubacao = () => {
       });
     },
     duplicate: duplicateMutation.mutate,
-    replicate: replicateMutation.mutate,
+    replicate: replicateMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,

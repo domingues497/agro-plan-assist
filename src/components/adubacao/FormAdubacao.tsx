@@ -119,9 +119,9 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
                       {produtores?.map((p) => (
                         <CommandItem
                           key={p.numerocm}
-                          value={p.numerocm}
-                          onSelect={(currentValue) => {
-                            setFormData({ ...formData, produtor_numerocm: currentValue.trim(), area: "" });
+                          value={`${p.numerocm} ${p.nome}`}
+                          onSelect={() => {
+                            setFormData({ ...formData, produtor_numerocm: p.numerocm.trim(), area: "" });
                             setOpenProdutor(false);
                           }}
                         >

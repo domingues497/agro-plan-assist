@@ -269,7 +269,7 @@ export const useProgramacaoCultivares = () => {
     update: updateMutation.mutate,
     remove: deleteMutation.mutate,
     duplicate: duplicateMutation.mutate,
-    replicate: replicateMutation.mutate,
+    replicate: replicateMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,

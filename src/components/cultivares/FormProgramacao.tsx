@@ -33,6 +33,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const [filtroGrupo, setFiltroGrupo] = useState("");
   const [searchCultivar, setSearchCultivar] = useState("");
   const normalizeCM = (v: string | undefined | null) => String(v ?? "").trim().toLowerCase();
+  const BIGBAG_5M = 5_000_000;
+  const SACA_200K = 200_000;
+  const SACA_160K = 160_000;
+  type EmbalagemPreferida = "auto" | "bigbag_5m" | "saca_200k" | "saca_160k";
+  const [embalagemPreferida, setEmbalagemPreferida] = useState<EmbalagemPreferida>("auto");
+  const [openEmbalagem, setOpenEmbalagem] = useState(false);
+  const [resultadoEmbalagens, setResultadoEmbalagens] = useState<string>("");
   
   const [formData, setFormData] = useState<CreateProgramacaoCultivar>({
     cultivar: initialData?.cultivar ?? "",
@@ -50,19 +57,62 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     sementes_por_saca: initialData?.sementes_por_saca ?? 0,
   });
 
-  // Calcula automaticamente a quantidade quando populacao_recomendada, area_hectares ou sementes_por_saca mudam
+  // Calcula automaticamente a quantidade conforme preferência de embalagem
   useEffect(() => {
-    const { populacao_recomendada, area_hectares, sementes_por_saca } = formData;
-    if (populacao_recomendada > 0 && area_hectares > 0 && sementes_por_saca > 0) {
-      // Converte plantas/m² para plantas/ha (multiplica por 10.000)
-      const plantasHa = populacao_recomendada * 10000;
-      // Calcula total de plantas: População por ha × Área
-      const totalPlantas = plantasHa * area_hectares;
-      // Calcula quantidade de sementes: Total de plantas ÷ Sementes por saca
-      const quantidadeCalculada = totalPlantas / sementes_por_saca;
-      setFormData(prev => ({ ...prev, quantidade: Math.round(quantidadeCalculada * 100) / 100 }));
+    const { populacao_recomendada, area_hectares } = formData;
+    const plantasHa = populacao_recomendada > 0 ? populacao_recomendada * 10000 : 0;
+    const totalSementes = plantasHa > 0 && area_hectares > 0 ? plantasHa * area_hectares : 0;
+
+    // Atualiza quantidade conforme preferência de embalagem
+    if (totalSementes > 0) {
+      if (embalagemPreferida === "bigbag_5m") {
+        const qtd = Math.ceil(totalSementes / BIGBAG_5M);
+        setFormData(prev => ({ ...prev, quantidade: qtd, unidade: "bigbag" }));
+      } else if (embalagemPreferida === "saca_200k") {
+        const qtd = Math.ceil(totalSementes / SACA_200K);
+        setFormData(prev => ({ ...prev, quantidade: qtd, unidade: "saca 200k" }));
+      } else if (embalagemPreferida === "saca_160k") {
+        const qtd = Math.ceil(totalSementes / SACA_160K);
+        setFormData(prev => ({ ...prev, quantidade: qtd, unidade: "saca 160k" }));
+      } else {
+        // Modo automático: não define quantidade numérica única; exibe breakdown
+        setFormData(prev => ({ ...prev, quantidade: 0, unidade: "misto" }));
+      }
     }
-  }, [formData.populacao_recomendada, formData.area_hectares, formData.sementes_por_saca]);
+
+    // Gera breakdown textual para modo automático (cascata)
+    if (embalagemPreferida === "auto" && totalSementes > 0) {
+      const bigbags = Math.floor(totalSementes / BIGBAG_5M);
+      let resto = totalSementes - bigbags * BIGBAG_5M;
+      const sacas200 = Math.floor(resto / SACA_200K);
+      resto -= sacas200 * SACA_200K;
+      let sacas160 = 0;
+      if (resto > 0) {
+        sacas160 = Math.ceil(resto / SACA_160K);
+        resto = 0;
+      }
+      const partes: string[] = [];
+      if (bigbags > 0) partes.push(`${bigbags} BigBag${bigbags > 1 ? "s" : ""}`);
+      if (sacas200 > 0) partes.push(`${sacas200} Saca${sacas200 > 1 ? "s" : ""} de 200k`);
+      if (sacas160 > 0) partes.push(`${sacas160} Saca${sacas160 > 1 ? "s" : ""} de 160k`);
+      setResultadoEmbalagens(partes.length ? partes.join(", ") : "Sem cálculo disponível");
+    } else {
+      // Quando embalagem específica, mostra apenas aquela
+      if (totalSementes > 0) {
+        if (embalagemPreferida === "bigbag_5m") {
+          setResultadoEmbalagens(`${Math.ceil(totalSementes / BIGBAG_5M)} BigBag(s)`);
+        } else if (embalagemPreferida === "saca_200k") {
+          setResultadoEmbalagens(`${Math.ceil(totalSementes / SACA_200K)} Saca(s) de 200k`);
+        } else if (embalagemPreferida === "saca_160k") {
+          setResultadoEmbalagens(`${Math.ceil(totalSementes / SACA_160K)} Saca(s) de 160k`);
+        } else {
+          setResultadoEmbalagens("");
+        }
+      } else {
+        setResultadoEmbalagens("");
+      }
+    }
+  }, [formData.populacao_recomendada, formData.area_hectares, embalagemPreferida]);
 
   const { data: fazendas } = useFazendas(formData.produtor_numerocm);
 
@@ -157,9 +207,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                       {produtores?.map((p) => (
                         <CommandItem
                           key={p.numerocm}
-                           value={p.numerocm}
-                          onSelect={(currentValue) => {
-                            setFormData({ ...formData, produtor_numerocm: currentValue.trim(), area: "" });
+                          value={`${p.numerocm} ${p.nome}`}
+                          onSelect={() => {
+                            setFormData({ ...formData, produtor_numerocm: p.numerocm.trim(), area: "" });
                             setOpenProdutor(false);
                           }}
                         >
@@ -255,31 +305,93 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
             </p>
           </div>
 
+          {/* Removido bloco de "Unidades" quando embalagem específica; usamos apenas o breakdown textual */}
+
           <div className="space-y-2">
-            <Label htmlFor="sementes_por_saca">Sementes por Saca</Label>
-            <Input
-              id="sementes_por_saca"
-              type="number"
-              step="1"
-              placeholder="Quantidade de sementes"
-              value={formData.sementes_por_saca || ""}
-              onChange={(e) => setFormData({ ...formData, sementes_por_saca: parseFloat(e.target.value) || 0 })}
-            />
+            <Label>Embalagem</Label>
+            <Popover open={openEmbalagem} onOpenChange={setOpenEmbalagem}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openEmbalagem}
+                  className="w-full justify-between"
+                >
+                  {embalagemPreferida === "auto" && "Automático (cascata)"}
+                  {embalagemPreferida === "bigbag_5m" && "BigBag 5M"}
+                  {embalagemPreferida === "saca_200k" && "Saca 200k"}
+                  {embalagemPreferida === "saca_160k" && "Saca 160k"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandList>
+                    <CommandEmpty>Nenhuma opção</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        key="auto"
+                        value="auto"
+                        onSelect={() => {
+                          setEmbalagemPreferida("auto");
+                          setOpenEmbalagem(false);
+                          // Mantém unidade anterior ou padrão
+                          setFormData(prev => ({ ...prev, unidade: prev.unidade || "kg" }));
+                        }}
+                      >
+                        Automático (cascata)
+                      </CommandItem>
+                      <CommandItem
+                        key="bigbag"
+                        value="bigbag_5m"
+                        onSelect={() => {
+                          setEmbalagemPreferida("bigbag_5m");
+                          setOpenEmbalagem(false);
+                          setFormData(prev => ({ ...prev, unidade: "bigbag" }));
+                        }}
+                      >
+                        BigBag 5M
+                      </CommandItem>
+                      <CommandItem
+                        key="s200"
+                        value="saca_200k"
+                        onSelect={() => {
+                          setEmbalagemPreferida("saca_200k");
+                          setOpenEmbalagem(false);
+                          setFormData(prev => ({ ...prev, unidade: "saca 200k" }));
+                        }}
+                      >
+                        Saca 200k
+                      </CommandItem>
+                      <CommandItem
+                        key="s160"
+                        value="saca_160k"
+                        onSelect={() => {
+                          setEmbalagemPreferida("saca_160k");
+                          setOpenEmbalagem(false);
+                          setFormData(prev => ({ ...prev, unidade: "saca 160k" }));
+                        }}
+                      >
+                        Saca 160k
+                      </CommandItem>
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="quantidade">Quantidade Calculada</Label>
+            <Label htmlFor="resultado_embalagens">Resultado por Embalagem</Label>
             <Input
-              id="quantidade"
-              type="number"
-              step="0.01"
-              placeholder="Calculado automaticamente"
-              value={formData.quantidade || ""}
+              id="resultado_embalagens"
+              placeholder="Mostrado automaticamente"
+              value={resultadoEmbalagens}
               readOnly
               className="bg-muted"
             />
             <p className="text-xs text-muted-foreground">
-              Calculado pela fórmula: (População × Área) ÷ Sementes por Saca
+              Em modo automático, usa cascata: BigBag 5M → Saca 200k → Saca 160k.
             </p>
           </div>
 
