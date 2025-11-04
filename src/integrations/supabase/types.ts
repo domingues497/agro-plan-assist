@@ -230,6 +230,33 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          nome: string | null
+          numerocm_consultor: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nome?: string | null
+          numerocm_consultor?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nome?: string | null
+          numerocm_consultor?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       programacao_adubacao: {
         Row: {
           area: string
@@ -423,6 +450,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_consultor: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
