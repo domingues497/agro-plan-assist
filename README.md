@@ -94,3 +94,19 @@ Este projeto utiliza Supabase para autenticação, banco de dados e regras de se
 3. Inicie o frontend com `npm run dev` (porta padrão `5173`).
 
 Observação: O backend Oracle foi removido do repositório por não ser necessário ao funcionamento padrão. Caso precise dele, recupere-o de um commit anterior.
+
+## Flags de Funcionalidade
+
+Para controlar a exibição dos cards de resumo no Dashboard ("Cultivares ativos", "Adubações" e "Defensivos") sem alterar código, utilize a variável de ambiente abaixo:
+
+- `VITE_DASHBOARD_SUMMARY_ENABLED`
+  - `true`: mostra os cards
+  - `false`: oculta os cards
+
+Exemplo no arquivo `.env`:
+
+```
+VITE_DASHBOARD_SUMMARY_ENABLED=false
+```
+
+Altere para `true` quando quiser visualizar os cards.

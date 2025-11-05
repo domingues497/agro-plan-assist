@@ -31,6 +31,8 @@ const Dashboard = () => {
   const defensivosList = defensivosProgramacoes ?? [];
 
   const lastSync = useMemo(() => new Date().toLocaleString(), []);
+  const showSummaryCards = String(import.meta.env.VITE_DASHBOARD_SUMMARY_ENABLED || "")
+    .toLowerCase() === "true";
 
   const loadingCounter = (isLoading: boolean, value: number) => {
     if (isLoading) {
@@ -70,43 +72,45 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Gerencie programacoes agricolas e cultivos</p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          <Card className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <Sprout className="h-10 w-10 text-primary" />
-              <span className="text-2xl font-bold text-primary">
-                {loadingCounter(cultivaresLoading, cultivaresList.length)}
-              </span>
-            </div>
-            <h3 className="font-semibold text-lg mb-1">Cultivares ativos</h3>
-            <p className="text-sm text-muted-foreground">Programacoes de plantio cadastradas</p>
-            {renderError(cultivaresError)}
-          </Card>
+        {showSummaryCards && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+            <Card className="p-6 hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <Sprout className="h-10 w-10 text-primary" />
+                <span className="text-2xl font-bold text-primary">
+                  {loadingCounter(cultivaresLoading, cultivaresList.length)}
+                </span>
+              </div>
+              <h3 className="font-semibold text-lg mb-1">Cultivares ativos</h3>
+              <p className="text-sm text-muted-foreground">Programacoes de plantio cadastradas</p>
+              {renderError(cultivaresError)}
+            </Card>
 
-          <Card className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <Droplet className="h-10 w-10 text-primary" />
-              <span className="text-2xl font-bold text-primary">
-                {loadingCounter(adubacoesLoading, adubacoesList.length)}
-              </span>
-            </div>
-            <h3 className="font-semibold text-lg mb-1">Adubacoes</h3>
-            <p className="text-sm text-muted-foreground">Programacoes de fertilizacao</p>
-            {renderError(adubacoesError)}
-          </Card>
+            <Card className="p-6 hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <Droplet className="h-10 w-10 text-primary" />
+                <span className="text-2xl font-bold text-primary">
+                  {loadingCounter(adubacoesLoading, adubacoesList.length)}
+                </span>
+              </div>
+              <h3 className="font-semibold text-lg mb-1">Adubacoes</h3>
+              <p className="text-sm text-muted-foreground">Programacoes de fertilizacao</p>
+              {renderError(adubacoesError)}
+            </Card>
 
-          <Card className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <Shield className="h-10 w-10 text-primary" />
-              <span className="text-2xl font-bold text-primary">
-                {loadingCounter(defensivosLoading, defensivosList.length)}
-              </span>
-            </div>
-            <h3 className="font-semibold text-lg mb-1">Defensivos</h3>
-            <p className="text-sm text-muted-foreground">Aplicacoes defensivas planejadas</p>
-            {renderError(defensivosError)}
-          </Card>
-        </div>
+            <Card className="p-6 hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <Shield className="h-10 w-10 text-primary" />
+                <span className="text-2xl font-bold text-primary">
+                  {loadingCounter(defensivosLoading, defensivosList.length)}
+                </span>
+              </div>
+              <h3 className="font-semibold text-lg mb-1">Defensivos</h3>
+              <p className="text-sm text-muted-foreground">Aplicacoes defensivas planejadas</p>
+              {renderError(defensivosError)}
+            </Card>
+          </div>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Link to="/cultivares">
