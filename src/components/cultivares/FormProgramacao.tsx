@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { X, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
+import { useSafras } from "@/hooks/useSafras";
 import { CreateProgramacaoCultivar } from "@/hooks/useProgramacaoCultivares";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
@@ -30,6 +31,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const [openProdutor, setOpenProdutor] = useState(false);
   const [openGrupo, setOpenGrupo] = useState(false);
   const [openFazenda, setOpenFazenda] = useState(false);
+  const [openSafra, setOpenSafra] = useState(false);
   const [filtroGrupo, setFiltroGrupo] = useState("");
   const [searchCultivar, setSearchCultivar] = useState("");
   const normalizeCM = (v: string | undefined | null) => String(v ?? "").trim().toLowerCase();
@@ -40,6 +42,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const [embalagemPreferida, setEmbalagemPreferida] = useState<EmbalagemPreferida>("auto");
   const [openEmbalagem, setOpenEmbalagem] = useState(false);
   const [resultadoEmbalagens, setResultadoEmbalagens] = useState<string>("");
+  const { safras, defaultSafra } = useSafras();
+  const safrasAtivas = (safras || []).filter((s) => s.ativa);
   
   const [formData, setFormData] = useState<CreateProgramacaoCultivar>({
     cultivar: initialData?.cultivar ?? "",
@@ -56,6 +60,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     populacao_recomendada: initialData?.populacao_recomendada ?? 0,
     sementes_por_saca: initialData?.sementes_por_saca ?? 0,
   });
+
+  // Seleciona automaticamente a safra padrão ao iniciar nova programação
+  useEffect(() => {
+    if (!formData.safra && defaultSafra?.id) {
+      setFormData((prev) => ({ ...prev, safra: defaultSafra.id }));
+    }
+  }, [defaultSafra, formData.safra]);
 
   // Calcula automaticamente a quantidade conforme preferência de embalagem
   useEffect(() => {
@@ -397,12 +408,50 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
 
           <div className="space-y-2">
             <Label htmlFor="safra">Safra</Label>
-            <Input
-              id="safra"
-              placeholder="2024/2025"
-              value={formData.safra || ""}
-              onChange={(e) => setFormData({ ...formData, safra: e.target.value || null })}
-            />
+            <Popover open={openSafra} onOpenChange={setOpenSafra}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openSafra}
+                  className="w-full justify-between"
+                >
+                  {formData.safra
+                    ? (safrasAtivas.find(s => s.id === formData.safra)?.nome || "Selecione a safra...")
+                    : "Selecione a safra..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar safra..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma safra encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {safrasAtivas.map((safra) => (
+                        <CommandItem
+                          key={safra.id}
+                          value={`${safra.nome}`}
+                          onSelect={() => {
+                            setFormData({ ...formData, safra: safra.id });
+                            setOpenSafra(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.safra === safra.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {safra.nome}
+                          {safra.is_default && " (Padrão)"}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
