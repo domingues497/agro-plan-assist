@@ -141,7 +141,7 @@ const Cultivares = () => {
                         </p>
                         {item.populacao_recomendada > 0 && (
                           <p>
-                            <span className="font-medium">População Recomendada:</span> {item.populacao_recomendada} plantas/m² ({(item.populacao_recomendada * 10000).toLocaleString('pt-BR')} plantas/ha)
+                            <span className="font-medium">População Recomendada:</span> {item.populacao_recomendada} sementes/m² ({(item.populacao_recomendada * 10000).toLocaleString('pt-BR')} plantas/ha)
                           </p>
                         )}
                         {item.sementes_por_saca > 0 && (
