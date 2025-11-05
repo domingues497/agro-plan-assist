@@ -270,6 +270,7 @@ export type Database = {
           porcentagem_salva: number | null
           produtor_numerocm: string | null
           responsavel: string | null
+          safra_id: string | null
           total: number | null
           updated_at: string | null
           user_id: string
@@ -286,6 +287,7 @@ export type Database = {
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
           responsavel?: string | null
+          safra_id?: string | null
           total?: number | null
           updated_at?: string | null
           user_id: string
@@ -302,11 +304,20 @@ export type Database = {
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
           responsavel?: string | null
+          safra_id?: string | null
           total?: number | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "programacao_adubacao_safra_id_fkey"
+            columns: ["safra_id"]
+            isOneToOne: false
+            referencedRelation: "safras"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       programacao_cultivares: {
         Row: {
@@ -380,6 +391,7 @@ export type Database = {
           id: string
           porcentagem_salva: number | null
           produto_salvo: boolean | null
+          safra_id: string | null
           unidade: string | null
           updated_at: string | null
           user_id: string
@@ -395,6 +407,7 @@ export type Database = {
           id?: string
           porcentagem_salva?: number | null
           produto_salvo?: boolean | null
+          safra_id?: string | null
           unidade?: string | null
           updated_at?: string | null
           user_id: string
@@ -410,6 +423,7 @@ export type Database = {
           id?: string
           porcentagem_salva?: number | null
           produto_salvo?: boolean | null
+          safra_id?: string | null
           unidade?: string | null
           updated_at?: string | null
           user_id?: string
@@ -422,7 +436,47 @@ export type Database = {
             referencedRelation: "aplicacoes_defensivos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "programacao_defensivos_safra_id_fkey"
+            columns: ["safra_id"]
+            isOneToOne: false
+            referencedRelation: "programacao_defensivos"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      safras: {
+        Row: {
+          ano_fim: number | null
+          ano_inicio: number | null
+          ativa: boolean
+          created_at: string
+          id: string
+          is_default: boolean
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ano_fim?: number | null
+          ano_inicio?: number | null
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ano_fim?: number | null
+          ano_inicio?: number | null
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
