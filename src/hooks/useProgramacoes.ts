@@ -461,6 +461,8 @@ export const useProgramacoes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
+      queryClient.invalidateQueries({ queryKey: ['programacao-cultivares'] });
+      queryClient.invalidateQueries({ queryKey: ['programacao-adubacao'] });
       toast({ title: "Replicação concluída com sucesso!" });
     },
     onError: (error: Error) => {
