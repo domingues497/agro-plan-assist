@@ -151,19 +151,18 @@ const Dashboard = () => {
 
   const salvarAreas = async () => {
     // Identifica apenas as fazendas que realmente mudaram
-    const mudancas = Object.entries(areasEdicao)
-      .map(([id, val]) => {
-        const fazenda = allFazendas.find(f => f.idfazenda === id);
-        const novoValor = Number(val);
-        const valorAtual = fazenda?.area_cultivavel || 0;
-        
-        // Só inclui se o valor mudou e é válido
-        if (novoValor > 0 && novoValor !== valorAtual) {
-          return { id, valor: novoValor };
-        }
-        return null;
-      })
-      .filter((x): x is { id: string; valor: number } => x !== null);
+    const mudancas: Array<{ id: string; valor: number }> = [];
+    
+    for (const [id, val] of Object.entries(areasEdicao)) {
+      const fazenda = allFazendas.find(f => f.idfazenda === id);
+      const novoValor = Number(val);
+      const valorAtual = fazenda?.area_cultivavel || 0;
+      
+      // Só inclui se o valor mudou e é válido
+      if (novoValor > 0 && novoValor !== valorAtual) {
+        mudancas.push({ id, valor: novoValor });
+      }
+    }
 
     // Se não houver mudanças, apenas fecha o modal
     if (mudancas.length === 0) {
