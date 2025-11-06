@@ -52,10 +52,40 @@ const Dashboard = () => {
     .toLowerCase() === "true";
 
   // Modal obrigatório: preenchimento de área cultivável ao logar
-  const { profile } = useProfile();
+  const { profile, updateProfile } = useProfile();
   const { data: allFazendas = [] } = useFazendas();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Verificar e preencher numerocm_consultor se estiver vazio
+  useEffect(() => {
+    const preencherConsultor = async () => {
+      if (profile && !profile.numerocm_consultor) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          const { data: consultor } = await supabase
+            .from("consultores")
+            .select("numerocm_consultor, consultor")
+            .eq("email", user.email.toLowerCase())
+            .maybeSingle();
+          
+          if (consultor) {
+            await supabase
+              .from("profiles")
+              .update({
+                numerocm_consultor: consultor.numerocm_consultor,
+                nome: consultor.consultor,
+              })
+              .eq("user_id", user.id);
+            
+            queryClient.invalidateQueries({ queryKey: ["profile"] });
+          }
+        }
+      }
+    };
+    preencherConsultor();
+  }, [profile, queryClient]);
+
   const [openAreaModal, setOpenAreaModal] = useState(false);
   const [areasEdicao, setAreasEdicao] = useState<Record<string, string>>({});
 
