@@ -150,26 +150,43 @@ const Dashboard = () => {
   };
 
   const salvarAreas = async () => {
-    const entradas = Object.entries(areasEdicao)
-      .map(([id, val]) => ({ id, valor: Number(val) }))
-      .filter((x) => x.valor && x.valor > 0);
+    // Identifica apenas as fazendas que realmente mudaram
+    const mudancas = Object.entries(areasEdicao)
+      .map(([id, val]) => {
+        const fazenda = allFazendas.find(f => f.idfazenda === id);
+        const novoValor = Number(val);
+        const valorAtual = fazenda?.area_cultivavel || 0;
+        
+        // Só inclui se o valor mudou e é válido
+        if (novoValor > 0 && novoValor !== valorAtual) {
+          return { id, valor: novoValor };
+        }
+        return null;
+      })
+      .filter((x): x is { id: string; valor: number } => x !== null);
+
+    // Se não houver mudanças, apenas fecha o modal
+    if (mudancas.length === 0) {
+      setOpenAreaModal(false);
+      setModalDismissed(true);
+      return;
+    }
 
     try {
-      for (const item of entradas) {
+      for (const item of mudancas) {
         const { error } = await supabase
           .from("fazendas")
           .update({ area_cultivavel: item.valor })
           .eq("idfazenda", item.id);
         if (error) throw error;
       }
-      // Recarrega as fazendas para reavaliar se ainda há pendências; mantém modal aberto enquanto houver 0/null
       await queryClient.invalidateQueries({ queryKey: ["fazendas"] });
-      toast({ title: "Áreas atualizadas", description: "Valores salvos com sucesso." });
-      // Fecha o modal e mantém fechado durante esta sessão
+      toast({ 
+        title: "Áreas atualizadas", 
+        description: `${mudancas.length} fazenda${mudancas.length > 1 ? 's atualizadas' : ' atualizada'} com sucesso.` 
+      });
       setOpenAreaModal(false);
       setModalDismissed(true);
-      // Garante que o usuário veja o dashboard (já estamos nele, mas assegura estado visual)
-      // window.location.replace('/dashboard'); // opcional: navegação explícita se necessário
     } catch (err: any) {
       toast({ title: "Erro ao salvar áreas", description: err.message, variant: "destructive" });
     }
