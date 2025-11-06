@@ -14,6 +14,7 @@ import Cultivares from "./pages/Cultivares";
 import Adubacao from "./pages/Adubacao";
 import Defensivos from "./pages/Defensivos";
 import Relatorios from "./pages/Relatorios";
+import Programacao from "./pages/Programacao";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/cultivares" element={<ProtectedRoute><Cultivares /></ProtectedRoute>} />
           <Route path="/adubacao" element={<ProtectedRoute><Adubacao /></ProtectedRoute>} />
           <Route path="/defensivos" element={<ProtectedRoute><Defensivos /></ProtectedRoute>} />
+          <Route path="/programacao" element={<ProtectedRoute><Programacao /></ProtectedRoute>} />
           <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>

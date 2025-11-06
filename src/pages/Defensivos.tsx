@@ -8,6 +8,7 @@ import { Shield, ArrowLeft, Copy, Trash2, Plus, Pencil, ChevronDown, Check, Chev
 import { useAplicacoesDefensivos, AplicacaoDefensivo } from "@/hooks/useAplicacoesDefensivos";
 import { FormAplicacaoDefensivo } from "@/components/defensivos/FormAplicacaoDefensivo";
 import { useProdutores } from "@/hooks/useProdutores";
+import { useProgramacoes } from "@/hooks/useProgramacoes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -26,6 +27,9 @@ const Defensivos = () => {
   const [editing, setEditing] = useState<AplicacaoDefensivo | null>(null);
   const { aplicacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating, replicate, isReplicating } = useAplicacoesDefensivos();
   const { data: produtores = [] } = useProdutores();
+  const { programacoes = [] } = useProgramacoes();
+
+  const temProgramacoes = programacoes.length > 0;
   const [replicateOpen, setReplicateOpen] = useState(false);
   const [replicateTargetId, setReplicateTargetId] = useState<string | null>(null);
   const [replicateProdutorNumerocm, setReplicateProdutorNumerocm] = useState<string>("");
@@ -77,11 +81,22 @@ const Defensivos = () => {
             <h2 className="text-2xl font-bold text-foreground">Programação de Defensivos</h2>
             <p className="text-muted-foreground">Aplicações químicas planejadas por área</p>
           </div>
-          <Button onClick={() => setShowForm(!showForm)}>
+          <Button 
+            onClick={() => setShowForm(!showForm)}
+            disabled={!temProgramacoes}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Nova aplicação
           </Button>
         </div>
+
+        {!temProgramacoes && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <p className="text-yellow-800 font-medium">
+              ⚠️ É necessário ter programação de cultivares e adubação antes de programar defensivos.
+            </p>
+          </div>
+        )}
 
         {showForm && !editing && (
           <FormAplicacaoDefensivo

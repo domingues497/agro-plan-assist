@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sprout, Droplet, Shield, FileText, Plus, Settings } from "lucide-react";
+import { Sprout, Droplet, Shield, FileText, Plus, Settings, Calendar } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
@@ -113,6 +113,16 @@ const Dashboard = () => {
         )}
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Link to="/programacao">
+            <Card className="p-6 hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer group">
+              <Calendar className="h-8 w-8 mb-4 text-primary group-hover:text-primary-foreground" />
+              <h3 className="font-semibold text-lg mb-2">Programação</h3>
+              <p className="text-sm text-muted-foreground group-hover:text-primary-foreground">
+                Planejamento completo de cultivares e adubação
+              </p>
+            </Card>
+          </Link>
+
           <Link to="/cultivares">
             <Card className="p-6 hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer group">
               <Sprout className="h-8 w-8 mb-4 text-primary group-hover:text-primary-foreground" />
@@ -160,10 +170,12 @@ const Dashboard = () => {
               <h3 className="font-semibold text-lg mb-1">Safra atual</h3>
               <p className="text-sm text-muted-foreground">Ultima sincronizacao: {lastSync}</p>
             </div>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova programacao
-            </Button>
+            <Link to="/programacao">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova programacao
+              </Button>
+            </Link>
           </div>
         </Card>
       </main>
