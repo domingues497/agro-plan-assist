@@ -110,9 +110,7 @@ export const useProgramacoes = () => {
           percentual_cobertura: item.percentual_cobertura,
           tipo_embalagem: item.tipo_embalagem,
           tipo_tratamento: item.tipo_tratamento,
-          tratamento_id: (item.tratamento_ids && item.tratamento_ids.length > 0
-            ? item.tratamento_ids[0]
-            : item.tratamento_id) || null,
+          tratamento_id: null, // Deprecated: agora usamos tabela de junção
           data_plantio: item.data_plantio || null,
           populacao_recomendada: item.populacao_recomendada || 0,
           semente_propria: item.semente_propria || false,
@@ -124,9 +122,27 @@ export const useProgramacoes = () => {
 
         const cultResponse = await (supabase as any)
           .from("programacao_cultivares")
-          .insert(cultivaresData);
+          .insert(cultivaresData)
+          .select();
 
         if (cultResponse.error) throw cultResponse.error;
+
+        // Inserir tratamentos na tabela de junção N:N
+        const tratamentosData = newProgramacao.cultivares.flatMap((item, idx) => {
+          const cultivarId = cultResponse.data[idx]?.id;
+          const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
+          return tratamentoIds.map(tratamentoId => ({
+            programacao_cultivar_id: cultivarId,
+            tratamento_id: tratamentoId
+          }));
+        }).filter(t => t.programacao_cultivar_id && t.tratamento_id);
+
+        if (tratamentosData.length > 0) {
+          const tratResponse = await (supabase as any)
+            .from("programacao_cultivares_tratamentos")
+            .insert(tratamentosData);
+          if (tratResponse.error) throw tratResponse.error;
+        }
       }
 
       if (newProgramacao.adubacao.length > 0) {
@@ -216,7 +232,7 @@ export const useProgramacoes = () => {
         .eq("id", id);
       if (progUpdate.error) throw progUpdate.error;
 
-      // Substitui cultivares vinculadas
+      // Substitui cultivares vinculadas (deletar também remove tratamentos via CASCADE)
       const delCult = await (supabase as any)
         .from("programacao_cultivares")
         .delete()
@@ -236,9 +252,7 @@ export const useProgramacoes = () => {
           percentual_cobertura: item.percentual_cobertura,
           tipo_embalagem: item.tipo_embalagem,
           tipo_tratamento: item.tipo_tratamento,
-          tratamento_id: (item.tratamento_ids && item.tratamento_ids.length > 0
-            ? item.tratamento_ids[0]
-            : item.tratamento_id) || null,
+          tratamento_id: null, // Deprecated: agora usamos tabela de junção
           data_plantio: item.data_plantio || null,
           populacao_recomendada: item.populacao_recomendada || 0,
           semente_propria: item.semente_propria || false,
@@ -249,8 +263,26 @@ export const useProgramacoes = () => {
         }));
         const cultInsert = await (supabase as any)
           .from("programacao_cultivares")
-          .insert(cultivaresData);
+          .insert(cultivaresData)
+          .select();
         if (cultInsert.error) throw cultInsert.error;
+
+        // Inserir tratamentos na tabela de junção N:N
+        const tratamentosData = data.cultivares.flatMap((item, idx) => {
+          const cultivarId = cultInsert.data[idx]?.id;
+          const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
+          return tratamentoIds.map(tratamentoId => ({
+            programacao_cultivar_id: cultivarId,
+            tratamento_id: tratamentoId
+          }));
+        }).filter(t => t.programacao_cultivar_id && t.tratamento_id);
+
+        if (tratamentosData.length > 0) {
+          const tratResponse = await (supabase as any)
+            .from("programacao_cultivares_tratamentos")
+            .insert(tratamentosData);
+          if (tratResponse.error) throw tratResponse.error;
+        }
       }
 
       // Substitui adubações vinculadas
@@ -357,7 +389,7 @@ export const useProgramacoes = () => {
         percentual_cobertura: c.percentual_cobertura,
         tipo_embalagem: c.tipo_embalagem,
         tipo_tratamento: c.tipo_tratamento,
-        tratamento_id: c.tratamento_id || null,
+        tratamento_id: null, // Deprecated: agora usamos tabela de junção
         data_plantio: c.data_plantio || null,
         populacao_recomendada: c.populacao_recomendada || 0,
         semente_propria: !!c.semente_propria,
@@ -369,8 +401,35 @@ export const useProgramacoes = () => {
       if (cultivaresData.length > 0) {
         const cultInsert = await (supabase as any)
           .from("programacao_cultivares")
-          .insert(cultivaresData);
+          .insert(cultivaresData)
+          .select();
         if (cultInsert.error) throw cultInsert.error;
+
+        // Replicar tratamentos da tabela de junção
+        const tratamentosOriginais = await Promise.all(
+          (cultOrig.data || []).map(async (c: any) => {
+            const { data } = await (supabase as any)
+              .from("programacao_cultivares_tratamentos")
+              .select("tratamento_id")
+              .eq("programacao_cultivar_id", c.id);
+            return { originalId: c.id, tratamentos: data || [] };
+          })
+        );
+
+        const tratamentosData = cultInsert.data.flatMap((c: any, idx: number) => {
+          const tratamentos = tratamentosOriginais[idx]?.tratamentos || [];
+          return tratamentos.map((t: any) => ({
+            programacao_cultivar_id: c.id,
+            tratamento_id: t.tratamento_id
+          }));
+        });
+
+        if (tratamentosData.length > 0) {
+          const tratResponse = await (supabase as any)
+            .from("programacao_cultivares_tratamentos")
+            .insert(tratamentosData);
+          if (tratResponse.error) throw tratResponse.error;
+        }
       }
 
       // Insert replicated adubacao

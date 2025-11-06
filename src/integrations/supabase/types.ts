@@ -459,6 +459,42 @@ export type Database = {
           },
         ]
       }
+      programacao_cultivares_tratamentos: {
+        Row: {
+          created_at: string | null
+          id: string
+          programacao_cultivar_id: string
+          tratamento_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          programacao_cultivar_id: string
+          tratamento_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          programacao_cultivar_id?: string
+          tratamento_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programacao_cultivares_tratamentos_programacao_cultivar_id_fkey"
+            columns: ["programacao_cultivar_id"]
+            isOneToOne: false
+            referencedRelation: "programacao_cultivares"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacao_cultivares_tratamentos_tratamento_id_fkey"
+            columns: ["tratamento_id"]
+            isOneToOne: false
+            referencedRelation: "tratamentos_sementes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programacao_defensivos: {
         Row: {
           alvo: string | null
