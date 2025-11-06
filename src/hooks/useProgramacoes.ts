@@ -8,6 +8,8 @@ export interface ItemCultivar {
   tipo_embalagem: "BAG 5000K" | "SACAS 200K";
   tipo_tratamento: "NÃO" | "NA FAZENDA" | "INDUSTRIAL";
   tratamento_id?: string;
+  // Suporte a múltiplos tratamentos selecionados na UI; persistimos o primeiro
+  tratamento_ids?: string[];
   data_plantio?: string;
   populacao_recomendada?: number;
   semente_propria?: boolean;
@@ -108,7 +110,9 @@ export const useProgramacoes = () => {
           percentual_cobertura: item.percentual_cobertura,
           tipo_embalagem: item.tipo_embalagem,
           tipo_tratamento: item.tipo_tratamento,
-          tratamento_id: item.tratamento_id || null,
+          tratamento_id: (item.tratamento_ids && item.tratamento_ids.length > 0
+            ? item.tratamento_ids[0]
+            : item.tratamento_id) || null,
           data_plantio: item.data_plantio || null,
           populacao_recomendada: item.populacao_recomendada || 0,
           semente_propria: item.semente_propria || false,
@@ -232,7 +236,9 @@ export const useProgramacoes = () => {
           percentual_cobertura: item.percentual_cobertura,
           tipo_embalagem: item.tipo_embalagem,
           tipo_tratamento: item.tipo_tratamento,
-          tratamento_id: item.tratamento_id || null,
+          tratamento_id: (item.tratamento_ids && item.tratamento_ids.length > 0
+            ? item.tratamento_ids[0]
+            : item.tratamento_id) || null,
           data_plantio: item.data_plantio || null,
           populacao_recomendada: item.populacao_recomendada || 0,
           semente_propria: item.semente_propria || false,

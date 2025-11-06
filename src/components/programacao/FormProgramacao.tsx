@@ -4,6 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList, CommandInput } from "@/components/ui/command";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
@@ -31,6 +36,18 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const { data: fertilizantes = [] } = useFertilizantesCatalog();
   const { safras = [], defaultSafra } = useSafras();
   const { data: justificativas = [] } = useJustificativasAdubacao();
+
+  // Evita duplicatas de itens de fertilizantes pelo nome exibido
+  const fertilizantesDistinct = useMemo(() => {
+    const seen = new Set<string>();
+    return (fertilizantes || [])
+      .filter((f) => {
+        const nome = String(f.item || "").trim();
+        if (!nome || seen.has(nome)) return false;
+        seen.add(nome);
+        return true;
+      });
+  }, [fertilizantes]);
 
   const [produtorNumerocm, setProdutorNumerocm] = useState(initialData?.produtor_numerocm || "");
   const [fazendaIdfazenda, setFazendaIdfazenda] = useState(initialData?.fazenda_idfazenda || "");
@@ -344,21 +361,54 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   {item.cultivar && item.tipo_tratamento !== "NÃO" && (
                     <div className="space-y-2">
                       <Label>Tratamento Específico</Label>
-                      <Select
-                        value={item.tratamento_id || ""}
-                        onValueChange={(value) => handleCultivarChange(index, "tratamento_id", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tratamento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tratamentosDisponiveis.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between"
+                          >
+                            {Array.isArray((item as any).tratamento_ids) && (item as any).tratamento_ids.length > 0
+                              ? `${(item as any).tratamento_ids.length} selecionado(s)`
+                              : "Selecione o(s) tratamento(s)..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command shouldFilter={true}>
+                            <CommandInput placeholder="Buscar tratamento..." />
+                            <CommandList>
+                              <CommandEmpty>Nenhum tratamento encontrado.</CommandEmpty>
+                              <CommandGroup>
+                                {tratamentosDisponiveis.map((t) => {
+                                  const selected = Array.isArray((item as any).tratamento_ids)
+                                    ? (item as any).tratamento_ids.includes(t.id)
+                                    : false;
+                                  return (
+                                    <CommandItem
+                                      key={t.id}
+                                      value={`${t.nome}`}
+                                      onSelect={() => {
+                                        const current = Array.isArray((item as any).tratamento_ids)
+                                          ? [...(item as any).tratamento_ids]
+                                          : [];
+                                        const exists = current.includes(t.id);
+                                        const next = exists
+                                          ? current.filter((id) => id !== t.id)
+                                          : [...current, t.id];
+                                        handleCultivarChange(index, "tratamento_ids" as any, next);
+                                      }}
+                                    >
+                                      <Check className={cn("mr-2 h-4 w-4", selected ? "opacity-100" : "opacity-0")} />
+                                      {t.nome}
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   )}
                 </div>
@@ -440,8 +490,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {fertilizantes.map((f) => (
-                          <SelectItem key={f.cod_item} value={f.item || ""}>
+                        {fertilizantesDistinct.map((f) => (
+                          <SelectItem key={f.cod_item ?? f.item} value={f.item || ""}>
                             {f.item}
                           </SelectItem>
                         ))}
