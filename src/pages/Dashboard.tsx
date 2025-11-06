@@ -8,12 +8,19 @@ import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { useProfile } from "@/hooks/useProfile";
 import { useFazendas } from "@/hooks/useFazendas";
+import { useProdutores } from "@/hooks/useProdutores";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -54,6 +61,7 @@ const Dashboard = () => {
   // Modal obrigatório: preenchimento de área cultivável ao logar
   const { profile, updateProfile } = useProfile();
   const { data: allFazendas = [] } = useFazendas();
+  const { data: allProdutores = [] } = useProdutores();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -89,31 +97,52 @@ const Dashboard = () => {
   const [openAreaModal, setOpenAreaModal] = useState(false);
   const [areasEdicao, setAreasEdicao] = useState<Record<string, string>>({});
 
-  const fazendasDoConsultor = useMemo(() => {
+  const produtoresDoConsultor = useMemo(() => {
     if (!profile?.numerocm_consultor) return [];
-    return allFazendas.filter((f) => f.numerocm_consultor === profile.numerocm_consultor);
-  }, [allFazendas, profile]);
+    return allProdutores.filter((p) => p.numerocm_consultor === profile.numerocm_consultor);
+  }, [allProdutores, profile]);
 
-  const fazendasSemArea = useMemo(() => {
-    return fazendasDoConsultor.filter((f) => !f.area_cultivavel || f.area_cultivavel === 0);
-  }, [fazendasDoConsultor]);
+  const fazendasPorProdutor = useMemo(() => {
+    const grouped: Record<string, typeof allFazendas> = {};
+    produtoresDoConsultor.forEach((produtor) => {
+      grouped[produtor.numerocm] = allFazendas.filter(
+        (f) => f.numerocm === produtor.numerocm
+      );
+    });
+    return grouped;
+  }, [produtoresDoConsultor, allFazendas]);
+
+  const hasFazendasSemArea = useMemo(() => {
+    return Object.values(fazendasPorProdutor).some((fazendas) =>
+      fazendas.some((f) => !f.area_cultivavel || f.area_cultivavel === 0)
+    );
+  }, [fazendasPorProdutor]);
 
   const pendentesCount = useMemo(() => {
-    return fazendasDoConsultor.filter((f) => Number(areasEdicao[f.idfazenda] || 0) <= 0).length;
-  }, [fazendasDoConsultor, areasEdicao]);
+    let count = 0;
+    Object.values(fazendasPorProdutor).forEach((fazendas) => {
+      fazendas.forEach((f) => {
+        if (Number(areasEdicao[f.idfazenda] || 0) <= 0) count++;
+      });
+    });
+    return count;
+  }, [fazendasPorProdutor, areasEdicao]);
 
   useEffect(() => {
-    if (fazendasDoConsultor.length > 0 && fazendasSemArea.length > 0) {
+    if (produtoresDoConsultor.length > 0 && hasFazendasSemArea) {
       // Pré-preenche todas as fazendas: as que têm área usam o valor; pendentes ficam vazias
-      const initial = Object.fromEntries(
-        fazendasDoConsultor.map((f) => [f.idfazenda, f.area_cultivavel && f.area_cultivavel > 0 ? String(f.area_cultivavel) : ""]))
-      ;
+      const initial: Record<string, string> = {};
+      Object.values(fazendasPorProdutor).forEach((fazendas) => {
+        fazendas.forEach((f) => {
+          initial[f.idfazenda] = f.area_cultivavel && f.area_cultivavel > 0 ? String(f.area_cultivavel) : "";
+        });
+      });
       setAreasEdicao(initial);
       setOpenAreaModal(true);
     } else {
       setOpenAreaModal(false);
     }
-  }, [fazendasDoConsultor, fazendasSemArea]);
+  }, [produtoresDoConsultor, hasFazendasSemArea, fazendasPorProdutor]);
 
   const handleAreaChange = (idfazenda: string, value: string) => {
     setAreasEdicao((prev) => ({ ...prev, [idfazenda]: value }));
@@ -182,32 +211,59 @@ const Dashboard = () => {
                 Antes de iniciar as programações, é necessário informar a área (hectares)
                 das fazendas abaixo vinculadas ao seu consultor.
               </AlertDialogDescription>
-              <div className="text-sm">Fazendas pendentes: <span className="font-semibold">{pendentesCount}</span></div>
+              <div className="text-sm mb-4">Fazendas pendentes: <span className="font-semibold">{pendentesCount}</span></div>
             </AlertDialogHeader>
-            <div className="space-y-3">
-              {fazendasDoConsultor.map((f) => (
-                <div key={f.idfazenda} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end">
-                  <div className="space-y-1">
-                    <Label>Fazenda</Label>
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium">{f.nomefazenda}</div>
-                      {Number(areasEdicao[f.idfazenda] || 0) <= 0 && (
-                        <Badge variant="destructive">pendente</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Área (hectares)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={areasEdicao[f.idfazenda] || ""}
-                      onChange={(e) => handleAreaChange(f.idfazenda, e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              ))}
+            <div className="max-h-[400px] overflow-y-auto pr-2">
+              <Accordion type="multiple" className="w-full">
+                {produtoresDoConsultor.map((produtor) => {
+                  const fazendas = fazendasPorProdutor[produtor.numerocm] || [];
+                  const fazendasPendentes = fazendas.filter(
+                    (f) => Number(areasEdicao[f.idfazenda] || 0) <= 0
+                  ).length;
+
+                  return (
+                    <AccordionItem key={produtor.numerocm} value={produtor.numerocm}>
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="font-medium">{produtor.numerocm} - {produtor.nome}</span>
+                          {fazendasPendentes > 0 && (
+                            <Badge variant="destructive" className="ml-2">
+                              {fazendasPendentes} pendente{fazendasPendentes > 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-3 pt-2">
+                          {fazendas.map((f) => (
+                            <div key={f.idfazenda} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end pl-4">
+                              <div className="space-y-1">
+                                <Label>Fazenda</Label>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-sm font-medium">{f.nomefazenda}</div>
+                                  {Number(areasEdicao[f.idfazenda] || 0) <= 0 && (
+                                    <Badge variant="destructive">pendente</Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <Label>Área (hectares)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={areasEdicao[f.idfazenda] || ""}
+                                  onChange={(e) => handleAreaChange(f.idfazenda, e.target.value)}
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             </div>
             <AlertDialogFooter>
               <AlertDialogAction onClick={salvarAreas}>Salvar e continuar</AlertDialogAction>
