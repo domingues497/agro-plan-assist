@@ -188,10 +188,233 @@ export const useProgramacoes = () => {
     }
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string } & CreateProgramacao) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const totalCultivares = data.cultivares.reduce(
+        (sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0
+      );
+      if (Math.abs(totalCultivares - 100) > 0.01) {
+        throw new Error("O percentual de cobertura das cultivares deve somar exatamente 100%");
+      }
+
+      const progUpdate = await (supabase as any)
+        .from("programacoes")
+        .update({
+          produtor_numerocm: data.produtor_numerocm,
+          fazenda_idfazenda: data.fazenda_idfazenda,
+          area: data.area,
+          area_hectares: data.area_hectares,
+          safra_id: data.safra_id || null
+        })
+        .eq("id", id);
+      if (progUpdate.error) throw progUpdate.error;
+
+      // Substitui cultivares vinculadas
+      const delCult = await (supabase as any)
+        .from("programacao_cultivares")
+        .delete()
+        .eq("programacao_id", id);
+      if (delCult.error) throw delCult.error;
+
+      if (data.cultivares.length > 0) {
+        const cultivaresData = data.cultivares.map(item => ({
+          user_id: user.id,
+          programacao_id: id,
+          produtor_numerocm: data.produtor_numerocm,
+          area: data.area,
+          area_hectares: data.area_hectares,
+          cultivar: item.cultivar,
+          quantidade: 0,
+          unidade: "kg",
+          percentual_cobertura: item.percentual_cobertura,
+          tipo_embalagem: item.tipo_embalagem,
+          tipo_tratamento: item.tipo_tratamento,
+          tratamento_id: item.tratamento_id || null,
+          data_plantio: item.data_plantio || null,
+          populacao_recomendada: item.populacao_recomendada || 0,
+          semente_propria: item.semente_propria || false,
+          referencia_rnc_mapa: item.referencia_rnc_mapa || null,
+          sementes_por_saca: item.sementes_por_saca || 0,
+          safra: null,
+          porcentagem_salva: 0
+        }));
+        const cultInsert = await (supabase as any)
+          .from("programacao_cultivares")
+          .insert(cultivaresData);
+        if (cultInsert.error) throw cultInsert.error;
+      }
+
+      // Substitui adubações vinculadas
+      const delAdub = await (supabase as any)
+        .from("programacao_adubacao")
+        .delete()
+        .eq("programacao_id", id);
+      if (delAdub.error) throw delAdub.error;
+
+      if (data.adubacao.length > 0) {
+        const adubacaoData = data.adubacao.map(item => ({
+          user_id: user.id,
+          programacao_id: id,
+          produtor_numerocm: data.produtor_numerocm,
+          area: data.area,
+          formulacao: item.formulacao,
+          dose: item.dose,
+          percentual_cobertura: item.percentual_cobertura,
+          data_aplicacao: item.data_aplicacao || null,
+          responsavel: item.responsavel || null,
+          justificativa_nao_adubacao_id: item.justificativa_nao_adubacao_id || null,
+          fertilizante_salvo: false,
+          deve_faturar: true,
+          porcentagem_salva: 0,
+          total: null,
+          safra_id: null
+        }));
+        const adubInsert = await (supabase as any)
+          .from("programacao_adubacao")
+          .insert(adubacaoData);
+        if (adubInsert.error) throw adubInsert.error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
+      toast({ title: "Programação atualizada com sucesso!" });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar programação",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const replicateMutation = useMutation({
+    mutationFn: async ({ id, produtor_numerocm, fazenda_idfazenda, area_hectares }: { id: string; produtor_numerocm: string; fazenda_idfazenda: string; area_hectares: number }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      if (!area_hectares || Number(area_hectares) <= 0) {
+        throw new Error("A fazenda selecionada não possui área preenchida");
+      }
+
+      // Fetch original programacao and its children
+      const original = await (supabase as any)
+        .from("programacoes")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (original.error) throw original.error;
+
+      const [cultOrig, adubOrig] = await Promise.all([
+        (supabase as any)
+          .from("programacao_cultivares")
+          .select("*")
+          .eq("programacao_id", id),
+        (supabase as any)
+          .from("programacao_adubacao")
+          .select("*")
+          .eq("programacao_id", id),
+      ]);
+      if (cultOrig.error) throw cultOrig.error;
+      if (adubOrig.error) throw adubOrig.error;
+
+      // Create new programacao using target fields and original area/safra
+      const progInsert = await (supabase as any)
+        .from("programacoes")
+        .insert({
+          user_id: user.id,
+          produtor_numerocm,
+          fazenda_idfazenda,
+          area: original.data.area,
+          area_hectares: area_hectares,
+          safra_id: original.data.safra_id || null,
+        })
+        .select()
+        .single();
+      if (progInsert.error) throw progInsert.error;
+
+      const newId = progInsert.data.id;
+
+      // Insert replicated cultivares
+      const cultivaresData = (cultOrig.data || []).map((c: any) => ({
+        user_id: user.id,
+        programacao_id: newId,
+        produtor_numerocm,
+        area: original.data.area,
+        area_hectares: area_hectares,
+        cultivar: c.cultivar,
+        quantidade: 0,
+        unidade: "kg",
+        percentual_cobertura: c.percentual_cobertura,
+        tipo_embalagem: c.tipo_embalagem,
+        tipo_tratamento: c.tipo_tratamento,
+        tratamento_id: c.tratamento_id || null,
+        data_plantio: c.data_plantio || null,
+        populacao_recomendada: c.populacao_recomendada || 0,
+        semente_propria: !!c.semente_propria,
+        referencia_rnc_mapa: c.referencia_rnc_mapa || null,
+        sementes_por_saca: c.sementes_por_saca || 0,
+        safra: null,
+        porcentagem_salva: 0,
+      }));
+      if (cultivaresData.length > 0) {
+        const cultInsert = await (supabase as any)
+          .from("programacao_cultivares")
+          .insert(cultivaresData);
+        if (cultInsert.error) throw cultInsert.error;
+      }
+
+      // Insert replicated adubacao
+      const adubacaoData = (adubOrig.data || []).map((a: any) => ({
+        user_id: user.id,
+        programacao_id: newId,
+        produtor_numerocm,
+        area: original.data.area,
+        formulacao: a.formulacao,
+        dose: a.dose,
+        percentual_cobertura: a.percentual_cobertura,
+        data_aplicacao: a.data_aplicacao || null,
+        responsavel: a.responsavel || null,
+        justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || null,
+        fertilizante_salvo: false,
+        deve_faturar: true,
+        porcentagem_salva: 0,
+        total: null,
+        safra_id: null,
+      }));
+      if (adubacaoData.length > 0) {
+        const adubInsert = await (supabase as any)
+          .from("programacao_adubacao")
+          .insert(adubacaoData);
+        if (adubInsert.error) throw adubInsert.error;
+      }
+
+      return newId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
+      toast({ title: "Replicação concluída com sucesso!" });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao replicar programação",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   return {
     programacoes: programacoes || [],
     isLoading,
     create: createMutation.mutate,
-    delete: deleteMutation.mutate
+    delete: deleteMutation.mutate,
+    update: updateMutation.mutateAsync,
+    isUpdating: updateMutation.isPending,
+    replicate: replicateMutation.mutateAsync,
+    isReplicating: replicateMutation.isPending
   };
 };

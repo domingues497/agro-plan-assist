@@ -95,6 +95,7 @@ const Dashboard = () => {
   }, [profile, queryClient]);
 
   const [openAreaModal, setOpenAreaModal] = useState(false);
+  const [modalDismissed, setModalDismissed] = useState(false);
   const [areasEdicao, setAreasEdicao] = useState<Record<string, string>>({});
 
   const produtoresDoConsultor = useMemo(() => {
@@ -129,7 +130,7 @@ const Dashboard = () => {
   }, [fazendasPorProdutor, areasEdicao]);
 
   useEffect(() => {
-    if (produtoresDoConsultor.length > 0 && hasFazendasSemArea) {
+    if (!modalDismissed && produtoresDoConsultor.length > 0 && hasFazendasSemArea) {
       // Pré-preenche todas as fazendas: as que têm área usam o valor; pendentes ficam vazias
       const initial: Record<string, string> = {};
       Object.values(fazendasPorProdutor).forEach((fazendas) => {
@@ -142,7 +143,7 @@ const Dashboard = () => {
     } else {
       setOpenAreaModal(false);
     }
-  }, [produtoresDoConsultor, hasFazendasSemArea, fazendasPorProdutor]);
+  }, [produtoresDoConsultor, hasFazendasSemArea, fazendasPorProdutor, modalDismissed]);
 
   const handleAreaChange = (idfazenda: string, value: string) => {
     setAreasEdicao((prev) => ({ ...prev, [idfazenda]: value }));
@@ -164,6 +165,11 @@ const Dashboard = () => {
       // Recarrega as fazendas para reavaliar se ainda há pendências; mantém modal aberto enquanto houver 0/null
       await queryClient.invalidateQueries({ queryKey: ["fazendas"] });
       toast({ title: "Áreas atualizadas", description: "Valores salvos com sucesso." });
+      // Fecha o modal e mantém fechado durante esta sessão
+      setOpenAreaModal(false);
+      setModalDismissed(true);
+      // Garante que o usuário veja o dashboard (já estamos nele, mas assegura estado visual)
+      // window.location.replace('/dashboard'); // opcional: navegação explícita se necessário
     } catch (err: any) {
       toast({ title: "Erro ao salvar áreas", description: err.message, variant: "destructive" });
     }
@@ -315,33 +321,13 @@ const Dashboard = () => {
           </div>
         )}
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Link to="/programacao">
             <Card className="p-6 hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer group">
               <Calendar className="h-8 w-8 mb-4 text-primary group-hover:text-primary-foreground" />
               <h3 className="font-semibold text-lg mb-2">Programação</h3>
               <p className="text-sm text-muted-foreground group-hover:text-primary-foreground">
                 Planejamento completo de cultivares e adubação
-              </p>
-            </Card>
-          </Link>
-
-          <Link to="/cultivares">
-            <Card className="p-6 hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer group">
-              <Sprout className="h-8 w-8 mb-4 text-primary group-hover:text-primary-foreground" />
-              <h3 className="font-semibold text-lg mb-2">Cultivares</h3>
-              <p className="text-sm text-muted-foreground group-hover:text-primary-foreground">
-                Gerenciar sementes e plantio
-              </p>
-            </Card>
-          </Link>
-
-          <Link to="/adubacao">
-            <Card className="p-6 hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer group">
-              <Droplet className="h-8 w-8 mb-4 text-primary group-hover:text-primary-foreground" />
-              <h3 className="font-semibold text-lg mb-2">Adubacao</h3>
-              <p className="text-sm text-muted-foreground group-hover:text-primary-foreground">
-                Planejar fertilizacao
               </p>
             </Card>
           </Link>

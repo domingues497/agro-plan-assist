@@ -1,18 +1,39 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, ArrowLeft, Trash2 } from "lucide-react";
+import { Calendar, ArrowLeft, Trash2, Pencil, Copy, Check, ChevronsUpDown } from "lucide-react";
 import { useProgramacoes } from "@/hooks/useProgramacoes";
 import { FormProgramacao } from "@/components/programacao/FormProgramacao";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useProdutores } from "@/hooks/useProdutores";
+import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
+import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 
 export default function Programacao() {
   const [showForm, setShowForm] = useState(false);
-  const { programacoes, isLoading, create, delete: deleteProgramacao } = useProgramacoes();
+  const [editing, setEditing] = useState<any | null>(null);
+  const { programacoes, isLoading, create, delete: deleteProgramacao, update, isUpdating, replicate, isReplicating } = useProgramacoes();
   const { data: fazendas = [] } = useFazendas();
   const { data: produtores = [] } = useProdutores();
+  const { programacoes: cultivaresList = [] } = useProgramacaoCultivares();
+  const { programacoes: adubacaoList = [] } = useProgramacaoAdubacao();
+
+  // Replicação
+  const [replicateOpen, setReplicateOpen] = useState(false);
+  const [replicateTargetId, setReplicateTargetId] = useState<string | null>(null);
+  const [replicateProdutorNumerocm, setReplicateProdutorNumerocm] = useState<string>("");
+  const [openReplicateProdutorPopover, setOpenReplicateProdutorPopover] = useState(false);
+  const [openReplicateFazendaPopover, setOpenReplicateFazendaPopover] = useState(false);
+  const [selectedAreaPairs, setSelectedAreaPairs] = useState<Array<{ produtor_numerocm: string; fazenda_idfazenda: string; nomefazenda: string; area_hectares: number }>>([]);
+  const [replicateTargets, setReplicateTargets] = useState<Array<{ produtor_numerocm: string; fazenda_idfazenda: string; area_hectares: number }>>([]);
+  const { data: fazendasReplicate = [] } = useFazendas(replicateProdutorNumerocm);
 
   const temAreasCadastradas = fazendas.length > 0;
 
@@ -56,13 +77,55 @@ export default function Programacao() {
           </div>
         )}
 
-        {showForm && (
+        {showForm && !editing && (
           <FormProgramacao
             onSubmit={(data) => {
               create(data);
               setShowForm(false);
             }}
             onCancel={() => setShowForm(false)}
+          />
+        )}
+
+        {editing && (
+          <FormProgramacao
+            title="Editar Programação"
+            submitLabel={isUpdating ? "Salvando..." : "Salvar alterações"}
+            initialData={(() => {
+              const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
+              const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
+              return {
+                produtor_numerocm: editing.produtor_numerocm,
+                fazenda_idfazenda: editing.fazenda_idfazenda,
+                area: editing.area,
+                area_hectares: editing.area_hectares,
+                safra_id: editing.safra_id || undefined,
+                cultivares: cults.map((c: any) => ({
+                  cultivar: c.cultivar,
+                  percentual_cobertura: Number(c.percentual_cobertura) || 0,
+                  tipo_embalagem: c.tipo_embalagem,
+                  tipo_tratamento: c.tipo_tratamento,
+                  tratamento_id: c.tratamento_id || undefined,
+                  data_plantio: c.data_plantio || undefined,
+                  populacao_recomendada: Number(c.populacao_recomendada) || 0,
+                  semente_propria: Boolean(c.semente_propria),
+                  referencia_rnc_mapa: c.referencia_rnc_mapa || undefined,
+                  sementes_por_saca: Number(c.sementes_por_saca) || 0,
+                })),
+                adubacao: adubs.map((a: any) => ({
+                  formulacao: a.formulacao,
+                  dose: Number(a.dose) || 0,
+                  percentual_cobertura: Number(a.percentual_cobertura) || 0,
+                  data_aplicacao: a.data_aplicacao || undefined,
+                  responsavel: a.responsavel || undefined,
+                  justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
+                }))
+              };
+            })()}
+            onSubmit={(data) => {
+              update({ id: editing.id, ...data }).then(() => setEditing(null));
+            }}
+            onCancel={() => setEditing(null)}
           />
         )}
 
@@ -103,14 +166,38 @@ export default function Programacao() {
                         </div>
                       </div>
                       
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => deleteProgramacao(prog.id)}
-                        title="Excluir"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setEditing(prog)}
+                      title="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        setReplicateTargetId(prog.id);
+                        setReplicateProdutorNumerocm("");
+                        setReplicateOpen(true);
+                        setSelectedAreaPairs([]);
+                        setReplicateTargets([]);
+                      }}
+                      title="Replicar"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => deleteProgramacao(prog.id)}
+                      title="Excluir"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                     </div>
                   </Card>
                 );
@@ -119,6 +206,200 @@ export default function Programacao() {
           </div>
         )}
       </main>
+    {/* Dialog de Replicação */}
+    <Dialog open={replicateOpen} onOpenChange={(o) => setReplicateOpen(o)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Replicar programação</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Produtor</label>
+            <Popover open={openReplicateProdutorPopover} onOpenChange={setOpenReplicateProdutorPopover}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between">
+                  {replicateProdutorNumerocm
+                    ? `${replicateProdutorNumerocm} - ${produtores.find(p => p.numerocm === replicateProdutorNumerocm)?.nome || ""}`
+                    : "Selecione produtor..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar produtor..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {produtores.map((produtor) => (
+                        <CommandItem
+                          key={produtor.id}
+                          value={`${produtor.numerocm} ${produtor.nome}`}
+                          onSelect={() => {
+                            setReplicateProdutorNumerocm(produtor.numerocm);
+                            setSelectedAreaPairs([]);
+                            setOpenReplicateProdutorPopover(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              replicateProdutorNumerocm === produtor.numerocm ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {produtor.numerocm} - {produtor.nome}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Áreas (fazendas)</label>
+            <Popover open={openReplicateFazendaPopover} onOpenChange={setOpenReplicateFazendaPopover}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openReplicateFazendaPopover}
+                  className="w-full justify-between"
+                  disabled={!replicateProdutorNumerocm}
+                >
+                  {selectedAreaPairs.length > 0
+                    ? `${selectedAreaPairs.length} área(s) selecionada(s)`
+                    : "Selecione áreas..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar área..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma área encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {fazendasReplicate?.map((f: any) => {
+                        const produtorNome = produtores.find(p => p.numerocm === f.numerocm)?.nome || "";
+                        const checked = selectedAreaPairs.some((ap) => ap.produtor_numerocm === replicateProdutorNumerocm && ap.fazenda_idfazenda === f.idfazenda);
+                        const disabled = !f.area_cultivavel || Number(f.area_cultivavel) <= 0;
+                        return (
+                          <CommandItem
+                            key={`${f.idfazenda}-${f.numerocm}`}
+                            value={`${f.numerocm} ${produtorNome} / ${f.nomefazenda}`}
+                            onSelect={() => {
+                              if (disabled) {
+                                toast.error("Fazenda sem área preenchida (ha). Atualize na Admin.");
+                                return;
+                              }
+                              setSelectedAreaPairs((prev) => {
+                                const exists = prev.some((ap) => ap.produtor_numerocm === replicateProdutorNumerocm && ap.fazenda_idfazenda === f.idfazenda);
+                                if (exists) {
+                                  return prev.filter((ap) => !(ap.produtor_numerocm === replicateProdutorNumerocm && ap.fazenda_idfazenda === f.idfazenda));
+                                }
+                                return [...prev, { produtor_numerocm: replicateProdutorNumerocm, fazenda_idfazenda: f.idfazenda, nomefazenda: f.nomefazenda, area_hectares: Number(f.area_cultivavel) }];
+                              });
+                            }}
+                          >
+                            <Checkbox checked={checked} className="mr-2 h-4 w-4" />
+                            {f.numerocm} - {produtorNome} / {f.nomefazenda}
+                            {disabled && <span className="ml-2 text-xs text-red-600">sem área (ha)</span>}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (selectedAreaPairs.length === 0) return;
+              const current = [...replicateTargets];
+              for (const ap of selectedAreaPairs) {
+                const exists = current.some((t) => t.produtor_numerocm === ap.produtor_numerocm && t.fazenda_idfazenda === ap.fazenda_idfazenda);
+                if (!exists) current.push({ produtor_numerocm: ap.produtor_numerocm, fazenda_idfazenda: ap.fazenda_idfazenda, area_hectares: ap.area_hectares });
+              }
+              setReplicateTargets(current);
+              setSelectedAreaPairs([]);
+            }}
+            disabled={selectedAreaPairs.length === 0}
+          >
+            Adicionar destino
+          </Button>
+        </div>
+        {replicateTargets.length > 0 && (
+          <div className="mt-2 space-y-2">
+            <label className="text-sm font-medium">Destinos selecionados</label>
+            <div className="space-y-2">
+              {replicateTargets.map((t, idx) => (
+                <div
+                  key={`${t.produtor_numerocm}-${t.fazenda_idfazenda}-${idx}`}
+                  className="flex items-center justify-between rounded-md border p-2"
+                >
+                  <div className="text-sm">
+                    <span className="font-medium">
+                      {t.produtor_numerocm} - {produtores.find(p => p.numerocm === t.produtor_numerocm)?.nome || ""}
+                    </span>
+                    <span className="ml-2 text-muted-foreground">/ {fazendasReplicate.find((f: any) => f.idfazenda === t.fazenda_idfazenda)?.nomefazenda || t.fazenda_idfazenda}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setReplicateTargets(replicateTargets.filter((rt, i) => i !== idx));
+                    }}
+                    title="Remover destino"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setReplicateOpen(false);
+              setReplicateTargetId(null);
+              setReplicateProdutorNumerocm("");
+              setSelectedAreaPairs([]);
+              setReplicateTargets([]);
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={async () => {
+              if (!replicateTargetId || replicateTargets.length === 0) return;
+              const results = await Promise.allSettled(
+                replicateTargets.map((t) =>
+                  replicate({ id: replicateTargetId!, produtor_numerocm: t.produtor_numerocm, fazenda_idfazenda: t.fazenda_idfazenda, area_hectares: t.area_hectares })
+                )
+              );
+              const ok = results.filter((r) => r.status === "fulfilled").length;
+              const fail = results.filter((r) => r.status === "rejected").length;
+              if (ok > 0) toast.success(`Replicação concluída: ${ok} sucesso(s)`);
+              if (fail > 0) toast.error(`Falhas em ${fail} destino(s)`);
+              setReplicateOpen(false);
+              setReplicateTargetId(null);
+              setReplicateProdutorNumerocm("");
+              setSelectedAreaPairs([]);
+              setReplicateTargets([]);
+            }}
+            disabled={isReplicating || !replicateTargetId || replicateTargets.length === 0}
+          >
+            Replicar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }

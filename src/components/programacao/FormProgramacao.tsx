@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,38 +18,64 @@ import type { CreateProgramacao, ItemCultivar, ItemAdubacao } from "@/hooks/useP
 interface FormProgramacaoProps {
   onSubmit: (data: CreateProgramacao) => void;
   onCancel: () => void;
+  title?: string;
+  submitLabel?: string;
+  initialData?: Partial<CreateProgramacao>;
 }
 
-export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) => {
+export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initialData }: FormProgramacaoProps) => {
   const { toast } = useToast();
   const { data: produtores = [] } = useProdutores();
   const { data: fazendas = [] } = useFazendas();
   const { data: cultivares = [] } = useCultivaresCatalog();
   const { data: fertilizantes = [] } = useFertilizantesCatalog();
-  const { safras = [] } = useSafras();
+  const { safras = [], defaultSafra } = useSafras();
   const { data: justificativas = [] } = useJustificativasAdubacao();
 
-  const [produtorNumerocm, setProdutorNumerocm] = useState("");
-  const [fazendaIdfazenda, setFazendaIdfazenda] = useState("");
-  const [area, setArea] = useState("");
-  const [areaHectares, setAreaHectares] = useState("");
-  const [safraId, setSafraId] = useState("");
+  const [produtorNumerocm, setProdutorNumerocm] = useState(initialData?.produtor_numerocm || "");
+  const [fazendaIdfazenda, setFazendaIdfazenda] = useState(initialData?.fazenda_idfazenda || "");
+  const [area, setArea] = useState(initialData?.area || "");
+  const [areaHectares, setAreaHectares] = useState(String(initialData?.area_hectares || ""));
+  const [safraId, setSafraId] = useState(initialData?.safra_id || "");
   const [naoFazerAdubacao, setNaoFazerAdubacao] = useState(false);
 
-  const [itensCultivar, setItensCultivar] = useState<ItemCultivar[]>([
-    { 
-      cultivar: "", 
-      percentual_cobertura: 0, 
-      tipo_embalagem: "BAG 5000K" as const,
-      tipo_tratamento: "NÃO" as const
-    }
-  ]);
+  const [itensCultivar, setItensCultivar] = useState<ItemCultivar[]>(
+    initialData?.cultivares && initialData.cultivares.length > 0
+      ? initialData.cultivares
+      : [{
+          cultivar: "",
+          percentual_cobertura: 0,
+          tipo_embalagem: "BAG 5000K" as const,
+          tipo_tratamento: "NÃO" as const
+        }]
+  );
 
-  const [itensAdubacao, setItensAdubacao] = useState<ItemAdubacao[]>([
-    { formulacao: "", dose: 0, percentual_cobertura: 0 }
-  ]);
+  const [itensAdubacao, setItensAdubacao] = useState<ItemAdubacao[]>(
+    initialData?.adubacao && initialData.adubacao.length > 0
+      ? initialData.adubacao
+      : [{ formulacao: "", dose: 0, percentual_cobertura: 0 }]
+  );
 
   const [fazendaFiltrada, setFazendaFiltrada] = useState<any[]>([]);
+
+  // Seleciona automaticamente a safra padrão, se disponível
+  useEffect(() => {
+    if (!safraId && defaultSafra?.id) {
+      setSafraId(defaultSafra.id);
+    }
+  }, [defaultSafra, safraId]);
+
+  // Atualiza estados quando initialData mudar (quando abrimos edição)
+  useEffect(() => {
+    if (!initialData) return;
+    if (typeof initialData.produtor_numerocm === "string") setProdutorNumerocm(initialData.produtor_numerocm);
+    if (typeof initialData.fazenda_idfazenda === "string") setFazendaIdfazenda(initialData.fazenda_idfazenda);
+    if (typeof initialData.area === "string") setArea(initialData.area);
+    if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
+    if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
+    if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares as ItemCultivar[]);
+    if (Array.isArray(initialData.adubacao)) setItensAdubacao(initialData.adubacao as ItemAdubacao[]);
+  }, [initialData]);
 
   useEffect(() => {
     if (produtorNumerocm) {
@@ -143,6 +169,11 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
   return (
     <Card className="p-6 mb-6">
       <form onSubmit={handleSubmit} className="space-y-6">
+        {title && (
+          <div className="mb-2">
+            <h3 className="text-lg font-semibold">{title}</h3>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Produtor</Label>
@@ -177,16 +208,6 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
           </div>
 
           <div className="space-y-2">
-            <Label>Área (nome/talhão)</Label>
-            <Input
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              placeholder="Ex: Talhão A"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label>Área (hectares)</Label>
             <Input
               type="number"
@@ -205,9 +226,9 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
                 <SelectValue placeholder="Selecione a safra" />
               </SelectTrigger>
               <SelectContent>
-                {safras.map((s) => (
+                {(safras || []).filter((s) => s.ativa).map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.nome}
+                    {s.nome}{s.is_default ? " (Padrão)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -227,9 +248,19 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
 
           <div className="space-y-4">
             {itensCultivar.map((item, index) => {
-              const cultivarSelecionado = cultivares.find(c => c.item === item.cultivar);
+              const cultivarSelecionado = cultivares.find(c => c.cultivar === item.cultivar);
               const cultura = (cultivarSelecionado as any)?.cultura;
               const { data: tratamentosDisponiveis = [] } = useTratamentosSementes(cultura);
+              const cultivaresDistinct = useMemo(() => {
+                const seen = new Set<string>();
+                return (cultivares || [])
+                  .filter((c) => {
+                    const nome = String(c.cultivar || "").trim();
+                    if (!nome || seen.has(nome)) return false;
+                    seen.add(nome);
+                    return true;
+                  });
+              }, [cultivares]);
               
               return (
                 <div key={index} className="space-y-3 p-4 border rounded-lg">
@@ -244,9 +275,9 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                          {cultivares.map((c) => (
-                            <SelectItem key={c.cod_item} value={c.item || ""}>
-                              {c.item}
+                          {cultivaresDistinct.map((c) => (
+                            <SelectItem key={c.cultivar} value={c.cultivar || ""}>
+                              {c.cultivar}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -456,7 +487,7 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
           )}
 
           <div className="mt-2 text-sm font-medium text-muted-foreground">
-            {!naoFazerAdubacao && `Total: ${getTotalAdubacao().toFixed(2)}% (não precisa ser 100%)`}
+            {!naoFazerAdubacao}
           </div>
         </div>
 
@@ -465,7 +496,7 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
             Cancelar
           </Button>
           <Button type="submit">
-            Salvar Programação
+            {submitLabel || "Salvar Programação"}
           </Button>
         </div>
       </form>
