@@ -73,6 +73,7 @@ export type Database = {
           cod_item: string
           created_at: string | null
           cultivar: string | null
+          cultura: string | null
           grupo: string | null
           id: string
           item: string | null
@@ -83,6 +84,7 @@ export type Database = {
           cod_item: string
           created_at?: string | null
           cultivar?: string | null
+          cultura?: string | null
           grupo?: string | null
           id?: string
           item?: string | null
@@ -93,6 +95,7 @@ export type Database = {
           cod_item?: string
           created_at?: string | null
           cultivar?: string | null
+          cultura?: string | null
           grupo?: string | null
           id?: string
           item?: string | null
@@ -200,6 +203,30 @@ export type Database = {
         }
         Relationships: []
       }
+      justificativas_adubacao: {
+        Row: {
+          ativo: boolean
+          created_at: string | null
+          descricao: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string | null
+          descricao: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       produtores: {
         Row: {
           consultor: string | null
@@ -267,8 +294,11 @@ export type Database = {
           fertilizante_salvo: boolean | null
           formulacao: string
           id: string
+          justificativa_nao_adubacao_id: string | null
+          percentual_cobertura: number | null
           porcentagem_salva: number | null
           produtor_numerocm: string | null
+          programacao_id: string | null
           responsavel: string | null
           safra_id: string | null
           total: number | null
@@ -284,8 +314,11 @@ export type Database = {
           fertilizante_salvo?: boolean | null
           formulacao: string
           id?: string
+          justificativa_nao_adubacao_id?: string | null
+          percentual_cobertura?: number | null
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
+          programacao_id?: string | null
           responsavel?: string | null
           safra_id?: string | null
           total?: number | null
@@ -301,8 +334,11 @@ export type Database = {
           fertilizante_salvo?: boolean | null
           formulacao?: string
           id?: string
+          justificativa_nao_adubacao_id?: string | null
+          percentual_cobertura?: number | null
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
+          programacao_id?: string | null
           responsavel?: string | null
           safra_id?: string | null
           total?: number | null
@@ -310,6 +346,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "programacao_adubacao_justificativa_nao_adubacao_id_fkey"
+            columns: ["justificativa_nao_adubacao_id"]
+            isOneToOne: false
+            referencedRelation: "justificativas_adubacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacao_adubacao_programacao_id_fkey"
+            columns: ["programacao_id"]
+            isOneToOne: false
+            referencedRelation: "programacoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "programacao_adubacao_safra_id_fkey"
             columns: ["safra_id"]
@@ -327,14 +377,19 @@ export type Database = {
           cultivar: string
           data_plantio: string | null
           id: string
+          percentual_cobertura: number | null
           populacao_recomendada: number | null
           porcentagem_salva: number | null
           produtor_numerocm: string | null
+          programacao_id: string | null
           quantidade: number
           referencia_rnc_mapa: string | null
           safra: string | null
           semente_propria: boolean | null
           sementes_por_saca: number | null
+          tipo_embalagem: string | null
+          tipo_tratamento: string | null
+          tratamento_id: string | null
           unidade: string | null
           updated_at: string | null
           user_id: string
@@ -346,14 +401,19 @@ export type Database = {
           cultivar: string
           data_plantio?: string | null
           id?: string
+          percentual_cobertura?: number | null
           populacao_recomendada?: number | null
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
+          programacao_id?: string | null
           quantidade: number
           referencia_rnc_mapa?: string | null
           safra?: string | null
           semente_propria?: boolean | null
           sementes_por_saca?: number | null
+          tipo_embalagem?: string | null
+          tipo_tratamento?: string | null
+          tratamento_id?: string | null
           unidade?: string | null
           updated_at?: string | null
           user_id: string
@@ -365,19 +425,39 @@ export type Database = {
           cultivar?: string
           data_plantio?: string | null
           id?: string
+          percentual_cobertura?: number | null
           populacao_recomendada?: number | null
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
+          programacao_id?: string | null
           quantidade?: number
           referencia_rnc_mapa?: string | null
           safra?: string | null
           semente_propria?: boolean | null
           sementes_por_saca?: number | null
+          tipo_embalagem?: string | null
+          tipo_tratamento?: string | null
+          tratamento_id?: string | null
           unidade?: string | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "programacao_cultivares_programacao_id_fkey"
+            columns: ["programacao_id"]
+            isOneToOne: false
+            referencedRelation: "programacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacao_cultivares_tratamento_id_fkey"
+            columns: ["tratamento_id"]
+            isOneToOne: false
+            referencedRelation: "tratamentos_sementes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       programacao_defensivos: {
         Row: {
@@ -445,6 +525,42 @@ export type Database = {
           },
         ]
       }
+      programacoes: {
+        Row: {
+          area: string
+          area_hectares: number
+          created_at: string
+          fazenda_idfazenda: string
+          id: string
+          produtor_numerocm: string
+          safra_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          area: string
+          area_hectares: number
+          created_at?: string
+          fazenda_idfazenda: string
+          id?: string
+          produtor_numerocm: string
+          safra_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          area?: string
+          area_hectares?: number
+          created_at?: string
+          fazenda_idfazenda?: string
+          id?: string
+          produtor_numerocm?: string
+          safra_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       safras: {
         Row: {
           ano_fim: number | null
@@ -475,6 +591,33 @@ export type Database = {
           is_default?: boolean
           nome?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      tratamentos_sementes: {
+        Row: {
+          ativo: boolean
+          created_at: string | null
+          cultura: string
+          id: string
+          nome: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string | null
+          cultura: string
+          id?: string
+          nome: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string | null
+          cultura?: string
+          id?: string
+          nome?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

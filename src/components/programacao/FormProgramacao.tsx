@@ -9,6 +9,8 @@ import { useFazendas } from "@/hooks/useFazendas";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { useFertilizantesCatalog } from "@/hooks/useFertilizantesCatalog";
 import { useSafras } from "@/hooks/useSafras";
+import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
+import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { CreateProgramacao, ItemCultivar, ItemAdubacao } from "@/hooks/useProgramacoes";
@@ -25,15 +27,22 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
   const { data: cultivares = [] } = useCultivaresCatalog();
   const { data: fertilizantes = [] } = useFertilizantesCatalog();
   const { safras = [] } = useSafras();
+  const { data: justificativas = [] } = useJustificativasAdubacao();
 
   const [produtorNumerocm, setProdutorNumerocm] = useState("");
   const [fazendaIdfazenda, setFazendaIdfazenda] = useState("");
   const [area, setArea] = useState("");
   const [areaHectares, setAreaHectares] = useState("");
   const [safraId, setSafraId] = useState("");
+  const [naoFazerAdubacao, setNaoFazerAdubacao] = useState(false);
 
   const [itensCultivar, setItensCultivar] = useState<ItemCultivar[]>([
-    { cultivar: "", quantidade: 0, unidade: "kg", percentual_cobertura: 0 }
+    { 
+      cultivar: "", 
+      percentual_cobertura: 0, 
+      tipo_embalagem: "BAG 5000K" as const,
+      tipo_tratamento: "NÃO" as const
+    }
   ]);
 
   const [itensAdubacao, setItensAdubacao] = useState<ItemAdubacao[]>([
@@ -52,7 +61,12 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
   }, [produtorNumerocm, fazendas]);
 
   const handleAddCultivar = () => {
-    setItensCultivar([...itensCultivar, { cultivar: "", quantidade: 0, unidade: "kg", percentual_cobertura: 0 }]);
+    setItensCultivar([...itensCultivar, { 
+      cultivar: "", 
+      percentual_cobertura: 0,
+      tipo_embalagem: "BAG 5000K" as const,
+      tipo_tratamento: "NÃO" as const
+    }]);
   };
 
   const handleRemoveCultivar = (index: number) => {
@@ -199,77 +213,113 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
           </div>
 
           <div className="space-y-4">
-            {itensCultivar.map((item, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border rounded-lg">
-                <div className="space-y-2">
-                  <Label>Cultivar</Label>
-                  <Select
-                    value={item.cultivar}
-                    onValueChange={(value) => handleCultivarChange(index, "cultivar", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cultivares.map((c) => (
-                        <SelectItem key={c.cod_item} value={c.item || ""}>
-                          {c.item}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            {itensCultivar.map((item, index) => {
+              const cultivarSelecionado = cultivares.find(c => c.item === item.cultivar);
+              const cultura = (cultivarSelecionado as any)?.cultura;
+              const { data: tratamentosDisponiveis = [] } = useTratamentosSementes(cultura);
+              
+              return (
+                <div key={index} className="space-y-3 p-4 border rounded-lg">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                    <div className="space-y-2">
+                      <Label>Cultivar</Label>
+                      <Select
+                        value={item.cultivar}
+                        onValueChange={(value) => handleCultivarChange(index, "cultivar", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {cultivares.map((c) => (
+                            <SelectItem key={c.cod_item} value={c.item || ""}>
+                              {c.item}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label>Quantidade</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={item.quantidade}
-                    onChange={(e) => handleCultivarChange(index, "quantidade", Number(e.target.value))}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label>Tipo Embalagem</Label>
+                      <Select
+                        value={item.tipo_embalagem}
+                        onValueChange={(value) => handleCultivarChange(index, "tipo_embalagem", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="BAG 5000K">BAG 5000K</SelectItem>
+                          <SelectItem value="SACAS 200K">SACAS 200K</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label>Unidade</Label>
-                  <Select
-                    value={item.unidade}
-                    onValueChange={(value) => handleCultivarChange(index, "unidade", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="kg">kg</SelectItem>
-                      <SelectItem value="sc">sc</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-2">
+                      <Label>Tipo Tratamento</Label>
+                      <Select
+                        value={item.tipo_tratamento}
+                        onValueChange={(value) => handleCultivarChange(index, "tipo_tratamento", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NÃO">NÃO</SelectItem>
+                          <SelectItem value="NA FAZENDA">NA FAZENDA</SelectItem>
+                          <SelectItem value="INDUSTRIAL">INDUSTRIAL</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label>% Cobertura</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    max="100"
-                    value={item.percentual_cobertura}
-                    onChange={(e) => handleCultivarChange(index, "percentual_cobertura", Number(e.target.value))}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label>% Cobertura</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        max="100"
+                        value={item.percentual_cobertura}
+                        onChange={(e) => handleCultivarChange(index, "percentual_cobertura", Number(e.target.value))}
+                      />
+                    </div>
 
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    onClick={() => handleRemoveCultivar(index)}
-                    disabled={itensCultivar.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleRemoveCultivar(index)}
+                        disabled={itensCultivar.length === 1}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {item.cultivar && item.tipo_tratamento !== "NÃO" && (
+                    <div className="space-y-2">
+                      <Label>Tratamento Específico</Label>
+                      <Select
+                        value={item.tratamento_id || ""}
+                        onValueChange={(value) => handleCultivarChange(index, "tratamento_id", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tratamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tratamentosDisponiveis.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className={`mt-2 text-sm font-medium ${getTotalCultivar() === 100 ? "text-green-600" : "text-red-600"}`}>
@@ -281,72 +331,119 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
         <div className="border-t pt-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Adubação</h3>
-            <Button type="button" onClick={handleAddAdubacao} variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-1" />
-              Adicionar
-            </Button>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={naoFazerAdubacao}
+                  onChange={(e) => setNaoFazerAdubacao(e.target.checked)}
+                  className="rounded"
+                />
+                Não fazer adubação
+              </label>
+              {!naoFazerAdubacao && (
+                <Button type="button" onClick={handleAddAdubacao} variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Adicionar
+                </Button>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-4">
-            {itensAdubacao.map((item, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 border rounded-lg">
-                <div className="space-y-2">
-                  <Label>Formulação</Label>
-                  <Select
-                    value={item.formulacao}
-                    onValueChange={(value) => handleAdubacaoChange(index, "formulacao", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fertilizantes.map((f) => (
-                        <SelectItem key={f.cod_item} value={f.item || ""}>
-                          {f.item}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {naoFazerAdubacao ? (
+            <div className="space-y-2">
+              <Label>Justificativa para não fazer adubação *</Label>
+              <Select
+                value={itensAdubacao[0]?.justificativa_nao_adubacao_id || ""}
+                onValueChange={(value) => {
+                  const newItems = [...itensAdubacao];
+                  if (newItems.length === 0) {
+                    newItems.push({ 
+                      formulacao: "", 
+                      dose: 0, 
+                      percentual_cobertura: 0,
+                      justificativa_nao_adubacao_id: value 
+                    });
+                  } else {
+                    newItems[0].justificativa_nao_adubacao_id = value;
+                  }
+                  setItensAdubacao(newItems);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a justificativa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {justificativas.map((j) => (
+                    <SelectItem key={j.id} value={j.id}>
+                      {j.descricao}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {itensAdubacao.map((item, index) => (
+                <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 border rounded-lg">
+                  <div className="space-y-2">
+                    <Label>Formulação</Label>
+                    <Select
+                      value={item.formulacao}
+                      onValueChange={(value) => handleAdubacaoChange(index, "formulacao", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fertilizantes.map((f) => (
+                          <SelectItem key={f.cod_item} value={f.item || ""}>
+                            {f.item}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>Dose (kg/ha)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={item.dose}
-                    onChange={(e) => handleAdubacaoChange(index, "dose", Number(e.target.value))}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label>Dose (kg/ha)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={item.dose}
+                      onChange={(e) => handleAdubacaoChange(index, "dose", Number(e.target.value))}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>% Cobertura</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    max="100"
-                    value={item.percentual_cobertura}
-                    onChange={(e) => handleAdubacaoChange(index, "percentual_cobertura", Number(e.target.value))}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label>% Cobertura</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      max="100"
+                      value={item.percentual_cobertura}
+                      onChange={(e) => handleAdubacaoChange(index, "percentual_cobertura", Number(e.target.value))}
+                    />
+                  </div>
 
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    onClick={() => handleRemoveAdubacao(index)}
-                    disabled={itensAdubacao.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => handleRemoveAdubacao(index)}
+                      disabled={itensAdubacao.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="mt-2 text-sm font-medium text-muted-foreground">
-            Total: {getTotalAdubacao().toFixed(2)}% (não precisa ser 100%)
+            {!naoFazerAdubacao && `Total: ${getTotalAdubacao().toFixed(2)}% (não precisa ser 100%)`}
           </div>
         </div>
 

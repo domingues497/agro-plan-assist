@@ -4,9 +4,10 @@ import { useToast } from "@/hooks/use-toast";
 
 export interface ItemCultivar {
   cultivar: string;
-  quantidade: number;
-  unidade: string;
   percentual_cobertura: number;
+  tipo_embalagem: "BAG 5000K" | "SACAS 200K";
+  tipo_tratamento: "NÃO" | "NA FAZENDA" | "INDUSTRIAL";
+  tratamento_id?: string;
   data_plantio?: string;
   populacao_recomendada?: number;
   semente_propria?: boolean;
@@ -20,6 +21,7 @@ export interface ItemAdubacao {
   percentual_cobertura: number;
   data_aplicacao?: string;
   responsavel?: string;
+  justificativa_nao_adubacao_id?: string;
 }
 
 export interface Programacao {
@@ -101,9 +103,12 @@ export const useProgramacoes = () => {
           area: newProgramacao.area,
           area_hectares: newProgramacao.area_hectares,
           cultivar: item.cultivar,
-          quantidade: item.quantidade,
-          unidade: item.unidade,
+          quantidade: 0,
+          unidade: "kg",
           percentual_cobertura: item.percentual_cobertura,
+          tipo_embalagem: item.tipo_embalagem,
+          tipo_tratamento: item.tipo_tratamento,
+          tratamento_id: item.tratamento_id || null,
           data_plantio: item.data_plantio || null,
           populacao_recomendada: item.populacao_recomendada || 0,
           semente_propria: item.semente_propria || false,
@@ -131,6 +136,7 @@ export const useProgramacoes = () => {
           percentual_cobertura: item.percentual_cobertura,
           data_aplicacao: item.data_aplicacao || null,
           responsavel: item.responsavel || null,
+          justificativa_nao_adubacao_id: item.justificativa_nao_adubacao_id || null,
           fertilizante_salvo: false,
           deve_faturar: true,
           porcentagem_salva: 0,
