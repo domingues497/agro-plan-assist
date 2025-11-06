@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,23 @@ import { Sprout, Droplet, Shield, FileText, Plus, Settings, Calendar } from "luc
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
+import { useProfile } from "@/hooks/useProfile";
+import { useFazendas } from "@/hooks/useFazendas";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 const Dashboard = () => {
   const {
@@ -33,6 +50,65 @@ const Dashboard = () => {
   const lastSync = useMemo(() => new Date().toLocaleString(), []);
   const showSummaryCards = String(import.meta.env.VITE_DASHBOARD_SUMMARY_ENABLED || "")
     .toLowerCase() === "true";
+
+  // Modal obrigatório: preenchimento de área cultivável ao logar
+  const { profile } = useProfile();
+  const { data: allFazendas = [] } = useFazendas();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [openAreaModal, setOpenAreaModal] = useState(false);
+  const [areasEdicao, setAreasEdicao] = useState<Record<string, string>>({});
+
+  const fazendasDoConsultor = useMemo(() => {
+    if (!profile?.numerocm_consultor) return [];
+    return allFazendas.filter((f) => f.numerocm_consultor === profile.numerocm_consultor);
+  }, [allFazendas, profile]);
+
+  const fazendasSemArea = useMemo(() => {
+    return fazendasDoConsultor.filter((f) => !f.area_cultivavel || f.area_cultivavel === 0);
+  }, [fazendasDoConsultor]);
+
+  const pendentesCount = useMemo(() => {
+    return fazendasDoConsultor.filter((f) => Number(areasEdicao[f.idfazenda] || 0) <= 0).length;
+  }, [fazendasDoConsultor, areasEdicao]);
+
+  useEffect(() => {
+    if (fazendasDoConsultor.length > 0 && fazendasSemArea.length > 0) {
+      // Pré-preenche todas as fazendas: as que têm área usam o valor; pendentes ficam vazias
+      const initial = Object.fromEntries(
+        fazendasDoConsultor.map((f) => [f.idfazenda, f.area_cultivavel && f.area_cultivavel > 0 ? String(f.area_cultivavel) : ""]))
+      ;
+      setAreasEdicao(initial);
+      setOpenAreaModal(true);
+    } else {
+      setOpenAreaModal(false);
+    }
+  }, [fazendasDoConsultor, fazendasSemArea]);
+
+  const handleAreaChange = (idfazenda: string, value: string) => {
+    setAreasEdicao((prev) => ({ ...prev, [idfazenda]: value }));
+  };
+
+  const salvarAreas = async () => {
+    const entradas = Object.entries(areasEdicao)
+      .map(([id, val]) => ({ id, valor: Number(val) }))
+      .filter((x) => x.valor && x.valor > 0);
+
+    try {
+      for (const item of entradas) {
+        const { error } = await supabase
+          .from("fazendas")
+          .update({ area_cultivavel: item.valor })
+          .eq("idfazenda", item.id);
+        if (error) throw error;
+      }
+      // Recarrega as fazendas para reavaliar se ainda há pendências; mantém modal aberto enquanto houver 0/null
+      await queryClient.invalidateQueries({ queryKey: ["fazendas"] });
+      toast({ title: "Áreas atualizadas", description: "Valores salvos com sucesso." });
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar áreas", description: err.message, variant: "destructive" });
+    }
+  };
 
   const loadingCounter = (isLoading: boolean, value: number) => {
     if (isLoading) {
@@ -67,6 +143,47 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Modal obrigatório de preenchimento da área cultivável */}
+        <AlertDialog open={openAreaModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Preencha a área cultivável das fazendas</AlertDialogTitle>
+              <AlertDialogDescription>
+                Antes de iniciar as programações, é necessário informar a área (hectares)
+                das fazendas abaixo vinculadas ao seu consultor.
+              </AlertDialogDescription>
+              <div className="text-sm">Fazendas pendentes: <span className="font-semibold">{pendentesCount}</span></div>
+            </AlertDialogHeader>
+            <div className="space-y-3">
+              {fazendasDoConsultor.map((f) => (
+                <div key={f.idfazenda} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end">
+                  <div className="space-y-1">
+                    <Label>Fazenda</Label>
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-medium">{f.nomefazenda}</div>
+                      {Number(areasEdicao[f.idfazenda] || 0) <= 0 && (
+                        <Badge variant="destructive">pendente</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Área (hectares)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={areasEdicao[f.idfazenda] || ""}
+                      onChange={(e) => handleAreaChange(f.idfazenda, e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={salvarAreas}>Salvar e continuar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-foreground mb-2">Dashboard</h2>
           <p className="text-muted-foreground">Gerencie programacoes agricolas e cultivos</p>

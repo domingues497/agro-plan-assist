@@ -60,6 +60,19 @@ export const FormProgramacao = ({ onSubmit, onCancel }: FormProgramacaoProps) =>
     }
   }, [produtorNumerocm, fazendas]);
 
+  // Auto-preenche área em hectares com o valor de area_cultivavel da fazenda selecionada
+  useEffect(() => {
+    if (!fazendaIdfazenda) return;
+    const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
+    const areaCultivavel = fazendaSelecionada?.area_cultivavel;
+    if (areaCultivavel && areaCultivavel > 0) {
+      setAreaHectares(String(areaCultivavel));
+    } else {
+      // Se não existir ou for 0/null, não define valor para obrigar preenchimento manual
+      setAreaHectares("");
+    }
+  }, [fazendaIdfazenda, fazendaFiltrada]);
+
   const handleAddCultivar = () => {
     setItensCultivar([...itensCultivar, { 
       cultivar: "", 
