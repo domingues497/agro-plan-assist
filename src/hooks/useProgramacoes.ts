@@ -346,6 +346,21 @@ export const useProgramacoes = () => {
         .single();
       if (original.error) throw original.error;
 
+      // Fetch destination fazenda name to set correct area string
+      const destFazenda = await (supabase as any)
+        .from("fazendas")
+        .select("nomefazenda")
+        .eq("idfazenda", fazenda_idfazenda)
+        .maybeSingle?.() ?? await (supabase as any)
+        .from("fazendas")
+        .select("nomefazenda")
+        .eq("idfazenda", fazenda_idfazenda)
+        .single();
+      if (destFazenda.error) {
+        // Não bloquear replicação se nome não encontrado; usar área original como fallback
+      }
+      const destAreaName = destFazenda.data?.nomefazenda || original.data.area;
+
       const [cultOrig, adubOrig] = await Promise.all([
         (supabase as any)
           .from("programacao_cultivares")
@@ -366,7 +381,7 @@ export const useProgramacoes = () => {
           user_id: user.id,
           produtor_numerocm,
           fazenda_idfazenda,
-          area: original.data.area,
+          area: destAreaName,
           area_hectares: area_hectares,
           safra_id: original.data.safra_id || null,
         })
@@ -381,7 +396,7 @@ export const useProgramacoes = () => {
         user_id: user.id,
         programacao_id: newId,
         produtor_numerocm,
-        area: original.data.area,
+        area: destAreaName,
         area_hectares: area_hectares,
         cultivar: c.cultivar,
         quantidade: 0,
@@ -437,7 +452,7 @@ export const useProgramacoes = () => {
         user_id: user.id,
         programacao_id: newId,
         produtor_numerocm,
-        area: original.data.area,
+        area: destAreaName,
         formulacao: a.formulacao,
         dose: a.dose,
         percentual_cobertura: a.percentual_cobertura,

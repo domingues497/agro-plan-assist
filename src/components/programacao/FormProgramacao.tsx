@@ -100,6 +100,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       setFazendaFiltrada(filtered);
       setFazendaIdfazenda("");
       setArea("");
+      // Resetar hectares ao trocar de produtor para evitar resquícios
+      setAreaHectares("");
     }
   }, [produtorNumerocm, fazendas]);
 
@@ -108,6 +110,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (!fazendaIdfazenda) return;
     const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
     const areaCultivavel = fazendaSelecionada?.area_cultivavel;
+    // Sincroniza o campo de "área" (nome da fazenda) com a fazenda selecionada
+    setArea(fazendaSelecionada?.nomefazenda || "");
     if (areaCultivavel && areaCultivavel > 0) {
       setAreaHectares(String(areaCultivavel));
     } else {
@@ -170,11 +174,49 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       return;
     }
 
+    // Garante consistência: área (nome) e hectares vindos da fazenda selecionada
+    const fazendaSelecionada =
+      fazendas.find((f) => f.idfazenda === fazendaIdfazenda) ||
+      fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
+
+    const areaNome = fazendaSelecionada?.nomefazenda || area;
+    const areaHectaresFinal =
+      (fazendaSelecionada?.area_cultivavel && Number(fazendaSelecionada.area_cultivavel) > 0)
+        ? Number(fazendaSelecionada.area_cultivavel)
+        : Number(areaHectares);
+
+    if (!fazendaIdfazenda) {
+      toast({
+        title: "Erro de validação",
+        description: "Selecione a fazenda antes de salvar",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!areaNome) {
+      toast({
+        title: "Erro de validação",
+        description: "Nome da área não definido. Selecione a fazenda novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!areaHectaresFinal || Number.isNaN(areaHectaresFinal) || areaHectaresFinal <= 0) {
+      toast({
+        title: "Erro de validação",
+        description: "Preencha a área (hectares) com um valor válido",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const data: CreateProgramacao = {
       produtor_numerocm: produtorNumerocm,
       fazenda_idfazenda: fazendaIdfazenda,
-      area,
-      area_hectares: Number(areaHectares),
+      area: areaNome,
+      area_hectares: areaHectaresFinal,
       safra_id: safraId || undefined,
       cultivares: itensCultivar.filter(item => item.cultivar),
       adubacao: itensAdubacao.filter(item => item.formulacao)
