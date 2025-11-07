@@ -15,10 +15,12 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Programacao() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [editingTratamentos, setEditingTratamentos] = useState<Record<string, string[]>>({});
   const { programacoes, isLoading, create, delete: deleteProgramacao, update, isUpdating, replicate, isReplicating } = useProgramacoes();
   const { data: fazendas = [] } = useFazendas();
   const { data: produtores = [] } = useProdutores();
@@ -105,7 +107,7 @@ export default function Programacao() {
                   percentual_cobertura: Number(c.percentual_cobertura) || 0,
                   tipo_embalagem: c.tipo_embalagem,
                   tipo_tratamento: c.tipo_tratamento,
-                  tratamento_id: c.tratamento_id || undefined,
+                  tratamento_ids: editingTratamentos[c.id] || [],
                   data_plantio: c.data_plantio || undefined,
                   populacao_recomendada: Number(c.populacao_recomendada) || 0,
                   semente_propria: Boolean(c.semente_propria),
@@ -123,9 +125,15 @@ export default function Programacao() {
               };
             })()}
             onSubmit={(data) => {
-              update({ id: editing.id, ...data }).then(() => setEditing(null));
+              update({ id: editing.id, ...data }).then(() => {
+                setEditing(null);
+                setEditingTratamentos({});
+              });
             }}
-            onCancel={() => setEditing(null)}
+            onCancel={() => {
+              setEditing(null);
+              setEditingTratamentos({});
+            }}
           />
         )}
 
@@ -166,11 +174,27 @@ export default function Programacao() {
                         </div>
                       </div>
                       
-                  <div className="flex items-center gap-2">
+                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => setEditing(prog)}
+                      onClick={async () => {
+                        // Buscar tratamentos da tabela de junção antes de abrir edição
+                        const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === prog.id);
+                        const tratamentosMap: Record<string, string[]> = {};
+                        
+                        for (const cult of cults) {
+                          const { data } = await (supabase as any)
+                            .from("programacao_cultivares_tratamentos")
+                            .select("tratamento_id")
+                            .eq("programacao_cultivar_id", cult.id);
+                          
+                          tratamentosMap[cult.id] = (data || []).map((t: any) => t.tratamento_id);
+                        }
+                        
+                        setEditingTratamentos(tratamentosMap);
+                        setEditing(prog);
+                      }}
                       title="Editar"
                     >
                       <Pencil className="h-4 w-4" />
