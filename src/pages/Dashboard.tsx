@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sprout, Droplet, Shield, FileText, Plus, Settings, Calendar } from "lucide-react";
@@ -225,6 +225,20 @@ const Dashboard = () => {
   const renderError = (error: unknown) =>
     error ? <p className="text-sm text-destructive mt-2">Erro ao carregar dados.</p> : null;
 
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      // Limpa todo cache de queries/mutações para evitar dados de sessão anterior
+      queryClient.clear();
+      navigate("/auth", { replace: true });
+    } catch (err) {
+      console.error("Erro ao fazer logout", err);
+      toast({ title: "Erro ao sair", description: "Tente novamente.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -241,7 +255,7 @@ const Dashboard = () => {
                   Admin
                 </Button>
               </Link>
-              <Button variant="outline" size="sm">Sair</Button>
+              <Button variant="outline" size="sm" onClick={handleLogout}>Sair</Button>
             </div>
           </div>
         </div>

@@ -19,6 +19,10 @@ import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useProfile } from "@/hooks/useProfile";
+import { useAdminRole } from "@/hooks/useAdminRole";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import type { CreateProgramacao, ItemCultivar, ItemAdubacao } from "@/hooks/useProgramacoes";
 
 interface FormProgramacaoProps {
@@ -29,8 +33,153 @@ interface FormProgramacaoProps {
   initialData?: Partial<CreateProgramacao>;
 }
 
+// Linha separada: subcomponente para uma linha de cultivar
+type CultivarRowProps = {
+  item: ItemCultivar & { uiId?: string };
+  index: number;
+  cultivaresDistinct: Array<{ cultivar: string | null }>;
+  cultivaresCatalog: Array<{ cultivar: string | null; cultura: string | null }>;
+  canRemove: boolean;
+  onChange: (index: number, field: keyof ItemCultivar, value: any) => void;
+  onRemove: (index: number) => void;
+};
+
+function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRemove, onChange, onRemove }: CultivarRowProps) {
+  const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
+  const cultura = (cultivarSelecionado as any)?.cultura as string | undefined;
+  const { data: tratamentosDisponiveis = [] } = useTratamentosSementes(cultura);
+
+  return (
+    <div className="space-y-3 p-4 border rounded-lg">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="space-y-2">
+          <Label>Cultivar</Label>
+          <Select value={item.cultivar} onValueChange={(value) => onChange(index, "cultivar", value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {cultivaresDistinct.map((c) => (
+                <SelectItem key={`cult-${c.cultivar ?? 'null'}`} value={c.cultivar || ""}>
+                  {c.cultivar}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Tipo Embalagem</Label>
+          <Select value={item.tipo_embalagem} onValueChange={(value) => onChange(index, "tipo_embalagem", value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="BAG 5000K">BAG 5000K</SelectItem>
+              <SelectItem value="SACAS 200K">SACAS 200K</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Tipo Tratamento</Label>
+          <Select
+            value={item.tipo_tratamento}
+            onValueChange={(value) => {
+              onChange(index, "tipo_tratamento", value);
+              // Se usuário escolher "NÃO", limpamos os tratamentos específicos selecionados
+              if (value === "NÃO") {
+                onChange(index, "tratamento_ids" as any, []);
+              }
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="NÃO">NÃO</SelectItem>
+              <SelectItem value="NA FAZENDA">NA FAZENDA</SelectItem>
+              <SelectItem value="INDUSTRIAL">INDUSTRIAL</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>% Cobertura</Label>
+          <Input
+            type="number"
+            step="0.01"
+            max="100"
+            value={item.percentual_cobertura}
+            onChange={(e) => onChange(index, "percentual_cobertura", Number(e.target.value))}
+          />
+        </div>
+
+        <div className="flex items-end">
+          <Button type="button" variant="destructive" size="icon" onClick={() => onRemove(index)} disabled={!canRemove}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {item.cultivar && item.tipo_tratamento !== "NÃO" && (
+        <div className="space-y-2">
+          <Label>Tratamento Específico</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" type="button" role="combobox" className="w-full justify-between">
+                {Array.isArray((item as any).tratamento_ids) && (item as any).tratamento_ids.length > 0
+                  ? `${(item as any).tratamento_ids.length} selecionado(s)`
+                  : "Selecione o(s) tratamento(s)..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command shouldFilter={true}>
+                <CommandInput placeholder="Buscar tratamento..." />
+                <CommandList>
+                  <CommandEmpty>Nenhum tratamento encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {tratamentosDisponiveis.map((t) => {
+                      const selected = Array.isArray((item as any).tratamento_ids)
+                        ? (item as any).tratamento_ids.includes(t.id)
+                        : false;
+                      return (
+                        <CommandItem
+                          key={t.id}
+                          value={`${t.nome}`}
+                          onSelect={() => {
+                            const current = Array.isArray((item as any).tratamento_ids)
+                              ? [...(item as any).tratamento_ids]
+                              : [];
+                            const exists = current.includes(t.id);
+                            const next = exists ? current.filter((id) => id !== t.id) : [...current, t.id];
+                            onChange(index, "tratamento_ids" as any, next);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", selected ? "opacity-100" : "opacity-0")} />
+                          {t.nome}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initialData }: FormProgramacaoProps) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { profile } = useProfile();
+  const { data: adminRole } = useAdminRole();
+  const isAdmin = !!adminRole?.isAdmin;
+  const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
   const { data: produtores = [] } = useProdutores();
   const { data: fazendas = [] } = useFazendas();
   const { data: cultivares = [] } = useCultivaresCatalog();
@@ -50,6 +199,17 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       });
   }, [fertilizantes]);
 
+  const cultivaresDistinct = useMemo(() => {
+    const seen = new Set<string>();
+    return (cultivares || [])
+      .filter((c) => {
+        const nome = String(c.cultivar || "").trim();
+        if (!nome || seen.has(nome)) return false;
+        seen.add(nome);
+        return true;
+      });
+  }, [cultivares]);
+
   const [produtorNumerocm, setProdutorNumerocm] = useState(initialData?.produtor_numerocm || "");
   const [fazendaIdfazenda, setFazendaIdfazenda] = useState(initialData?.fazenda_idfazenda || "");
   const [area, setArea] = useState(initialData?.area || "");
@@ -57,10 +217,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const [safraId, setSafraId] = useState(initialData?.safra_id || "");
   const [naoFazerAdubacao, setNaoFazerAdubacao] = useState(false);
 
-  const [itensCultivar, setItensCultivar] = useState<ItemCultivar[]>(
+  // Itens de cultivares com id estável para chaves de lista
+  const makeUiId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const [itensCultivar, setItensCultivar] = useState<(ItemCultivar & { uiId: string })[]>(
     initialData?.cultivares && initialData.cultivares.length > 0
-      ? initialData.cultivares
+      ? initialData.cultivares.map((c) => ({ ...c, uiId: makeUiId() }))
       : [{
+          uiId: makeUiId(),
           cultivar: "",
           percentual_cobertura: 0,
           tipo_embalagem: "BAG 5000K" as const,
@@ -91,7 +254,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (typeof initialData.area === "string") setArea(initialData.area);
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
-    if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares as ItemCultivar[]);
+    if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => ({ ...c, uiId: makeUiId() })));
     if (Array.isArray(initialData.adubacao)) setItensAdubacao(initialData.adubacao as ItemAdubacao[]);
     // Detecta caso de "não fazer adubação" quando há apenas justificativa sem formulação
     if (Array.isArray(initialData.adubacao)) {
@@ -142,8 +305,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   }, [fazendaIdfazenda, fazendaFiltrada]);
 
   const handleAddCultivar = () => {
-    setItensCultivar([...itensCultivar, { 
-      cultivar: "", 
+    setItensCultivar([...itensCultivar, {
+      uiId: makeUiId(),
+      cultivar: "",
       percentual_cobertura: 0,
       tipo_embalagem: "BAG 5000K" as const,
       tipo_tratamento: "NÃO" as const
@@ -255,7 +419,17 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       area: areaNome,
       area_hectares: areaHectaresFinal,
       safra_id: safraId || undefined,
-      cultivares: itensCultivar.filter(item => item.cultivar),
+      // Remove uiId antes de enviar
+      cultivares: itensCultivar
+        .filter(item => item.cultivar)
+        .map(({ uiId, ...rest }) => {
+          const ids = Array.isArray((rest as any).tratamento_ids)
+            ? ((rest as any).tratamento_ids as string[])
+            : [];
+          const first = ids[0] || (rest as any).tratamento_id || undefined;
+          // Por compatibilidade, garante tratamento_id preenchido com o primeiro selecionado
+          return { ...rest, tratamento_id: first } as any;
+        }),
       adubacao: naoFazerAdubacao
         ? (() => {
             const justificativa = itensAdubacao[0]?.justificativa_nao_adubacao_id;
@@ -320,11 +494,63 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
               </SelectContent>
             </Select>
             {(() => {
-              const fSel = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
-              const invalid = !fSel?.area_cultivavel || Number(fSel?.area_cultivavel || 0) <= 0;
+              // Exibe o aviso somente quando há fazenda selecionada
+              if (!fazendaIdfazenda) return null;
+              const fSel = fazendaFiltrada.find((f) => String(f.idfazenda) === String(fazendaIdfazenda));
+              if (!fSel) return null;
+              const invalid = fSel.area_cultivavel == null || Number(fSel.area_cultivavel) <= 0;
               return invalid ? (
-                <div className="mt-2">
-                  <Badge variant="destructive">Fazenda sem área (ha). Atualize na Admin.</Badge>
+                <div className="mt-2 space-y-2">
+                  <Badge variant="destructive">Fazenda sem área (ha).</Badge>
+                  {isConsultor && (
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <Label>Área cultivável da fazenda (ha)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Informe a área em hectares"
+                          value={areaHectares || ""}
+                          onChange={(e) => setAreaHectares(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const valor = Number(areaHectares);
+                            if (!fazendaIdfazenda) {
+                              toast({ title: "Seleção obrigatória", description: "Selecione a fazenda.", variant: "destructive" });
+                              return;
+                            }
+                            if (!valor || Number.isNaN(valor) || valor <= 0) {
+                              toast({ title: "Valor inválido", description: "Informe um número maior que zero.", variant: "destructive" });
+                              return;
+                            }
+                            const { data, error } = await supabase
+                              .from("fazendas")
+                              .update({ area_cultivavel: valor })
+                              .eq("idfazenda", fazendaIdfazenda)
+                              .select("id");
+                            if (error) throw error;
+                            if (!data || data.length === 0) {
+                              toast({ title: "Atualização não aplicada", description: "Sem permissão ou fazenda não encontrada.", variant: "destructive" });
+                              return;
+                            }
+                            // Atualiza cache e estado local
+                            queryClient.invalidateQueries({ queryKey: ["fazendas"] });
+                            setFazendaFiltrada((prev) => prev.map((f) => f.idfazenda === fazendaIdfazenda ? { ...f, area_cultivavel: valor } : f));
+                            toast({ title: "Área atualizada", description: "A área da fazenda foi salva.", variant: "default" });
+                          } catch (err: any) {
+                            toast({ title: "Erro ao salvar área", description: err?.message || "Verifique suas permissões.", variant: "destructive" });
+                          }
+                        }}
+                      >
+                        Salvar na fazenda
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : null;
             })()}
@@ -361,157 +587,18 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           <div className="space-y-4">
-            {itensCultivar.map((item, index) => {
-              const cultivarSelecionado = cultivares.find(c => c.cultivar === item.cultivar);
-              const cultura = (cultivarSelecionado as any)?.cultura;
-              const { data: tratamentosDisponiveis = [] } = useTratamentosSementes(cultura);
-              const cultivaresDistinct = useMemo(() => {
-                const seen = new Set<string>();
-                return (cultivares || [])
-                  .filter((c) => {
-                    const nome = String(c.cultivar || "").trim();
-                    if (!nome || seen.has(nome)) return false;
-                    seen.add(nome);
-                    return true;
-                  });
-              }, [cultivares]);
-              
-              return (
-                <div key={index} className="space-y-3 p-4 border rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                    <div className="space-y-2">
-                      <Label>Cultivar</Label>
-                      <Select
-                        value={item.cultivar}
-                        onValueChange={(value) => handleCultivarChange(index, "cultivar", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {cultivaresDistinct.map((c) => (
-                            <SelectItem key={c.cultivar} value={c.cultivar || ""}>
-                              {c.cultivar}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Tipo Embalagem</Label>
-                      <Select
-                        value={item.tipo_embalagem}
-                        onValueChange={(value) => handleCultivarChange(index, "tipo_embalagem", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="BAG 5000K">BAG 5000K</SelectItem>
-                          <SelectItem value="SACAS 200K">SACAS 200K</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Tipo Tratamento</Label>
-                      <Select
-                        value={item.tipo_tratamento}
-                        onValueChange={(value) => handleCultivarChange(index, "tipo_tratamento", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NÃO">NÃO</SelectItem>
-                          <SelectItem value="NA FAZENDA">NA FAZENDA</SelectItem>
-                          <SelectItem value="INDUSTRIAL">INDUSTRIAL</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>% Cobertura</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        max="100"
-                        value={item.percentual_cobertura}
-                        onChange={(e) => handleCultivarChange(index, "percentual_cobertura", Number(e.target.value))}
-                      />
-                    </div>
-
-                    <div className="flex items-end">
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleRemoveCultivar(index)}
-                        disabled={itensCultivar.length === 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {item.cultivar && item.tipo_tratamento !== "NÃO" && (
-                    <div className="space-y-2">
-                      <Label>Tratamento Específico</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            type="button"
-                            role="combobox"
-                            className="w-full justify-between"
-                          >
-                            {Array.isArray((item as any).tratamento_ids) && (item as any).tratamento_ids.length > 0
-                              ? `${(item as any).tratamento_ids.length} selecionado(s)`
-                              : "Selecione o(s) tratamento(s)..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0">
-                          <Command shouldFilter={true}>
-                            <CommandInput placeholder="Buscar tratamento..." />
-                            <CommandList>
-                              <CommandEmpty>Nenhum tratamento encontrado.</CommandEmpty>
-                              <CommandGroup>
-                                {tratamentosDisponiveis.map((t) => {
-                                  const selected = Array.isArray((item as any).tratamento_ids)
-                                    ? (item as any).tratamento_ids.includes(t.id)
-                                    : false;
-                                  return (
-                                    <CommandItem
-                                      key={t.id}
-                                      value={`${t.nome}`}
-                                      onSelect={() => {
-                                        const current = Array.isArray((item as any).tratamento_ids)
-                                          ? [...(item as any).tratamento_ids]
-                                          : [];
-                                        const exists = current.includes(t.id);
-                                        const next = exists
-                                          ? current.filter((id) => id !== t.id)
-                                          : [...current, t.id];
-                                        handleCultivarChange(index, "tratamento_ids" as any, next);
-                                      }}
-                                    >
-                                      <Check className={cn("mr-2 h-4 w-4", selected ? "opacity-100" : "opacity-0")} />
-                                      {t.nome}
-                                    </CommandItem>
-                                  );
-                                })}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {itensCultivar.map((item, index) => (
+              <CultivarRow
+                key={item.uiId}
+                item={item}
+                index={index}
+                cultivaresDistinct={cultivaresDistinct}
+                cultivaresCatalog={cultivares}
+                canRemove={itensCultivar.length > 1}
+                onChange={handleCultivarChange}
+                onRemove={handleRemoveCultivar}
+              />
+            ))}
           </div>
 
           <div className={`mt-2 text-sm font-medium ${getTotalCultivar() === 100 ? "text-green-600" : "text-red-600"}`}>

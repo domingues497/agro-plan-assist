@@ -107,6 +107,9 @@ export default function Programacao() {
                   percentual_cobertura: Number(c.percentual_cobertura) || 0,
                   tipo_embalagem: c.tipo_embalagem,
                   tipo_tratamento: c.tipo_tratamento,
+                  // Usa múltiplos tratamentos da tabela de junção quando disponíveis
+                  tratamento_ids: (editingTratamentos as Record<string, string[]>)[c.id]
+                    ?? (Array.isArray(c.tratamento_ids) ? c.tratamento_ids : (c.tratamento_id ? [c.tratamento_id] : [])),
                   tratamento_id: c.tratamento_id || undefined,
                   data_plantio: c.data_plantio || undefined,
                   populacao_recomendada: Number(c.populacao_recomendada) || 0,
