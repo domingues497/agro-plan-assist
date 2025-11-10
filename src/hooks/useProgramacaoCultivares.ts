@@ -20,6 +20,8 @@ export type ProgramacaoCultivar = {
   sementes_por_saca: number;
   created_at: string;
   updated_at: string;
+  // IDs dos tratamentos vinculados via tabela de junção
+  tratamento_ids?: string[];
 };
 
 export type CreateProgramacaoCultivar = Omit<ProgramacaoCultivar, "id" | "created_at" | "updated_at">;
@@ -96,7 +98,27 @@ export const useProgramacaoCultivares = () => {
       } catch (_) {
         // silencioso
       }
-      return hydrated;
+      // Buscar tratamentos vinculados em lote e hidratar tratamento_ids
+      const ids = hydrated.map((h) => h.id).filter(Boolean);
+      let joinMap: Record<string, string[]> = {};
+      if (ids.length > 0) {
+        const { data: joinRows, error: joinErr } = await supabase
+          .from("programacao_cultivares_tratamentos")
+          .select("programacao_cultivar_id, tratamento_id")
+          .in("programacao_cultivar_id", ids);
+        if (joinErr) throw joinErr;
+        (joinRows || []).forEach((r: any) => {
+          const key = r.programacao_cultivar_id as string;
+          const tid = r.tratamento_id as string;
+          if (!key || !tid) return;
+          if (!joinMap[key]) joinMap[key] = [];
+          joinMap[key].push(tid);
+        });
+      }
+      return hydrated.map((item) => ({
+        ...item,
+        tratamento_ids: joinMap[item.id] || [],
+      }));
     },
   });
 

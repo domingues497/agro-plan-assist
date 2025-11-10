@@ -17,6 +17,7 @@ import { useSafras } from "@/hooks/useSafras";
 import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
 import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import type { CreateProgramacao, ItemCultivar, ItemAdubacao } from "@/hooks/useProgramacoes";
 
@@ -92,7 +93,27 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
     if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares as ItemCultivar[]);
     if (Array.isArray(initialData.adubacao)) setItensAdubacao(initialData.adubacao as ItemAdubacao[]);
+    // Detecta caso de "não fazer adubação" quando há apenas justificativa sem formulação
+    if (Array.isArray(initialData.adubacao)) {
+      const temFormulacao = initialData.adubacao.some((a) => !!(a as ItemAdubacao).formulacao);
+      const temJustificativa = initialData.adubacao.some((a) => !!(a as ItemAdubacao).justificativa_nao_adubacao_id);
+      setNaoFazerAdubacao(!!temJustificativa && !temFormulacao);
+    }
   }, [initialData]);
+
+  // Ajusta itens de adubação quando alterna entre os modos
+  useEffect(() => {
+    if (naoFazerAdubacao) {
+      const currentJust = itensAdubacao[0]?.justificativa_nao_adubacao_id || "";
+      setItensAdubacao([{ formulacao: "", dose: 0, percentual_cobertura: 0, justificativa_nao_adubacao_id: currentJust }]);
+    } else {
+      const onlyJustificativa = itensAdubacao.length === 1 && !itensAdubacao[0].formulacao;
+      if (itensAdubacao.length === 0 || onlyJustificativa) {
+        setItensAdubacao([{ formulacao: "", dose: 0, percentual_cobertura: 100 }]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [naoFazerAdubacao]);
 
   useEffect(() => {
     if (produtorNumerocm) {
@@ -144,7 +165,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   };
 
   const handleRemoveAdubacao = (index: number) => {
-    setItensAdubacao(itensAdubacao.filter((_, i) => i !== index));
+    const next = itensAdubacao.filter((_, i) => i !== index);
+    setItensAdubacao(next);
+    // Se remover o último item, ativa modo "não fazer adubação" e solicita justificativa
+    if (next.length === 0) {
+      setNaoFazerAdubacao(true);
+      setItensAdubacao([{ formulacao: "", dose: 0, percentual_cobertura: 0, justificativa_nao_adubacao_id: "" }]);
+    }
   };
 
   const handleAdubacaoChange = (index: number, field: keyof ItemAdubacao, value: any) => {
@@ -165,10 +192,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     e.preventDefault();
 
     const totalCultivar = getTotalCultivar();
-    if (Math.abs(totalCultivar - 100) > 0.01) {
+    if (Math.abs(totalCultivar - 100) > 0.1) {
       toast({
         title: "Erro de validação",
-        description: "O percentual de cobertura das cultivares deve somar exatamente 100%",
+        description: "O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)",
         variant: "destructive"
       });
       return;
@@ -176,7 +203,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
     // Garante consistência: área (nome) e hectares vindos da fazenda selecionada
     const fazendaSelecionada =
-      fazendas.find((f) => f.idfazenda === fazendaIdfazenda) ||
+      fazendas.find((f) => f.idfazenda === fazendaIdfazenda && f.numerocm === produtorNumerocm) ||
       fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
 
     const areaNome = fazendaSelecionada?.nomefazenda || area;
@@ -212,6 +239,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       return;
     }
 
+    const adubacaoNormal = itensAdubacao.filter((item) => !!item.formulacao);
+    if (!naoFazerAdubacao && adubacaoNormal.length === 0) {
+      toast({
+        title: "Erro de validação",
+        description: "Adicione pelo menos uma adubação ou marque 'Não fazer adubação'",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const data: CreateProgramacao = {
       produtor_numerocm: produtorNumerocm,
       fazenda_idfazenda: fazendaIdfazenda,
@@ -219,7 +256,20 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       area_hectares: areaHectaresFinal,
       safra_id: safraId || undefined,
       cultivares: itensCultivar.filter(item => item.cultivar),
-      adubacao: itensAdubacao.filter(item => item.formulacao)
+      adubacao: naoFazerAdubacao
+        ? (() => {
+            const justificativa = itensAdubacao[0]?.justificativa_nao_adubacao_id;
+            if (!justificativa) {
+              toast({
+                title: "Erro de validação",
+                description: "Selecione a justificativa para não fazer adubação",
+                variant: "destructive"
+              });
+              return [] as ItemAdubacao[];
+            }
+            return [{ formulacao: "", dose: 0, percentual_cobertura: 0, justificativa_nao_adubacao_id: justificativa }];
+          })()
+        : adubacaoNormal
     };
 
     onSubmit(data);
@@ -257,26 +307,31 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione a fazenda" />
               </SelectTrigger>
               <SelectContent>
-                {fazendaFiltrada.map((f) => (
-                  <SelectItem key={f.idfazenda} value={f.idfazenda}>
-                    {f.nomefazenda}
-                  </SelectItem>
-                ))}
+                {fazendaFiltrada.map((f) => {
+                  const invalid = !f.area_cultivavel || Number(f.area_cultivavel) <= 0;
+                  return (
+                    <SelectItem key={f.idfazenda} value={f.idfazenda}>
+                      {f.nomefazenda}
+                      <span className="ml-2 text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
+                      {invalid && <Badge variant="destructive" className="ml-2">sem área (ha)</Badge>}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
+            {(() => {
+              const fSel = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
+              const invalid = !fSel?.area_cultivavel || Number(fSel?.area_cultivavel || 0) <= 0;
+              return invalid ? (
+                <div className="mt-2">
+                  <Badge variant="destructive">Fazenda sem área (ha). Atualize na Admin.</Badge>
+                </div>
+              ) : null;
+            })()}
+            
           </div>
 
-          <div className="space-y-2">
-            <Label>Área (hectares)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={areaHectares}
-              onChange={(e) => setAreaHectares(e.target.value)}
-              placeholder="0.00"
-              required
-            />
-          </div>
+          
 
           <div className="space-y-2">
             <Label>Safra</Label>
@@ -407,6 +462,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
+                            type="button"
                             role="combobox"
                             className="w-full justify-between"
                           >
@@ -532,6 +588,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
+                        {/* Fallback: inclui a formulação salva mesmo que não esteja no catálogo */}
+                        {item.formulacao && !fertilizantesDistinct.some((f) => (f.item || "") === item.formulacao) && (
+                          <SelectItem value={item.formulacao}>{item.formulacao}</SelectItem>
+                        )}
                         {fertilizantesDistinct.map((f) => (
                           <SelectItem key={f.cod_item ?? f.item} value={f.item || ""}>
                             {f.item}
@@ -568,7 +628,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                       variant="destructive"
                       size="icon"
                       onClick={() => handleRemoveAdubacao(index)}
-                      disabled={itensAdubacao.length === 1}
+                      disabled={false}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

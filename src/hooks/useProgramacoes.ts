@@ -78,8 +78,8 @@ export const useProgramacoes = () => {
         (sum, item) => sum + item.percentual_cobertura, 0
       );
 
-      if (Math.abs(totalCultivares - 100) > 0.01) {
-        throw new Error("O percentual de cobertura das cultivares deve somar exatamente 100%");
+      if (Math.abs(totalCultivares - 100) > 0.1) {
+        throw new Error("O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)");
       }
 
       const progResponse = await (supabase as any)
@@ -98,7 +98,10 @@ export const useProgramacoes = () => {
       if (progResponse.error) throw progResponse.error;
 
       if (newProgramacao.cultivares.length > 0) {
-        const cultivaresData = newProgramacao.cultivares.map(item => ({
+        const cultivaresData = newProgramacao.cultivares.map(item => {
+          const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
+          const firstTratamento = tratamentoIds[0] || null;
+          return ({
           user_id: user.id,
           programacao_id: progResponse.data.id,
           produtor_numerocm: newProgramacao.produtor_numerocm,
@@ -110,7 +113,7 @@ export const useProgramacoes = () => {
           percentual_cobertura: item.percentual_cobertura,
           tipo_embalagem: item.tipo_embalagem,
           tipo_tratamento: item.tipo_tratamento,
-          tratamento_id: null, // Deprecated: agora usamos tabela de junção
+          tratamento_id: firstTratamento, // Gravamos também o primeiro tratamento para compatibilidade
           data_plantio: item.data_plantio || null,
           populacao_recomendada: item.populacao_recomendada || 0,
           semente_propria: item.semente_propria || false,
@@ -118,7 +121,8 @@ export const useProgramacoes = () => {
           sementes_por_saca: item.sementes_por_saca || 0,
           safra: null,
           porcentagem_salva: 0
-        }));
+        });
+        });
 
         const cultResponse = await (supabase as any)
           .from("programacao_cultivares")
@@ -175,6 +179,9 @@ export const useProgramacoes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
+      // Importante: atualizar listas filhas usadas na edição
+      queryClient.invalidateQueries({ queryKey: ['programacao-cultivares'] });
+      queryClient.invalidateQueries({ queryKey: ['programacao-adubacao'] });
       toast({ title: "Programação criada com sucesso!" });
     },
     onError: (error: Error) => {
@@ -216,8 +223,8 @@ export const useProgramacoes = () => {
       const totalCultivares = data.cultivares.reduce(
         (sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0
       );
-      if (Math.abs(totalCultivares - 100) > 0.01) {
-        throw new Error("O percentual de cobertura das cultivares deve somar exatamente 100%");
+      if (Math.abs(totalCultivares - 100) > 0.1) {
+        throw new Error("O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)");
       }
 
       const progUpdate = await (supabase as any)
@@ -240,7 +247,10 @@ export const useProgramacoes = () => {
       if (delCult.error) throw delCult.error;
 
       if (data.cultivares.length > 0) {
-        const cultivaresData = data.cultivares.map(item => ({
+        const cultivaresData = data.cultivares.map(item => {
+          const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
+          const firstTratamento = tratamentoIds[0] || null;
+          return ({
           user_id: user.id,
           programacao_id: id,
           produtor_numerocm: data.produtor_numerocm,
@@ -252,7 +262,7 @@ export const useProgramacoes = () => {
           percentual_cobertura: item.percentual_cobertura,
           tipo_embalagem: item.tipo_embalagem,
           tipo_tratamento: item.tipo_tratamento,
-          tratamento_id: null, // Deprecated: agora usamos tabela de junção
+          tratamento_id: firstTratamento, // Gravamos também o primeiro tratamento para compatibilidade
           data_plantio: item.data_plantio || null,
           populacao_recomendada: item.populacao_recomendada || 0,
           semente_propria: item.semente_propria || false,
@@ -260,7 +270,8 @@ export const useProgramacoes = () => {
           sementes_por_saca: item.sementes_por_saca || 0,
           safra: null,
           porcentagem_salva: 0
-        }));
+        });
+        });
         const cultInsert = await (supabase as any)
           .from("programacao_cultivares")
           .insert(cultivaresData)
@@ -313,11 +324,14 @@ export const useProgramacoes = () => {
         const adubInsert = await (supabase as any)
           .from("programacao_adubacao")
           .insert(adubacaoData);
-        if (adubInsert.error) throw adubInsert.error;
+      if (adubInsert.error) throw adubInsert.error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
+      // Atualiza também as coleções derivadas para refletir imediatamente no formulário
+      queryClient.invalidateQueries({ queryKey: ['programacao-cultivares'] });
+      queryClient.invalidateQueries({ queryKey: ['programacao-adubacao'] });
       toast({ title: "Programação atualizada com sucesso!" });
     },
     onError: (error: Error) => {
@@ -351,10 +365,12 @@ export const useProgramacoes = () => {
         .from("fazendas")
         .select("nomefazenda")
         .eq("idfazenda", fazenda_idfazenda)
+        .eq("numerocm", produtor_numerocm)
         .maybeSingle?.() ?? await (supabase as any)
         .from("fazendas")
         .select("nomefazenda")
         .eq("idfazenda", fazenda_idfazenda)
+        .eq("numerocm", produtor_numerocm)
         .single();
       if (destFazenda.error) {
         // Não bloquear replicação se nome não encontrado; usar área original como fallback

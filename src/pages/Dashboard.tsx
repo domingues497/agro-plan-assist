@@ -97,6 +97,7 @@ const Dashboard = () => {
   const [openAreaModal, setOpenAreaModal] = useState(false);
   const [modalDismissed, setModalDismissed] = useState(false);
   const [areasEdicao, setAreasEdicao] = useState<Record<string, string>>({});
+  const areaKey = (numerocm: string, idfazenda: string) => `${String(numerocm)}:${String(idfazenda)}`;
 
   const produtoresDoConsultor = useMemo(() => {
     if (!profile?.numerocm_consultor) return [];
@@ -123,7 +124,8 @@ const Dashboard = () => {
     let count = 0;
     Object.values(fazendasPorProdutor).forEach((fazendas) => {
       fazendas.forEach((f) => {
-        if (Number(areasEdicao[f.idfazenda] || 0) <= 0) count++;
+        const key = areaKey(f.numerocm, f.idfazenda);
+        if (Number(areasEdicao[key] ?? 0) <= 0) count++;
       });
     });
     return count;
@@ -135,7 +137,11 @@ const Dashboard = () => {
       const initial: Record<string, string> = {};
       Object.values(fazendasPorProdutor).forEach((fazendas) => {
         fazendas.forEach((f) => {
-          initial[f.idfazenda] = f.area_cultivavel && f.area_cultivavel > 0 ? String(f.area_cultivavel) : "";
+          // Traz exatamente o valor do banco, incluindo 0, por produtor+fazenda
+          const key = areaKey(f.numerocm, f.idfazenda);
+          initial[key] = f.area_cultivavel !== null && f.area_cultivavel !== undefined
+            ? String(f.area_cultivavel)
+            : "";
         });
       });
       setAreasEdicao(initial);
@@ -145,22 +151,22 @@ const Dashboard = () => {
     }
   }, [produtoresDoConsultor, hasFazendasSemArea, fazendasPorProdutor, modalDismissed]);
 
-  const handleAreaChange = (idfazenda: string, value: string) => {
-    setAreasEdicao((prev) => ({ ...prev, [idfazenda]: value }));
+  const handleAreaChange = (key: string, value: string) => {
+    setAreasEdicao((prev) => ({ ...prev, [key]: value }));
   };
 
   const salvarAreas = async () => {
     // Identifica apenas as fazendas que realmente mudaram
-    const mudancas: Array<{ id: string; valor: number }> = [];
-    
-    for (const [id, val] of Object.entries(areasEdicao)) {
-      const fazenda = allFazendas.find(f => f.idfazenda === id);
+    const mudancas: Array<{ numerocm: string; idfazenda: string; valor: number }> = [];
+
+    for (const f of allFazendas) {
+      const key = areaKey(f.numerocm, f.idfazenda);
+      const val = areasEdicao[key];
+      if (val === undefined) continue;
       const novoValor = Number(val);
-      const valorAtual = fazenda?.area_cultivavel || 0;
-      
-      // Só inclui se o valor mudou e é válido
-      if (novoValor > 0 && novoValor !== valorAtual) {
-        mudancas.push({ id, valor: novoValor });
+      const valorAtual = Number(f.area_cultivavel || 0);
+      if (novoValor >= 0 && novoValor !== valorAtual) {
+        mudancas.push({ numerocm: f.numerocm, idfazenda: f.idfazenda, valor: novoValor });
       }
     }
 
@@ -172,20 +178,38 @@ const Dashboard = () => {
     }
 
     try {
+      let sucesso = 0;
+      let falha = 0;
       for (const item of mudancas) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("fazendas")
           .update({ area_cultivavel: item.valor })
-          .eq("idfazenda", item.id);
+          .eq("idfazenda", item.idfazenda)
+          .eq("numerocm", item.numerocm)
+          .select("id");
         if (error) throw error;
+        if (data && data.length > 0) {
+          sucesso += 1;
+        } else {
+          falha += 1;
+        }
       }
       await queryClient.invalidateQueries({ queryKey: ["fazendas"] });
-      toast({ 
-        title: "Áreas atualizadas", 
-        description: `${mudancas.length} fazenda${mudancas.length > 1 ? 's atualizadas' : ' atualizada'} com sucesso.` 
-      });
-      setOpenAreaModal(false);
-      setModalDismissed(true);
+      if (sucesso > 0) {
+        toast({
+          title: "Áreas atualizadas",
+          description: `${sucesso} fazenda${sucesso > 1 ? 's' : ''} atualizada${sucesso > 1 ? 's' : ''} com sucesso.`
+        });
+        setOpenAreaModal(false);
+        setModalDismissed(true);
+      }
+      if (falha > 0) {
+        toast({
+          title: "Algumas áreas não foram atualizadas",
+          description: `${falha} atualização${falha > 1 ? 's' : ''} sem permissão ou sem correspondência. Caso esteja logado como consultor, atualize via Admin.`,
+          variant: "destructive"
+        });
+      }
     } catch (err: any) {
       toast({ title: "Erro ao salvar áreas", description: err.message, variant: "destructive" });
     }
@@ -240,7 +264,7 @@ const Dashboard = () => {
                 {produtoresDoConsultor.map((produtor) => {
                   const fazendas = fazendasPorProdutor[produtor.numerocm] || [];
                   const fazendasPendentes = fazendas.filter(
-                    (f) => Number(areasEdicao[f.idfazenda] || 0) <= 0
+                    (f) => Number(areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? 0) <= 0
                   ).length;
 
                   return (
@@ -262,8 +286,8 @@ const Dashboard = () => {
                               <div className="space-y-1">
                                 <Label>Fazenda</Label>
                                 <div className="flex items-center gap-2">
-                                  <div className="text-sm font-medium">{f.nomefazenda}</div>
-                                  {Number(areasEdicao[f.idfazenda] || 0) <= 0 && (
+                                  <div className="text-sm font-medium">{f.nomefazenda}-{f.idfazenda}</div>
+                                  {Number(areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? 0) <= 0 && (
                                     <Badge variant="destructive">pendente</Badge>
                                   )}
                                 </div>
@@ -273,8 +297,8 @@ const Dashboard = () => {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={areasEdicao[f.idfazenda] || ""}
-                                  onChange={(e) => handleAreaChange(f.idfazenda, e.target.value)}
+                                  value={areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? (f.area_cultivavel != null ? String(f.area_cultivavel) : "")}
+                                  onChange={(e) => handleAreaChange(areaKey(f.numerocm, f.idfazenda), e.target.value)}
                                   placeholder="0.00"
                                 />
                               </div>
@@ -373,7 +397,6 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-lg mb-1">Safra atual</h3>
-              <p className="text-sm text-muted-foreground">Ultima sincronizacao: {lastSync}</p>
             </div>
             <Link to="/programacao">
               <Button>

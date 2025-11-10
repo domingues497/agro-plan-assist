@@ -107,7 +107,7 @@ export default function Programacao() {
                   percentual_cobertura: Number(c.percentual_cobertura) || 0,
                   tipo_embalagem: c.tipo_embalagem,
                   tipo_tratamento: c.tipo_tratamento,
-                  tratamento_ids: editingTratamentos[c.id] || [],
+                  tratamento_id: c.tratamento_id || undefined,
                   data_plantio: c.data_plantio || undefined,
                   populacao_recomendada: Number(c.populacao_recomendada) || 0,
                   semente_propria: Boolean(c.semente_propria),
@@ -148,7 +148,7 @@ export default function Programacao() {
             ) : (
               programacoes.map((prog) => {
                 const produtor = produtores.find(p => p.numerocm === prog.produtor_numerocm);
-                const fazenda = fazendas.find(f => f.idfazenda === prog.fazenda_idfazenda);
+                const fazenda = fazendas.find(f => f.idfazenda === prog.fazenda_idfazenda && f.numerocm === prog.produtor_numerocm);
                 
                 return (
                   <Card key={prog.id} className="p-6 hover:shadow-lg transition-shadow">
@@ -159,18 +159,13 @@ export default function Programacao() {
                           <h3 className="font-semibold text-lg">
                             {prog.produtor_numerocm} - {produtor?.nome || ""}
                           </h3>
+                          <p><span className="font-medium">Fazenda:</span> {fazenda?.nomefazenda || "—"}</p>
+                          <p>
+                            <span className="font-medium">Área:</span> {Number.isFinite(fazenda?.area_cultivavel as number) ? `${fazenda!.area_cultivavel} ha` : (prog.area_hectares != null ? `${prog.area_hectares} ha` : "sem área (ha)")}
+                          </p>
                         </div>
                         
                         <div className="grid gap-2 text-sm text-muted-foreground">
-                          <p>
-                            <span className="font-medium">Fazenda:</span> {fazenda?.nomefazenda || prog.fazenda_idfazenda}
-                          </p>
-                          <p>
-                            <span className="font-medium">Área:</span> {prog.area} ({prog.area_hectares} ha)
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Criado em: {new Date(prog.created_at).toLocaleDateString("pt-BR")}
-                          </p>
                         </div>
                       </div>
                       
@@ -327,6 +322,7 @@ export default function Programacao() {
                           >
                             <Checkbox checked={checked} className="mr-2 h-4 w-4" />
                             {f.numerocm} - {produtorNome} / {f.nomefazenda}
+                            <span className="ml-2 text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
                             {disabled && <span className="ml-2 text-xs text-red-600">sem área (ha)</span>}
                           </CommandItem>
                         );
@@ -369,7 +365,7 @@ export default function Programacao() {
                     <span className="font-medium">
                       {t.produtor_numerocm} - {produtores.find(p => p.numerocm === t.produtor_numerocm)?.nome || ""}
                     </span>
-                    <span className="ml-2 text-muted-foreground">/ {fazendasReplicate.find((f: any) => f.idfazenda === t.fazenda_idfazenda)?.nomefazenda || t.fazenda_idfazenda}</span>
+                    <span className="ml-2 text-muted-foreground">/ {fazendasReplicate.find((f: any) => f.idfazenda === t.fazenda_idfazenda)?.nomefazenda || t.fazenda_idfazenda} ({Number(t.area_hectares)} ha)</span>
                   </div>
                   <Button
                     variant="ghost"
