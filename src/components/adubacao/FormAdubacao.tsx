@@ -48,6 +48,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
     fertilizante_salvo: initialData?.fertilizante_salvo ?? false,
     deve_faturar: initialData?.deve_faturar ?? true,
     porcentagem_salva: initialData?.porcentagem_salva ?? 0,
+    percentual_cobertura: initialData?.percentual_cobertura ?? 0,
   });
 
   const { data: fazendas } = useFazendas(formData.produtor_numerocm);
