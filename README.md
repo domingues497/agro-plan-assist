@@ -110,3 +110,21 @@ VITE_DASHBOARD_SUMMARY_ENABLED=false
 ```
 
 Altere para `true` quando quiser visualizar os cards.
+## Geração automática dos tipos do Supabase
+
+Para manter `src/integrations/supabase/types.ts` sincronizado com seu projeto:
+
+- Pré-requisitos: instalar o CLI do Supabase e autenticar.
+
+### Opção A — projeto vinculado (recomendado)
+
+1. Faça login: `supabase login`
+2. Vincule o projeto: `supabase link --project-ref kndaphgvedudbbmikqye`
+3. Gere os tipos: `npm run types:gen:linked`
+
+### Opção B — usando o `project_id`
+
+1. Faça login: `supabase login`
+2. Gere os tipos: `npm run types:gen`
+
+Os scripts sobreescrevem o arquivo `src/integrations/supabase/types.ts`.

@@ -17,6 +17,7 @@ import { ImportFazendas } from "@/components/admin/ImportFazendas";
 import { ImportSafras } from "@/components/admin/ImportSafras";
 import { ReplicarSafras } from "@/components/admin/ReplicarSafras";
 import { ImportTratamentos } from "@/components/admin/ImportTratamentos";
+import { ImportCalendario } from "@/components/admin/ImportCalendario";
 import { ImportJustificativas } from "@/components/admin/ImportJustificativas";
 import { ImportCalendarioAplicacoes } from "@/components/admin/ImportCalendarioAplicacoes";
 
@@ -144,10 +145,6 @@ export default function Admin() {
 
         <TabsContent value="defensivos">
           <ImportDefensivos />
-        </TabsContent>
-
-        <TabsContent value="calendario">
-          <ImportCalendarioAplicacoes />
         </TabsContent>
 
         <TabsContent value="consultores">
