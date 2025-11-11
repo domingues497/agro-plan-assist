@@ -147,6 +147,10 @@ export default function Admin() {
           <ImportDefensivos />
         </TabsContent>
 
+        <TabsContent value="calendario">
+          <ImportCalendarioAplicacoes />
+        </TabsContent>
+
         <TabsContent value="consultores">
           <ImportConsultores />
         </TabsContent>
