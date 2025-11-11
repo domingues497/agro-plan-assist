@@ -305,11 +305,25 @@ export const FormAplicacaoDefensivo = ({
 type DefensivoRowProps = {
   defensivo: Omit<DefensivoItem, "id"> & { tempId: string; total?: number };
   index: number;
-  defensivosCatalog: Array<{ item: string | null; cod_item: string; marca: string | null; principio_ativo: string | null }>;
+  defensivosCatalog: Array<{ item: string | null; cod_item: string; marca: string | null; principio_ativo: string | null; grupo: string | null }>;
   calendario?: { classes: string[]; aplicacoesPorClasse: Record<string, string[]> } | undefined;
   onChange: (field: keyof Omit<DefensivoItem, "id">, value: any) => void;
   onRemove: () => void;
   canRemove: boolean;
+};
+
+// Normaliza texto: remove acentos e deixa em maiúsculas
+const normalizeText = (s: string) =>
+  String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+// Sinônimos/abreviações por classe (case/acentos serão normalizados na comparação)
+const CLASS_SYNONYMS: Record<string, string[]> = {
+  TS: ["TRAT. SEMENTES", "TRAT SEMENTES", "TRATAMENTO DE SEMENTES", "TRATAMENTO SEMENTES"],
+  "TRAT. SEMENTES": ["TS", "TRAT SEMENTES", "TRATAMENTO DE SEMENTES", "TRATAMENTO SEMENTES"],
+  "TRAT SEMENTES": ["TS", "TRAT. SEMENTES", "TRATAMENTO DE SEMENTES", "TRATAMENTO SEMENTES"],
 };
 
 const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChange, onRemove, canRemove }: DefensivoRowProps) => {
@@ -325,9 +339,24 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
   }, [defensivo.aplicacoes]);
 
   const filteredCatalog = (defensivosCatalog || []).filter((d: any) => {
-    const g = String(d.grupo || "").trim();
     const cls = String(selectedClasse || "").trim();
-    return !cls || g === cls;
+    if (!cls) return true;
+
+    const clsNorm = normalizeText(cls);
+    // Quando classe = OUTROS, mostrar todos os produtos
+    if (clsNorm === "OUTROS") return true;
+    const synonyms = (CLASS_SYNONYMS[clsNorm] || []).map(normalizeText);
+    const needles = [clsNorm, ...synonyms];
+
+    const grupoNorm = normalizeText(d.grupo || "");
+    const itemNorm = normalizeText(d.item || "");
+    const marcaNorm = normalizeText(d.marca || "");
+    const principioNorm = normalizeText(d.principio_ativo || "");
+
+    // Match se o grupo for exatamente a classe/sinônimo OU se algum texto contiver a classe/sinônimo
+    return needles.some((n) =>
+      grupoNorm === n || itemNorm.includes(n) || marcaNorm.includes(n) || principioNorm.includes(n)
+    );
   });
 
   return (
