@@ -239,6 +239,39 @@ export type Database = {
         }
         Relationships: []
       }
+      import_history: {
+        Row: {
+          arquivo_nome: string | null
+          created_at: string
+          id: string
+          limpar_antes: boolean
+          registros_deletados: number
+          registros_importados: number
+          tabela_nome: string
+          user_id: string
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          created_at?: string
+          id?: string
+          limpar_antes?: boolean
+          registros_deletados?: number
+          registros_importados?: number
+          tabela_nome: string
+          user_id: string
+        }
+        Update: {
+          arquivo_nome?: string | null
+          created_at?: string
+          id?: string
+          limpar_antes?: boolean
+          registros_deletados?: number
+          registros_importados?: number
+          tabela_nome?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       justificativas_adubacao: {
         Row: {
           ativo: boolean

@@ -20,6 +20,7 @@ import { ImportTratamentos } from "@/components/admin/ImportTratamentos";
 import { ImportCalendario } from "@/components/admin/ImportCalendario";
 import { ImportJustificativas } from "@/components/admin/ImportJustificativas";
 import { ImportCalendarioAplicacoes } from "@/components/admin/ImportCalendarioAplicacoes";
+import { HistoricoImportacoes } from "@/components/admin/HistoricoImportacoes";
 
 const ADMIN_PASSWORD = "Co0p@gr!#0la";
 
@@ -121,7 +122,7 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="cultivares" className="w-full">
-        <TabsList className="grid w-full grid-cols-11">
+        <TabsList className="grid w-full grid-cols-12">
           <TabsTrigger value="cultivares">Cultivares</TabsTrigger>
           <TabsTrigger value="fertilizantes">Fertilizantes</TabsTrigger>
           <TabsTrigger value="defensivos">Defensivos</TabsTrigger>
@@ -133,6 +134,7 @@ export default function Admin() {
           <TabsTrigger value="tratamentos">Tratamentos</TabsTrigger>
           <TabsTrigger value="justificativas">Justificativas</TabsTrigger>
           <TabsTrigger value="replicar">Replicar</TabsTrigger>
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="cultivares">
@@ -177,6 +179,10 @@ export default function Admin() {
 
         <TabsContent value="replicar">
           <ReplicarSafras />
+        </TabsContent>
+
+        <TabsContent value="historico">
+          <HistoricoImportacoes />
         </TabsContent>
       </Tabs>
     </div>

@@ -16,6 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function ImportConsultores() {
   const [file, setFile] = useState<File | null>(null);
@@ -23,6 +24,8 @@ export function ImportConsultores() {
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
+  const [limparAntes, setLimparAntes] = useState(false);
+  const [deletedRows, setDeletedRows] = useState(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
@@ -38,7 +41,36 @@ export function ImportConsultores() {
     try {
       setIsImporting(true);
       setImportedRows(0);
+      setDeletedRows(0);
       setShowSummary(false);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      let deletedRecords = 0;
+
+      // Limpar tabela se checkbox marcado
+      if (limparAntes) {
+        const { count } = await supabase
+          .from("consultores")
+          .select("*", { count: "exact", head: true });
+        
+        deletedRecords = count || 0;
+
+        const { error: deleteError } = await supabase
+          .from("consultores")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+        
+        if (deleteError) {
+          console.error("Erro ao limpar tabela:", deleteError);
+          toast.error("Erro ao limpar tabela");
+          setIsImporting(false);
+          return;
+        }
+        setDeletedRows(deletedRecords);
+        toast.info(`${deletedRecords} registros removidos`);
+      }
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const sheetName = workbook.SheetNames[0];
@@ -86,8 +118,19 @@ export function ImportConsultores() {
         }
       }
 
+      // Registrar no histórico
+      await supabase.from("import_history").insert({
+        user_id: user.id,
+        tabela_nome: "consultores",
+        registros_importados: imported,
+        registros_deletados: deletedRecords,
+        arquivo_nome: file.name,
+        limpar_antes: limparAntes,
+      });
+
       toast.success(`Importação de consultores concluída (${imported} de ${uniquePayload.length})`);
       setShowSummary(true);
+      setLimparAntes(false);
     } catch (err: any) {
       console.error(err);
       toast.error(`Erro ao importar consultores: ${err.message}`);
@@ -107,6 +150,19 @@ export function ImportConsultores() {
           <Label>Arquivo XLSX</Label>
           <Input type="file" accept=".xlsx,.xls" onChange={handleFileChange} />
         </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="limpar-antes"
+            checked={limparAntes}
+            onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
+            disabled={isImporting}
+          />
+          <Label htmlFor="limpar-antes" className="cursor-pointer text-sm">
+            Limpar todos os registros antes de importar
+          </Label>
+        </div>
+
         <Button onClick={handleImport} disabled={isImporting || !file}>
           {isImporting ? "Importando..." : "Importar"}
         </Button>
@@ -125,6 +181,12 @@ export function ImportConsultores() {
           <AlertDialogHeader>
             <AlertDialogTitle>Resumo da Importação</AlertDialogTitle>
             <AlertDialogDescription>
+              {deletedRows > 0 && (
+                <>
+                  Registros removidos: {deletedRows}
+                  <br />
+                </>
+              )}
               Total na planilha: {totalRows}
               <br />
               Linhas importadas: {importedRows}

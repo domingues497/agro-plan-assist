@@ -17,22 +17,63 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const ImportCultivares = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
+  const [limparAntes, setLimparAntes] = useState(false);
+  const [deletedRows, setDeletedRows] = useState(0);
+  const [file, setFile] = useState<File | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+  };
+
+  const handleImport = async () => {
+    if (!file) {
+      toast.error("Selecione um arquivo primeiro");
+      return;
+    }
 
     setIsImporting(true);
     setImportedRows(0);
+    setDeletedRows(0);
     setShowSummary(false);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      let deletedRecords = 0;
+
+      // Limpar tabela se checkbox marcado
+      if (limparAntes) {
+        const { count } = await supabase
+          .from("cultivares_catalog")
+          .select("*", { count: "exact", head: true });
+        
+        deletedRecords = count || 0;
+
+        const { error: deleteError } = await supabase
+          .from("cultivares_catalog")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+        
+        if (deleteError) {
+          console.error("Erro ao limpar tabela:", deleteError);
+          toast.error("Erro ao limpar tabela");
+          setIsImporting(false);
+          return;
+        }
+        setDeletedRows(deletedRecords);
+        toast.info(`${deletedRecords} registros removidos`);
+      }
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -61,14 +102,26 @@ export const ImportCultivares = () => {
           setImportedRows((prev) => prev + 1);
         }
       }
+
+      // Registrar no histórico
+      await supabase.from("import_history").insert({
+        user_id: user.id,
+        tabela_nome: "cultivares_catalog",
+        registros_importados: importedRows,
+        registros_deletados: deletedRecords,
+        arquivo_nome: file.name,
+        limpar_antes: limparAntes,
+      });
+
       toast.success(`Importação concluída! ${importedRows} de ${totalRows} processadas`);
       setShowSummary(true);
+      setFile(null);
+      setLimparAntes(false);
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar arquivo. Verifique o formato.");
     } finally {
       setIsImporting(false);
-      e.target.value = "";
     }
   };
 
@@ -91,11 +144,24 @@ export const ImportCultivares = () => {
               onChange={handleFileUpload}
               disabled={isImporting}
             />
-            <Button disabled={isImporting} size="icon" variant="outline">
-              <Upload className="h-4 w-4" />
-            </Button>
           </div>
         </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="limpar-antes"
+            checked={limparAntes}
+            onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
+            disabled={isImporting}
+          />
+          <Label htmlFor="limpar-antes" className="cursor-pointer text-sm">
+            Limpar todos os registros antes de importar
+          </Label>
+        </div>
+
+        <Button onClick={handleImport} disabled={isImporting || !file}>
+          {isImporting ? "Importando..." : "Importar"}
+        </Button>
         {isImporting && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
@@ -111,6 +177,12 @@ export const ImportCultivares = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Resumo da Importação</AlertDialogTitle>
             <AlertDialogDescription>
+              {deletedRows > 0 && (
+                <>
+                  Registros removidos: {deletedRows}
+                  <br />
+                </>
+              )}
               Total na planilha: {totalRows}
               <br />
               Linhas importadas: {importedRows}

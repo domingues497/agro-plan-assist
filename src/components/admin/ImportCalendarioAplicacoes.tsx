@@ -15,6 +15,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 type CalendarioRow = {
   cod_aplic: string;
@@ -31,6 +33,8 @@ export const ImportCalendarioAplicacoes = () => {
   const [importProgress, setImportProgress] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
+  const [limparAntes, setLimparAntes] = useState(false);
+  const [deletedCount, setDeletedCount] = useState(0);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -47,8 +51,38 @@ export const ImportCalendarioAplicacoes = () => {
 
     setIsImporting(true);
     setImportProgress(0);
+    setDeletedCount(0);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      let deletedRecords = 0;
+
+      // Limpar tabela se checkbox marcado
+      if (limparAntes) {
+        // Primeiro contar quantos registros existem
+        const { count } = await supabase
+          .from("calendario_aplicacoes")
+          .select("*", { count: "exact", head: true });
+        
+        deletedRecords = count || 0;
+
+        // Depois deletar todos
+        const { error: deleteError } = await supabase
+          .from("calendario_aplicacoes")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+        
+        if (deleteError) {
+          console.error("Erro ao limpar tabela:", deleteError);
+          toast.error("Erro ao limpar tabela");
+          setIsImporting(false);
+          return;
+        }
+        setDeletedCount(deletedRecords);
+        toast.info(`${deletedRecords} registros removidos`);
+      }
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -94,9 +128,21 @@ export const ImportCalendarioAplicacoes = () => {
       }
 
       setImportedCount(importedTotal);
+
+      // Registrar no histórico
+      await supabase.from("import_history").insert({
+        user_id: user.id,
+        tabela_nome: "calendario_aplicacoes",
+        registros_importados: importedTotal,
+        registros_deletados: deletedRecords,
+        arquivo_nome: file.name,
+        limpar_antes: limparAntes,
+      });
+
       setShowSummary(true);
       toast.success(`${importedTotal} registros importados com sucesso!`);
       setFile(null);
+      setLimparAntes(false);
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar arquivo");
@@ -127,6 +173,18 @@ export const ImportCalendarioAplicacoes = () => {
           </Button>
         </div>
 
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="limpar-antes"
+            checked={limparAntes}
+            onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
+            disabled={isImporting}
+          />
+          <Label htmlFor="limpar-antes" className="cursor-pointer text-sm">
+            Limpar todos os registros antes de importar
+          </Label>
+        </div>
+
         {isImporting && (
           <div className="space-y-2">
             <Progress value={importProgress} />
@@ -141,6 +199,12 @@ export const ImportCalendarioAplicacoes = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Importação Concluída</AlertDialogTitle>
               <AlertDialogDescription>
+                {deletedCount > 0 && (
+                  <>
+                    {deletedCount} registros foram removidos.
+                    <br />
+                  </>
+                )}
                 {importedCount} registros foram importados com sucesso.
               </AlertDialogDescription>
             </AlertDialogHeader>
