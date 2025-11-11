@@ -300,10 +300,14 @@ const Dashboard = () => {
                               <div className="space-y-1">
                                 <Label>Fazenda</Label>
                                 <div className="flex items-center gap-2">
-                                  <div className="text-sm font-medium">{f.nomefazenda}-{f.idfazenda}</div>
-                                  {Number(areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? 0) <= 0 && (
-                                    <Badge variant="destructive">pendente</Badge>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <div className="text-sm font-medium">{f.nomefazenda}</div>
+                                    {Number(areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? (f.area_cultivavel ?? 0)) > 0 ? (
+                                      <span className="text-xs text-muted-foreground">({Number(areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? (f.area_cultivavel ?? 0))} ha)</span>
+                                    ) : (
+                                      <Badge variant="destructive">sem área(há)</Badge>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <div className="space-y-1">

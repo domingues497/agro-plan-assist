@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, Trash2, Pencil, Copy, Check, ChevronsUpDown } from "lucide-react";
 import { useProgramacoes } from "@/hooks/useProgramacoes";
 import { FormProgramacao } from "@/components/programacao/FormProgramacao";
@@ -162,9 +163,16 @@ export default function Programacao() {
                           <h3 className="font-semibold text-lg">
                             {prog.produtor_numerocm} - {produtor?.nome || ""}
                           </h3>
-                          <p><span className="font-medium">Fazenda:</span> {fazenda?.nomefazenda || "—"}</p>
-                          <p>
-                            <span className="font-medium">Área:</span> {Number.isFinite(fazenda?.area_cultivavel as number) ? `${fazenda!.area_cultivavel} ha` : (prog.area_hectares != null ? `${prog.area_hectares} ha` : "sem área (ha)")}
+                          <p className="flex items-center gap-2">
+                            <span className="font-medium">Fazenda:</span>
+                            <span>{fazenda?.nomefazenda || "—"}</span>
+                            {Number(fazenda?.area_cultivavel || 0) > 0 ? (
+                              <span className="text-xs text-muted-foreground">({Number(fazenda!.area_cultivavel || 0)} ha)</span>
+                            ) : Number(prog.area_hectares || 0) > 0 ? (
+                              <span className="text-xs text-muted-foreground">({Number(prog.area_hectares || 0)} ha)</span>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">sem área(há)</Badge>
+                            )}
                           </p>
                         </div>
                         
@@ -324,9 +332,14 @@ export default function Programacao() {
                             }}
                           >
                             <Checkbox checked={checked} className="mr-2 h-4 w-4" />
-                            {f.numerocm} - {produtorNome} / {f.nomefazenda}
-                            <span className="ml-2 text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
-                            {disabled && <span className="ml-2 text-xs text-red-600">sem área (ha)</span>}
+                            <span className="flex items-center gap-2">
+                              <span>{f.numerocm} - {produtorNome} / {f.nomefazenda}</span>
+                              {Number(f.area_cultivavel || 0) > 0 ? (
+                                <span className="ml-2 text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
+                              ) : (
+                                <Badge variant="secondary" className="text-xs">sem área(há)</Badge>
+                              )}
+                            </span>
                           </CommandItem>
                         );
                       })}

@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
@@ -214,9 +215,18 @@ export const FormAplicacaoDefensivo = ({
                   className="w-full justify-between"
                   disabled={!produtorNumerocm}
                 >
-                  {area
-                    ? fazendas.find(f => f.nomefazenda === area)?.nomefazenda || area
-                    : "Selecione uma fazenda..."}
+                  {area ? (
+                    <span className="flex items-center gap-2">
+                      <span>{fazendas.find(f => f.nomefazenda === area)?.nomefazenda || area}</span>
+                      {Number(selectedAreaHa || 0) > 0 ? (
+                        <span className="text-xs text-muted-foreground">({Number(selectedAreaHa).toFixed(2)} ha)</span>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">sem área(há)</Badge>
+                      )}
+                    </span>
+                  ) : (
+                    "Selecione uma fazenda..."
+                  )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -242,7 +252,14 @@ export const FormAplicacaoDefensivo = ({
                               area === f.nomefazenda ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          {f.nomefazenda} {f.area_cultivavel && `(${f.area_cultivavel} ha)`}
+                          <span className="flex items-center gap-2">
+                            <span>{f.nomefazenda}</span>
+                            {Number(f.area_cultivavel || 0) > 0 ? (
+                              <span className="text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">sem área(há)</Badge>
+                            )}
+                          </span>
                         </CommandItem>
                       ))}
                     </CommandGroup>

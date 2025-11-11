@@ -294,7 +294,14 @@ const Adubacao = () => {
                               }}
                             >
                               <Checkbox checked={checked} className="mr-2 h-4 w-4" />
-                              {f.numerocm} - {produtorNome} / {f.nomefazenda}
+                              <span className="flex items-center gap-2">
+                                <span>{f.numerocm} - {produtorNome} / {f.nomefazenda}</span>
+                                {Number(f.area_cultivavel || 0) > 0 ? (
+                                  <span className="ml-2 text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs">sem área(há)</Badge>
+                                )}
+                              </span>
                             </CommandItem>
                           );
                         })}
