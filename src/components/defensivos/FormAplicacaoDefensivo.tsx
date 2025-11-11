@@ -142,7 +142,13 @@ export const FormAplicacaoDefensivo = ({
       return;
     }
 
-    if (defensivos.length === 0 || defensivos.some((d) => !d.defensivo || d.dose <= 0 || d.area_hectares <= 0)) {
+    // Validação: ao invés de checar area_hectares em cada linha (que é populada apenas no submit),
+    // usamos a área selecionada globalmente (selectedAreaHa) e validamos dose e defensivo por linha.
+    if (
+      defensivos.length === 0 ||
+      Number(selectedAreaHa) <= 0 ||
+      defensivos.some((d) => !d.defensivo || Number(d.dose) <= 0)
+    ) {
       alert("Por favor, adicione pelo menos um defensivo válido com dose e área");
       return;
     }
