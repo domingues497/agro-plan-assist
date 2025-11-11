@@ -8,6 +8,7 @@ export type DefensivoItem = {
   dose: number;
   unidade: string;
   alvo: string | null;
+  aplicacoes?: string[]; // Array de descrições de aplicação selecionadas
   produto_salvo: boolean;
   deve_faturar: boolean;
   porcentagem_salva: number;

@@ -52,6 +52,7 @@ export const FormAplicacaoDefensivo = ({
       dose: 0,
       unidade: "L/ha",
       alvo: "",
+      aplicacoes: [],
       produto_salvo: false,
       deve_faturar: true,
       porcentagem_salva: 0,
@@ -73,6 +74,8 @@ export const FormAplicacaoDefensivo = ({
           initialData.defensivos.map((def) => ({
             ...def,
             tempId: crypto.randomUUID(),
+            // Separar as aplicações concatenadas do campo alvo
+            aplicacoes: def.alvo ? def.alvo.split(",").map(a => a.trim()) : [],
             total: (def.area_hectares || 0) * def.dose,
           }))
         );
@@ -99,6 +102,7 @@ export const FormAplicacaoDefensivo = ({
         dose: 0,
         unidade: "L/ha",
         alvo: "",
+        aplicacoes: [],
         produto_salvo: false,
         deve_faturar: true,
         porcentagem_salva: 0,
@@ -142,9 +146,10 @@ export const FormAplicacaoDefensivo = ({
       return;
     }
 
-    const defensivosToSubmit = defensivos.map(({ tempId, total, ...def }) => ({
+    const defensivosToSubmit = defensivos.map(({ tempId, total, aplicacoes, ...def }) => ({
       ...def,
       area_hectares: selectedAreaHa,
+      alvo: aplicacoes && aplicacoes.length > 0 ? aplicacoes.join(", ") : def.alvo,
     }));
     onSubmit({ produtor_numerocm: produtorNumerocm, area, defensivos: defensivosToSubmit });
   };
@@ -310,8 +315,14 @@ type DefensivoRowProps = {
 const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChange, onRemove, canRemove }: DefensivoRowProps) => {
   const [openDefensivoPopover, setOpenDefensivoPopover] = useState(false);
   const [openClassePopover, setOpenClassePopover] = useState(false);
-  const [openAplicacaoPopover, setOpenAplicacaoPopover] = useState(false);
+  const [openAplicacoesPopover, setOpenAplicacoesPopover] = useState(false);
   const [selectedClasse, setSelectedClasse] = useState<string>("");
+  const [selectedAplicacoes, setSelectedAplicacoes] = useState<string[]>(defensivo.aplicacoes || []);
+
+  // Sincroniza selectedAplicacoes quando defensivo.aplicacoes mudar
+  useEffect(() => {
+    setSelectedAplicacoes(defensivo.aplicacoes || []);
+  }, [defensivo.aplicacoes]);
 
   const filteredCatalog = (defensivosCatalog || []).filter((d: any) => {
     const g = String(d.grupo || "").trim();
@@ -322,7 +333,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
   return (
     <Card className="p-4 bg-muted/50">
       <div className="flex items-start gap-4">
-        <div className="flex-1 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="flex-1 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label>Descrição da Classe</Label>
             <Popover open={openClassePopover} onOpenChange={setOpenClassePopover}>
@@ -344,11 +355,62 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
                           value={cls}
                           onSelect={() => {
                             setSelectedClasse(cls);
+                            setSelectedAplicacoes([]);
+                            onChange("aplicacoes", []);
                             setOpenClassePopover(false);
                           }}
                         >
                           <Check className={cn("mr-2 h-4 w-4", selectedClasse === cls ? "opacity-100" : "opacity-0")} />
                           {cls}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Descrição da Aplicação</Label>
+            <Popover open={openAplicacoesPopover} onOpenChange={setOpenAplicacoesPopover}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between">
+                  {selectedAplicacoes.length > 0 
+                    ? `${selectedAplicacoes.length} selecionada(s)`
+                    : selectedClasse 
+                      ? "Selecione..." 
+                      : "Selecione uma classe"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar aplicação..." />
+                  <CommandList>
+                    <CommandEmpty>
+                      {selectedClasse ? "Nenhuma aplicação encontrada." : "Selecione uma classe primeiro."}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {(calendario?.aplicacoesPorClasse?.[selectedClasse] || []).map((ap) => (
+                        <CommandItem
+                          key={ap}
+                          value={ap}
+                          onSelect={() => {
+                            const newSelection = selectedAplicacoes.includes(ap)
+                              ? selectedAplicacoes.filter(a => a !== ap)
+                              : [...selectedAplicacoes, ap];
+                            setSelectedAplicacoes(newSelection);
+                            onChange("aplicacoes", newSelection);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedAplicacoes.includes(ap) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {ap}
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -413,48 +475,6 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
           {/* Campo de Unidade removido conforme solicitação; mantém valor padrão "L/ha" */}
 
           {/* Área por produto removida: usa-se a área da fazenda selecionada */}
-
-          <div className="space-y-2">
-            <Label>Aplicação (Alvo)</Label>
-            <Popover open={openAplicacaoPopover} onOpenChange={setOpenAplicacaoPopover}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className="w-full justify-between">
-                  {defensivo.alvo || (selectedClasse ? "Selecione..." : "Selecione uma classe")}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0">
-                <Command>
-                  <CommandInput placeholder="Buscar aplicação..." />
-                  <CommandList>
-                    <CommandEmpty>
-                      {selectedClasse ? "Nenhuma aplicação encontrada." : "Selecione uma classe primeiro."}
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {(calendario?.aplicacoesPorClasse?.[selectedClasse] || []).map((ap) => (
-                        <CommandItem
-                          key={ap}
-                          value={ap}
-                          onSelect={() => {
-                            onChange("alvo", ap);
-                            setOpenAplicacaoPopover(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              (defensivo.alvo || "") === ap ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {ap}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
 
           <div className="space-y-2 md:col-span-2">
             <Label>Total</Label>
