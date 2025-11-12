@@ -3,10 +3,42 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useConsultores } from "@/hooks/useConsultores";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 
 export const ListConsultores = () => {
   const { data = [], isLoading, error } = useConsultores();
   const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<"numerocm_consultor" | "consultor" | "email">("consultor");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [openDeleteId, setOpenDeleteId] = useState<string | null>(null);
+  const [editRow, setEditRow] = useState<any | null>(null);
+  const [editConsultor, setEditConsultor] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const qc = useQueryClient();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -16,6 +48,68 @@ export const ListConsultores = () => {
       return hay.includes(q);
     });
   }, [data, query]);
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    arr.sort((a: any, b: any) => {
+      const av = String(a[sortKey] ?? "").toLowerCase();
+      const bv = String(b[sortKey] ?? "").toLowerCase();
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const paged = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sorted.slice(start, start + pageSize);
+  }, [sorted, page, pageSize]);
+
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const onDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from("consultores").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Consultor removido");
+      qc.invalidateQueries({ queryKey: ["consultores"] });
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao remover consultor");
+    } finally {
+      setOpenDeleteId(null);
+    }
+  };
+
+  const onOpenEdit = (row: any) => {
+    setEditRow(row);
+    setEditConsultor(row.consultor ?? "");
+    setEditEmail(row.email ?? "");
+  };
+
+  const onSaveEdit = async () => {
+    if (!editRow) return;
+    try {
+      const { error } = await supabase
+        .from("consultores")
+        .update({ consultor: editConsultor, email: editEmail })
+        .eq("id", editRow.id);
+      if (error) throw error;
+      toast.success("Consultor atualizado");
+      qc.invalidateQueries({ queryKey: ["consultores"] });
+      setEditRow(null);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao atualizar consultor");
+    }
+  };
 
   return (
     <Card>
@@ -38,27 +132,93 @@ export const ListConsultores = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[160px]">CM Consultor</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead className="w-[160px]">
+                  <button className="flex items-center gap-1" onClick={() => toggleSort("numerocm_consultor")}>CM Consultor {sortKey === "numerocm_consultor" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button className="flex items-center gap-1" onClick={() => toggleSort("consultor")}>Nome {sortKey === "consultor" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button className="flex items-center gap-1" onClick={() => toggleSort("email")}>Email {sortKey === "email" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
+                  </button>
+                </TableHead>
+                <TableHead className="w-[120px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((c) => (
+              {paged.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>{c.numerocm_consultor}</TableCell>
                   <TableCell>{c.consultor}</TableCell>
                   <TableCell>{c.email}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => onOpenEdit(c)}>
+                        <Pencil className="h-3.5 w-3.5" /> Editar
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => setOpenDeleteId(c.id)}>
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
-              {filtered.length === 0 && (
+              {paged.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
+                  <TableCell colSpan={4} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         )}
+        <div className="flex items-center justify-between mt-3">
+          <div className="text-xs text-muted-foreground">Página {page} de {totalPages}</div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Próxima</Button>
+          </div>
+        </div>
+
+        {/* Confirmar exclusão */}
+        <AlertDialog open={!!openDeleteId} onOpenChange={(o) => !o && setOpenDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir consultor?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita. O consultor será removido da base.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => openDeleteId && onDelete(openDeleteId)}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Editar */}
+        <Dialog open={!!editRow} onOpenChange={(o) => !o && setEditRow(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar consultor</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Nome</Label>
+                <Input value={editConsultor} onChange={(e) => setEditConsultor(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Email</Label>
+                <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditRow(null)}>Cancelar</Button>
+              <Button onClick={onSaveEdit}>Salvar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
