@@ -123,6 +123,19 @@ export const ListConsultores = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <div className="ml-auto flex items-center gap-2">
+            <Label htmlFor="pageSize" className="text-xs">Itens/página</Label>
+            <select
+              id="pageSize"
+              className="border rounded h-8 px-2 text-sm"
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
         </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando consultores...</p>

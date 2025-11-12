@@ -14,18 +14,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
 export const ListProdutores = () => {
   const { data = [], isLoading, error } = useProdutores();
@@ -35,9 +28,6 @@ export const ListProdutores = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [openDeleteId, setOpenDeleteId] = useState<string | null>(null);
-  const [editRow, setEditRow] = useState<any | null>(null);
-  const [editNome, setEditNome] = useState("");
-  const [editConsultor, setEditConsultor] = useState("");
   const qc = useQueryClient();
 
   const filtered = useMemo(() => {
@@ -89,27 +79,7 @@ export const ListProdutores = () => {
     }
   };
 
-  const onOpenEdit = (row: any) => {
-    setEditRow(row);
-    setEditNome(row.nome ?? "");
-    setEditConsultor(row.consultor ?? "");
-  };
-
-  const onSaveEdit = async () => {
-    if (!editRow) return;
-    try {
-      const { error } = await supabase
-        .from("produtores")
-        .update({ nome: editNome, consultor: editConsultor })
-        .eq("id", editRow.id);
-      if (error) throw error;
-      toast.success("Produtor atualizado");
-      qc.invalidateQueries({ queryKey: ["produtores", "by-consultor"] });
-      setEditRow(null);
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao atualizar produtor");
-    }
-  };
+  // Edição removida conforme solicitado; mantendo apenas exclusão
 
   return (
     <Card>
@@ -142,40 +112,28 @@ export const ListProdutores = () => {
         ) : error ? (
           <p className="text-sm text-destructive">Erro ao carregar produtores.</p>
         ) : (
-          <Table>
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[150px]">
-                  <button className="flex items-center gap-1" onClick={() => toggleSort("numerocm")}>Número CM {sortKey === "numerocm" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
-                  </button>
-                </TableHead>
                 <TableHead>
-                  <button className="flex items-center gap-1" onClick={() => toggleSort("nome")}>Nome {sortKey === "nome" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
+                  <button className="flex items-center gap-1" onClick={() => toggleSort("nome")}>Produtor {sortKey === "nome" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
                   </button>
                 </TableHead>
-                <TableHead>
-                  <button className="flex items-center gap-1" onClick={() => toggleSort("consultor")}>Consultor {sortKey === "consultor" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
-                  </button>
-                </TableHead>
-                <TableHead className="w-[160px]">
-                  <button className="flex items-center gap-1" onClick={() => toggleSort("numerocm_consultor")}>CM Consultor {sortKey === "numerocm_consultor" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
-                  </button>
-                </TableHead>
-                <TableHead className="w-[120px]">Ações</TableHead>
+
+                <TableHead className="w-[120px]">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paged.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell>{p.numerocm}</TableCell>
-                  <TableCell>{p.nome}</TableCell>
-                  <TableCell>{p.consultor ?? "—"}</TableCell>
-                  <TableCell>{p.numerocm_consultor}</TableCell>
+                  <TableCell>
+                    <span className="block whitespace-normal break-words" title={`${p.numerocm ?? ""} - ${p.nome ?? ""}`}>
+                      {p.numerocm}{p.nome ? ` - ${p.nome}` : ""}
+                    </span>
+                  </TableCell>
+
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => onOpenEdit(p)}>
-                        <Pencil className="h-3.5 w-3.5" /> Editar
-                      </Button>
                       <Button variant="destructive" size="sm" onClick={() => setOpenDeleteId(p.id)}>
                         <Trash2 className="h-3.5 w-3.5" /> Excluir
                       </Button>
@@ -185,7 +143,7 @@ export const ListProdutores = () => {
               ))}
               {paged.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
+                  <TableCell colSpan={3} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -215,28 +173,7 @@ export const ListProdutores = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Editar */}
-        <Dialog open={!!editRow} onOpenChange={(o) => !o && setEditRow(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Editar produtor</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label>Nome</Label>
-                <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>Consultor</Label>
-                <Input value={editConsultor} onChange={(e) => setEditConsultor(e.target.value)} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditRow(null)}>Cancelar</Button>
-              <Button onClick={onSaveEdit}>Salvar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Ação de editar removida */}
       </CardContent>
     </Card>
   );
