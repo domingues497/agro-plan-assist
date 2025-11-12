@@ -14,6 +14,8 @@ export type DefensivoItem = {
   porcentagem_salva: number;
   area_hectares: number;
   total?: number;
+  // Safra vinculada à programação de defensivos
+  safra_id?: string;
 };
 
 export type AplicacaoDefensivo = {
@@ -154,6 +156,7 @@ export const useAplicacoesDefensivos = () => {
         deve_faturar: def.deve_faturar,
         porcentagem_salva: def.porcentagem_salva,
         area_hectares: def.area_hectares,
+        safra_id: def.safra_id,
       }));
 
       const { error: defensivosError } = await supabase
@@ -210,6 +213,7 @@ export const useAplicacoesDefensivos = () => {
         deve_faturar: def.deve_faturar,
         porcentagem_salva: def.porcentagem_salva,
         area_hectares: def.area_hectares,
+        safra_id: def.safra_id,
       }));
 
       const { error: defensivosError } = await supabase

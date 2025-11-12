@@ -203,6 +203,48 @@ export const useProgramacaoCultivares = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Busca a programação de cultivar para validar bloqueios
+      const { data: original, error: fetchErr } = await supabase
+        .from("programacao_cultivares")
+        .select("id, produtor_numerocm, area, safra")
+        .eq("id", id)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      const produtor = String(original?.produtor_numerocm || "").trim();
+      const area = String(original?.area || "").trim();
+      const safraCultivar = String(original?.safra || "").trim();
+
+      // Verifica se existem aplicações de defensivos nesta mesma área/produtor
+      const { data: aplicacoes, error: appErr } = await supabase
+        .from("aplicacoes_defensivos")
+        .select("id")
+        .eq("produtor_numerocm", produtor)
+        .eq("area", area);
+      if (appErr) throw appErr;
+
+      const aplicacaoIds = (aplicacoes || []).map((a: any) => a.id);
+      let existeDefensivo = false;
+      if (aplicacaoIds.length > 0) {
+        const { data: defensivos, error: defErr } = await supabase
+          .from("programacao_defensivos")
+          .select("id, safra_id, aplicacao_id")
+          .in("aplicacao_id", aplicacaoIds);
+        if (defErr) throw defErr;
+
+        // Regra: bloquear exclusão se existir qualquer defensivo.
+        // Se safra do cultivar estiver definida, bloquear somente se algum defensivo tiver mesma safra.
+        if (safraCultivar) {
+          existeDefensivo = (defensivos || []).some((d: any) => String(d.safra_id || "") === safraCultivar);
+        } else {
+          existeDefensivo = (defensivos || []).length > 0;
+        }
+      }
+
+      if (existeDefensivo) {
+        throw new Error("Não é possível excluir: há programação de defensivos vinculada nesta área/safra.");
+      }
+
       const { error } = await supabase
         .from("programacao_cultivares")
         .delete()

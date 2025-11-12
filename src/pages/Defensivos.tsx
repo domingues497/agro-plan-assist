@@ -71,6 +71,13 @@ const Defensivos = () => {
     return aplicacoes.find((a) => a.id === replicateTargetId) || null;
   }, [aplicacoes, replicateTargetId]);
 
+  // Safra da aplicação origem (usada para validar destinos por safra)
+  const safraIdAplicacao = useMemo(() => {
+    if (!sourceAplicacao) return "";
+    const d = (sourceAplicacao.defensivos || []).find((it: any) => it && it.safra_id);
+    return String(d?.safra_id || "").trim();
+  }, [sourceAplicacao]);
+
   const getProdutorNumerocmFallback = (id?: string) => {
     try {
       if (!id) return "";
@@ -340,13 +347,21 @@ const Defensivos = () => {
                           .filter((f) => {
                             const allowedAreas = areasCultivarPorProdutor.get(String(replicateProdutorNumerocm));
                             const areaNome = String(f.nomefazenda);
-                            const isAllowed = !!allowedAreas && allowedAreas.has(areaNome);
                             const hasArea = Number(f.area_cultivavel || 0) > 0;
+                            const isAllowedByCultivar = !!allowedAreas && allowedAreas.has(areaNome);
+                            // Se houver safra na aplicação origem, garantir que exista programação de cultivar na MESMA safra
+                            const isSameSafraOk = !safraIdAplicacao
+                              ? true
+                              : cultProgramacoes.some((p) =>
+                                  String(p.produtor_numerocm) === String(replicateProdutorNumerocm) &&
+                                  String(p.area) === areaNome &&
+                                  String(p.safra || "") === String(safraIdAplicacao)
+                                );
                             // Exclui a própria aplicação origem (mesmo produtor + mesma área)
                             const isSourcePair = !!sourceAplicacao &&
                               String(replicateProdutorNumerocm) === String(sourceAplicacao.produtor_numerocm) &&
                               areaNome === String(sourceAplicacao.area);
-                            return isAllowed && hasArea && !isSourcePair;
+                            return isAllowedByCultivar && isSameSafraOk && hasArea && !isSourcePair;
                           })
                           .map((f) => {
                           const produtorNome = produtores.find(p => p.numerocm === f.numerocm)?.nome || "";

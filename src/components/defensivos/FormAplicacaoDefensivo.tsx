@@ -15,6 +15,7 @@ import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
 import { useFazendas } from "@/hooks/useFazendas";
 import type { DefensivoItem } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
+import { useSafras } from "@/hooks/useSafras";
 
 type FormAplicacaoDefensivoProps = {
   onSubmit: (data: { produtor_numerocm: string; area: string; defensivos: Omit<DefensivoItem, "id">[] }) => void;
@@ -46,6 +47,9 @@ export const FormAplicacaoDefensivo = ({
   const [openFazenda, setOpenFazenda] = useState(false);
   const { data: fazendas } = useFazendas(produtorNumerocm);
   const [selectedAreaHa, setSelectedAreaHa] = useState<number>(0);
+  const { safras } = useSafras();
+  const [safraId, setSafraId] = useState<string>("");
+  const [openSafra, setOpenSafra] = useState(false);
   
   const [defensivos, setDefensivos] = useState<Array<Omit<DefensivoItem, "id"> & { tempId: string; total?: number }>>([
     {
@@ -71,6 +75,8 @@ export const FormAplicacaoDefensivo = ({
     if (initialData) {
       setProdutorNumerocm(initialData.produtor_numerocm || "");
       setArea(initialData.area || "");
+      const initialSafraId = initialData.defensivos?.[0]?.safra_id as any;
+      if (initialSafraId) setSafraId(String(initialSafraId));
       if (initialData.defensivos && initialData.defensivos.length > 0) {
         setDefensivos(
           initialData.defensivos.map((def) => ({
@@ -138,6 +144,10 @@ export const FormAplicacaoDefensivo = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!safraId) {
+      alert("Selecione a Safra antes do Produtor/Fazenda");
+      return;
+    }
     if (!produtorNumerocm || !area) {
       alert("Por favor, preencha Produtor e Fazenda");
       return;
@@ -162,6 +172,7 @@ export const FormAplicacaoDefensivo = ({
 
     const defensivosToSubmit = defensivos.map(({ tempId, total, aplicacoes, ...def }) => ({
       ...def,
+      safra_id: safraId,
       area_hectares: selectedAreaHa,
       alvo: aplicacoes && aplicacoes.length > 0 ? aplicacoes.join(", ") : def.alvo,
     }));
@@ -171,11 +182,49 @@ export const FormAplicacaoDefensivo = ({
   const selectedProdutor = produtores.find((p) => p.numerocm === produtorNumerocm);
   const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
   const hasCultivarProgram = useMemo(() => {
-    if (!produtorNumerocm || !area) return false;
+    if (!produtorNumerocm || !area || !safraId) return false;
     const a = String(area || "").trim();
     const cm = String(produtorNumerocm || "").trim();
-    return (cultProgramacoes || []).some((p) => String(p.produtor_numerocm || "").trim() === cm && String(p.area || "").trim() === a);
-  }, [cultProgramacoes, produtorNumerocm, area]);
+    const s = String(safraId || "").trim();
+    return (cultProgramacoes || []).some(
+      (p) =>
+        String(p.produtor_numerocm || "").trim() === cm &&
+        String(p.area || "").trim() === a &&
+        String(p.safra || "").trim() === s
+    );
+  }, [cultProgramacoes, produtorNumerocm, area, safraId]);
+
+  const allowedProdutoresNumerocm = useMemo(() => {
+    if (!safraId) return [] as string[];
+    const s = String(safraId);
+    const set = new Set<string>((cultProgramacoes || [])
+      .filter((p) => String(p.safra || "") === s)
+      .map((p) => String(p.produtor_numerocm || ""))
+    );
+    return Array.from(set);
+  }, [cultProgramacoes, safraId]);
+
+  const produtoresFiltrados = useMemo(() => {
+    if (!safraId) return [] as typeof produtores;
+    return (produtores || []).filter((p) => allowedProdutoresNumerocm.includes(String(p.numerocm)));
+  }, [produtores, allowedProdutoresNumerocm, safraId]);
+
+  const allowedAreasSet = useMemo(() => {
+    const set = new Set<string>();
+    if (safraId && produtorNumerocm) {
+      const s = String(safraId);
+      const cm = String(produtorNumerocm);
+      (cultProgramacoes || [])
+        .filter((p) => String(p.safra || "") === s && String(p.produtor_numerocm || "") === cm)
+        .forEach((p) => set.add(String(p.area || "")));
+    }
+    return set;
+  }, [cultProgramacoes, safraId, produtorNumerocm]);
+
+  const fazendasFiltradas = useMemo(() => {
+    if (!safraId || !produtorNumerocm) return [] as NonNullable<typeof fazendas>;
+    return (fazendas || []).filter((f) => allowedAreasSet.has(String(f.nomefazenda)));
+  }, [fazendas, allowedAreasSet, safraId, produtorNumerocm]);
 
   return (
     <Card className="p-6 mb-6">
@@ -190,10 +239,53 @@ export const FormAplicacaoDefensivo = ({
         {/* Seção fixa */}
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
+            <Label>Safra *</Label>
+            <Popover open={openSafra} onOpenChange={setOpenSafra}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between">
+                  {safraId ? `${(safras || []).find((s) => String(s.id) === String(safraId))?.nome || "Selecionada"}` : "Selecione..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar safra..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma safra encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {(safras || []).map((s) => (
+                        <CommandItem
+                          key={String(s.id)}
+                          value={`${s.nome}`}
+                          onSelect={() => {
+                            setSafraId(String(s.id));
+                            // reset produtor/fazenda ao trocar safra
+                            setProdutorNumerocm("");
+                            setArea("");
+                            setSelectedAreaHa(0);
+                            setOpenSafra(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              String(safraId) === String(s.id) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {s.nome}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-2">
             <Label>Produtor *</Label>
             <Popover open={openProdutorPopover} onOpenChange={setOpenProdutorPopover}>
               <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className="w-full justify-between">
+                <Button variant="outline" role="combobox" className="w-full justify-between" disabled={!safraId}>
                   {selectedProdutor ? `${selectedProdutor.numerocm} - ${selectedProdutor.nome}` : "Selecione..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -204,7 +296,7 @@ export const FormAplicacaoDefensivo = ({
                   <CommandList>
                     <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
                     <CommandGroup>
-                      {produtores.map((produtor) => (
+                      {(produtoresFiltrados || []).map((produtor) => (
                         <CommandItem
                           key={produtor.id}
                           value={`${produtor.numerocm} ${produtor.nome}`}
@@ -239,7 +331,7 @@ export const FormAplicacaoDefensivo = ({
                   role="combobox"
                   aria-expanded={openFazenda}
                   className="w-full justify-between"
-                  disabled={!produtorNumerocm}
+                  disabled={!produtorNumerocm || !safraId}
                 >
                   {area ? (
                     <span className="flex items-center gap-2">
@@ -262,7 +354,7 @@ export const FormAplicacaoDefensivo = ({
                   <CommandList>
                     <CommandEmpty>Nenhuma fazenda encontrada.</CommandEmpty>
                     <CommandGroup>
-                      {fazendas?.map((f) => (
+                      {(fazendasFiltradas || []).map((f) => (
                         <CommandItem
                           key={f.id}
                           value={f.nomefazenda}
