@@ -9,6 +9,7 @@ import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { useProfile } from "@/hooks/useProfile";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useProdutores } from "@/hooks/useProdutores";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -239,6 +240,8 @@ const Dashboard = () => {
     }
   };
 
+  const { data: roleData } = useAdminRole();
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -249,12 +252,14 @@ const Dashboard = () => {
               <h1 className="text-2xl font-bold text-foreground">AgroPlan</h1>
             </div>
             <div className="flex gap-2">
-              <Link to="/admin">
-                <Button variant="outline" size="sm">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Admin
-                </Button>
-              </Link>
+              {roleData?.isAdmin && (
+                <Link to="/admin">
+                  <Button variant="outline" size="sm">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
               <Button variant="outline" size="sm" onClick={handleLogout}>Sair</Button>
             </div>
           </div>

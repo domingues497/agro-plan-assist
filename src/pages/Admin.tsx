@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// Removido layout em abas; migrado para sidebar com grupos
 import { toast } from "sonner";
 import { ImportCultivares } from "@/components/admin/ImportCultivares";
 import { ImportFertilizantes } from "@/components/admin/ImportFertilizantes";
@@ -21,6 +21,7 @@ import { ImportCalendario } from "@/components/admin/ImportCalendario";
 import { ImportJustificativas } from "@/components/admin/ImportJustificativas";
 import { ImportCalendarioAplicacoes } from "@/components/admin/ImportCalendarioAplicacoes";
 import { HistoricoImportacoes } from "@/components/admin/HistoricoImportacoes";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 const ADMIN_PASSWORD = "Co0p@gr!#0la";
 
@@ -29,6 +30,12 @@ export default function Admin() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { data: roleData, isLoading } = useAdminRole();
+  const [selected, setSelected] = useState<string>("cultivares");
+  const [openGroups, setOpenGroups] = useState<{ produtos: boolean; pessoas: boolean; gerais: boolean }>({
+    produtos: true,
+    pessoas: true,
+    gerais: true,
+  });
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -110,8 +117,8 @@ export default function Admin() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="min-h-screen bg-background">
+      <div className="flex justify-between items-center px-6 py-4 border-b bg-card">
         <div>
           <h1 className="text-3xl font-bold">Área Administrativa</h1>
           <p className="text-muted-foreground">Importação de catálogos</p>
@@ -120,71 +127,172 @@ export default function Admin() {
           Voltar ao Dashboard
         </Button>
       </div>
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className="w-64 shrink-0 border-r bg-card">
+          <nav className="p-4 space-y-4">
+            {/* Produtos */}
+            <div>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between text-sm font-semibold py-1"
+                onClick={() => setOpenGroups((s) => ({ ...s, produtos: !s.produtos }))}
+              >
+                <span>Produtos</span>
+                {openGroups.produtos ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </button>
+              {openGroups.produtos && (
+                <div className="mt-1 ml-3 space-y-1">
+                  <Button
+                    variant={selected === "cultivares" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("cultivares")}
+                  >
+                    Cultivares
+                  </Button>
+                  <Button
+                    variant={selected === "fertilizantes" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("fertilizantes")}
+                  >
+                    Fertilizantes
+                  </Button>
+                  <Button
+                    variant={selected === "defensivos" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("defensivos")}
+                  >
+                    Defensivos
+                  </Button>
+                </div>
+              )}
+            </div>
 
-      <Tabs defaultValue="cultivares" className="w-full">
-        <TabsList className="grid w-full grid-cols-12">
-          <TabsTrigger value="cultivares">Cultivares</TabsTrigger>
-          <TabsTrigger value="fertilizantes">Fertilizantes</TabsTrigger>
-          <TabsTrigger value="defensivos">Defensivos</TabsTrigger>
-          <TabsTrigger value="calendario">Calendário</TabsTrigger>
-          <TabsTrigger value="consultores">Consultores</TabsTrigger>
-          <TabsTrigger value="produtores">Produtores</TabsTrigger>
-          <TabsTrigger value="fazendas">Fazendas</TabsTrigger>
-          <TabsTrigger value="safras">Safras</TabsTrigger>
-          <TabsTrigger value="tratamentos">Tratamentos</TabsTrigger>
-          <TabsTrigger value="justificativas">Justificativas</TabsTrigger>
-          <TabsTrigger value="replicar">Replicar</TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
-        </TabsList>
+            {/* Pessoas */}
+            <div>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between text-sm font-semibold py-1"
+                onClick={() => setOpenGroups((s) => ({ ...s, pessoas: !s.pessoas }))}
+              >
+                <span>Pessoas</span>
+                {openGroups.pessoas ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </button>
+              {openGroups.pessoas && (
+                <div className="mt-1 ml-3 space-y-1">
+                  <Button
+                    variant={selected === "produtores" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("produtores")}
+                  >
+                    Produtores
+                  </Button>
+                  <Button
+                    variant={selected === "fazendas" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("fazendas")}
+                  >
+                    Fazendas
+                  </Button>
+                  <Button
+                    variant={selected === "consultores" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("consultores")}
+                  >
+                    Consultores
+                  </Button>
+                </div>
+              )}
+            </div>
 
-        <TabsContent value="cultivares">
-          <ImportCultivares />
-        </TabsContent>
+            {/* Gerais */}
+            <div>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between text-sm font-semibold py-1"
+                onClick={() => setOpenGroups((s) => ({ ...s, gerais: !s.gerais }))}
+              >
+                <span>Gerais</span>
+                {openGroups.gerais ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </button>
+              {openGroups.gerais && (
+                <div className="mt-1 ml-3 space-y-1">
+                  <Button
+                    variant={selected === "safras" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("safras")}
+                  >
+                    Safras
+                  </Button>
+                  <Button
+                    variant={selected === "tratamentos" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("tratamentos")}
+                  >
+                    Tratamentos
+                  </Button>
+                  <Button
+                    variant={selected === "justificativas" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("justificativas")}
+                  >
+                    Justificativas
+                  </Button>
+                  <Button
+                    variant={selected === "calendario" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("calendario")}
+                  >
+                    Calendário
+                  </Button>
+                  <Button
+                    variant={selected === "replicar" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("replicar")}
+                  >
+                    Replicar
+                  </Button>
+                  <Button
+                    variant={selected === "historico" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("historico")}
+                  >
+                    Histórico
+                  </Button>
+                </div>
+              )}
+            </div>
+          </nav>
+        </aside>
 
-        <TabsContent value="fertilizantes">
-          <ImportFertilizantes />
-        </TabsContent>
-
-        <TabsContent value="defensivos">
-          <ImportDefensivos />
-        </TabsContent>
-
-        <TabsContent value="calendario">
-          <ImportCalendarioAplicacoes />
-        </TabsContent>
-
-        <TabsContent value="consultores">
-          <ImportConsultores />
-        </TabsContent>
-
-        <TabsContent value="produtores">
-          <ImportProdutores />
-        </TabsContent>
-
-        <TabsContent value="fazendas">
-          <ImportFazendas />
-        </TabsContent>
-
-        <TabsContent value="safras">
-          <ImportSafras />
-        </TabsContent>
-
-        <TabsContent value="tratamentos">
-          <ImportTratamentos />
-        </TabsContent>
-
-        <TabsContent value="justificativas">
-          <ImportJustificativas />
-        </TabsContent>
-
-        <TabsContent value="replicar">
-          <ReplicarSafras />
-        </TabsContent>
-
-        <TabsContent value="historico">
-          <HistoricoImportacoes />
-        </TabsContent>
-      </Tabs>
+        {/* Conteúdo */}
+        <main className="flex-1 p-6">
+          {selected === "cultivares" && <ImportCultivares />}
+          {selected === "fertilizantes" && <ImportFertilizantes />}
+          {selected === "defensivos" && <ImportDefensivos />}
+          {selected === "calendario" && <ImportCalendarioAplicacoes />}
+          {selected === "consultores" && <ImportConsultores />}
+          {selected === "produtores" && <ImportProdutores />}
+          {selected === "fazendas" && <ImportFazendas />}
+          {selected === "safras" && <ImportSafras />}
+          {selected === "tratamentos" && <ImportTratamentos />}
+          {selected === "justificativas" && <ImportJustificativas />}
+          {selected === "replicar" && <ReplicarSafras />}
+          {selected === "historico" && <HistoricoImportacoes />}
+        </main>
+      </div>
     </div>
   );
 }

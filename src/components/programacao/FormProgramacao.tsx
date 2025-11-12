@@ -458,7 +458,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-2">
             <Label>Produtor</Label>
             <Select value={produtorNumerocm} onValueChange={setProdutorNumerocm}>
               <SelectTrigger>
@@ -486,7 +486,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   return (
                     <SelectItem key={f.idfazenda} value={f.idfazenda}>
                       {f.nomefazenda}
-                      <span className="ml-2 text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
+                      <span className="ml-3 text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
                       {invalid && <Badge variant="destructive" className="ml-2">sem área (ha)</Badge>}
                     </SelectItem>
                   );
@@ -562,8 +562,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           <div className="space-y-2">
             <Label>Safra</Label>
             <Select value={safraId} onValueChange={setSafraId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a safra" />
+              <SelectTrigger className="mt-2 space-y-2 w-[20ch]">
+                <SelectValue placeholder="Selecione a safra" className="truncate" />
               </SelectTrigger>
               <SelectContent>
                 {(safras || []).filter((s) => s.ativa).map((s) => (
