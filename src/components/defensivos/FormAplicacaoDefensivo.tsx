@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
 import { useFazendas } from "@/hooks/useFazendas";
 import type { DefensivoItem } from "@/hooks/useAplicacoesDefensivos";
+import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 
 type FormAplicacaoDefensivoProps = {
   onSubmit: (data: { produtor_numerocm: string; area: string; defensivos: Omit<DefensivoItem, "id">[] }) => void;
@@ -142,6 +143,12 @@ export const FormAplicacaoDefensivo = ({
       return;
     }
 
+    // Regra de negócio: bloquear se não existir programação de cultivar para produtor/fazenda
+    if (!hasCultivarProgram) {
+      alert("Não é possível cadastrar defensivos antes de registrar a programação de Cultivar para este produtor/fazenda.");
+      return;
+    }
+
     // Validação: ao invés de checar area_hectares em cada linha (que é populada apenas no submit),
     // usamos a área selecionada globalmente (selectedAreaHa) e validamos dose e defensivo por linha.
     if (
@@ -162,11 +169,24 @@ export const FormAplicacaoDefensivo = ({
   };
 
   const selectedProdutor = produtores.find((p) => p.numerocm === produtorNumerocm);
+  const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
+  const hasCultivarProgram = useMemo(() => {
+    if (!produtorNumerocm || !area) return false;
+    const a = String(area || "").trim();
+    const cm = String(produtorNumerocm || "").trim();
+    return (cultProgramacoes || []).some((p) => String(p.produtor_numerocm || "").trim() === cm && String(p.area || "").trim() === a);
+  }, [cultProgramacoes, produtorNumerocm, area]);
 
   return (
     <Card className="p-6 mb-6">
       <h3 className="text-lg font-semibold mb-4">{title}</h3>
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Alerta de regra de negócio */}
+        {produtorNumerocm && area && !isCultLoading && !hasCultivarProgram && (
+          <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+            Não é possível cadastrar defensivos antes de registrar a programação de Cultivar para este produtor/fazenda.
+          </div>
+        )}
         {/* Seção fixa */}
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
@@ -316,7 +336,7 @@ export const FormAplicacaoDefensivo = ({
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" disabled={isLoading || (!isCultLoading && !hasCultivarProgram)}>
             {isLoading ? "Salvando..." : submitLabel}
           </Button>
         </div>
