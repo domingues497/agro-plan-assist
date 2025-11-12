@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { useAplicacoesDefensivos, AplicacaoDefensivo } from "@/hooks/useAplicaco
 import { FormAplicacaoDefensivo } from "@/components/defensivos/FormAplicacaoDefensivo";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useProgramacoes } from "@/hooks/useProgramacoes";
+import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -28,6 +29,7 @@ const Defensivos = () => {
   const { aplicacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating, replicate, isReplicating } = useAplicacoesDefensivos();
   const { data: produtores = [] } = useProdutores();
   const { programacoes = [] } = useProgramacoes();
+  const { programacoes: cultProgramacoes = [] } = useProgramacaoCultivares();
 
   const temProgramacoes = programacoes.length > 0;
   const [replicateOpen, setReplicateOpen] = useState(false);
@@ -39,6 +41,35 @@ const Defensivos = () => {
   const [openReplicateFazendaPopover, setOpenReplicateFazendaPopover] = useState(false);
   const [selectedAreaPairs, setSelectedAreaPairs] = useState<Array<{ produtor_numerocm: string; area: string }>>([]);
   const { data: fazendas = [] } = useFazendas(replicateProdutorNumerocm);
+
+  // Produtores que possuem programação de cultivar
+  const produtoresComCultivar = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of cultProgramacoes) {
+      const cm = String(p.produtor_numerocm || "").trim();
+      if (cm) set.add(cm);
+    }
+    return set;
+  }, [cultProgramacoes]);
+
+  // Áreas com programação de cultivar por produtor
+  const areasCultivarPorProdutor = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const p of cultProgramacoes) {
+      const cm = String(p.produtor_numerocm || "").trim();
+      const area = String(p.area || "").trim();
+      if (!cm || !area) continue;
+      if (!map.has(cm)) map.set(cm, new Set<string>());
+      map.get(cm)!.add(area);
+    }
+    return map;
+  }, [cultProgramacoes]);
+
+  // Aplicação origem (não deve aparecer como destino)
+  const sourceAplicacao = useMemo(() => {
+    if (!replicateTargetId) return null;
+    return aplicacoes.find((a) => a.id === replicateTargetId) || null;
+  }, [aplicacoes, replicateTargetId]);
 
   const getProdutorNumerocmFallback = (id?: string) => {
     try {
@@ -249,7 +280,13 @@ const Defensivos = () => {
                     <CommandList>
                       <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
                       <CommandGroup>
-                        {produtores.map((produtor) => (
+                        {produtores
+                          .filter((produtor) => produtoresComCultivar.has(String(produtor.numerocm)))
+                          .filter((produtor) => {
+                            // Oculta o produtor origem inteiro
+                            return !sourceAplicacao || String(produtor.numerocm) !== String(sourceAplicacao.produtor_numerocm);
+                          })
+                          .map((produtor) => (
                           <CommandItem
                             key={produtor.id}
                             value={`${produtor.numerocm} ${produtor.nome}`}
@@ -299,7 +336,19 @@ const Defensivos = () => {
                     <CommandList>
                       <CommandEmpty>Nenhuma área encontrada.</CommandEmpty>
                       <CommandGroup>
-                        {fazendas?.map((f) => {
+                        {fazendas
+                          .filter((f) => {
+                            const allowedAreas = areasCultivarPorProdutor.get(String(replicateProdutorNumerocm));
+                            const areaNome = String(f.nomefazenda);
+                            const isAllowed = !!allowedAreas && allowedAreas.has(areaNome);
+                            const hasArea = Number(f.area_cultivavel || 0) > 0;
+                            // Exclui a própria aplicação origem (mesmo produtor + mesma área)
+                            const isSourcePair = !!sourceAplicacao &&
+                              String(replicateProdutorNumerocm) === String(sourceAplicacao.produtor_numerocm) &&
+                              areaNome === String(sourceAplicacao.area);
+                            return isAllowed && hasArea && !isSourcePair;
+                          })
+                          .map((f) => {
                           const produtorNome = produtores.find(p => p.numerocm === f.numerocm)?.nome || "";
                           const checked = selectedAreaPairs.some((ap) => ap.produtor_numerocm === replicateProdutorNumerocm && ap.area === f.nomefazenda);
                           return (
@@ -307,6 +356,11 @@ const Defensivos = () => {
                               key={`${f.id}-${f.numerocm}`}
                               value={`${f.numerocm} ${produtorNome} / ${f.nomefazenda}`}
                               onSelect={() => {
+                                // Evita adicionar par igual ao origem
+                                const isSourcePair = !!sourceAplicacao &&
+                                  String(replicateProdutorNumerocm) === String(sourceAplicacao.produtor_numerocm) &&
+                                  String(f.nomefazenda) === String(sourceAplicacao.area);
+                                if (isSourcePair) return;
                                 setSelectedAreaPairs((prev) => {
                                   const exists = prev.some((ap) => ap.produtor_numerocm === replicateProdutorNumerocm && ap.area === f.nomefazenda);
                                   if (exists) {

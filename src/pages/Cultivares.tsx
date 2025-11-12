@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,12 @@ const Cultivares = () => {
       return "";
     }
   };
+
+  // Programação origem (para ocultar produtor no dropdown de replicação)
+  const sourceProgramacao = useMemo(() => {
+    if (!replicateTargetId) return null;
+    return programacoes.find((p) => p.id === replicateTargetId) || null;
+  }, [programacoes, replicateTargetId]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -290,7 +296,15 @@ const Cultivares = () => {
                     <CommandList>
                       <CommandEmpty>Nenhuma área encontrada.</CommandEmpty>
                       <CommandGroup>
-                        {fazendas?.map((f) => {
+                        {fazendas
+                          .filter((f) => {
+                            const isSourcePair = !!sourceProgramacao &&
+                              String(replicateProdutorNumerocm) === String(sourceProgramacao.produtor_numerocm) &&
+                              String(f.nomefazenda) === String(sourceProgramacao.area);
+                            const hasArea = Number(f.area_cultivavel || 0) > 0;
+                            return hasArea && !isSourcePair;
+                          })
+                          .map((f) => {
                           const produtorNome = produtores.find(p => p.numerocm === f.numerocm)?.nome || "";
                           const checked = selectedAreaPairs.some((ap) => ap.produtor_numerocm === replicateProdutorNumerocm && ap.area === f.nomefazenda);
                           return (
@@ -298,6 +312,10 @@ const Cultivares = () => {
                               key={`${f.id}-${f.numerocm}`}
                               value={`${f.numerocm} ${produtorNome} / ${f.nomefazenda}`}
                               onSelect={() => {
+                                const isSourcePair = !!sourceProgramacao &&
+                                  String(replicateProdutorNumerocm) === String(sourceProgramacao.produtor_numerocm) &&
+                                  String(f.nomefazenda) === String(sourceProgramacao.area);
+                                if (isSourcePair) return;
                                 setSelectedAreaPairs((prev) => {
                                   const exists = prev.some((ap) => ap.produtor_numerocm === replicateProdutorNumerocm && ap.area === f.nomefazenda);
                                   if (exists) {

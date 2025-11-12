@@ -276,7 +276,9 @@ const Adubacao = () => {
                     <CommandList>
                       <CommandEmpty>Nenhuma área encontrada.</CommandEmpty>
                       <CommandGroup>
-                        {fazendas?.map((f) => {
+                        {fazendas
+                          ?.filter((f) => Number(f.area_cultivavel || 0) > 0)
+                          .map((f) => {
                           const produtorNome = produtores.find(p => p.numerocm === f.numerocm)?.nome || "";
                           const checked = selectedAreaPairs.some((ap) => ap.produtor_numerocm === replicateProdutorNumerocm && ap.area === f.nomefazenda);
                           return (
