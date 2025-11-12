@@ -9,8 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 // Removido layout em abas; migrado para sidebar com grupos
 import { toast } from "sonner";
 import { ImportCultivares } from "@/components/admin/ImportCultivares";
+import { ListCultivares } from "@/components/admin/ListCultivares";
 import { ImportFertilizantes } from "@/components/admin/ImportFertilizantes";
+import { ListFertilizantes } from "@/components/admin/ListFertilizantes";
 import { ImportDefensivos } from "@/components/admin/ImportDefensivos";
+import { ListDefensivos } from "@/components/admin/ListDefensivos";
 import { ImportConsultores } from "@/components/admin/ImportConsultores";
 import { ImportProdutores } from "@/components/admin/ImportProdutores";
 import { ImportFazendas } from "@/components/admin/ImportFazendas";
@@ -22,6 +25,10 @@ import { ImportJustificativas } from "@/components/admin/ImportJustificativas";
 import { ImportCalendarioAplicacoes } from "@/components/admin/ImportCalendarioAplicacoes";
 import { HistoricoImportacoes } from "@/components/admin/HistoricoImportacoes";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { ListConsultores } from "@/components/admin/ListConsultores";
+import { ListProdutores } from "@/components/admin/ListProdutores";
+import { ListFazendas } from "@/components/admin/ListFazendas";
+import { ListCalendario } from "@/components/admin/ListCalendario";
 
 const ADMIN_PASSWORD = "Co0p@gr!#0la";
 
@@ -278,14 +285,49 @@ export default function Admin() {
         </aside>
 
         {/* Conteúdo */}
-        <main className="flex-1 p-6">
-          {selected === "cultivares" && <ImportCultivares />}
-          {selected === "fertilizantes" && <ImportFertilizantes />}
-          {selected === "defensivos" && <ImportDefensivos />}
-          {selected === "calendario" && <ImportCalendarioAplicacoes />}
-          {selected === "consultores" && <ImportConsultores />}
-          {selected === "produtores" && <ImportProdutores />}
-          {selected === "fazendas" && <ImportFazendas />}
+        <main className="flex-1 p-6 space-y-6">
+          {selected === "cultivares" && (
+            <>
+              <ImportCultivares />
+              <ListCultivares />
+            </>
+          )}
+          {selected === "fertilizantes" && (
+            <>
+              <ImportFertilizantes />
+              <ListFertilizantes />
+            </>
+          )}
+          {selected === "defensivos" && (
+            <>
+              <ImportDefensivos />
+              <ListDefensivos />
+            </>
+          )}
+          {selected === "calendario" && (
+            <>
+              <ImportCalendarioAplicacoes />
+              <ListCalendario />
+            </>
+          )}
+          {selected === "consultores" && (
+            <>
+              <ImportConsultores />
+              <ListConsultores />
+            </>
+          )}
+          {selected === "produtores" && (
+            <>
+              <ImportProdutores />
+              <ListProdutores />
+            </>
+          )}
+          {selected === "fazendas" && (
+            <>
+              <ImportFazendas />
+              <ListFazendas />
+            </>
+          )}
           {selected === "safras" && <ImportSafras />}
           {selected === "tratamentos" && <ImportTratamentos />}
           {selected === "justificativas" && <ImportJustificativas />}
