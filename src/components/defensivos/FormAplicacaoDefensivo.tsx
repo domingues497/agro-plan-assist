@@ -206,7 +206,9 @@ export const FormAplicacaoDefensivo = ({
 
   const produtoresFiltrados = useMemo(() => {
     if (!safraId) return [] as typeof produtores;
-    return (produtores || []).filter((p) => allowedProdutoresNumerocm.includes(String(p.numerocm)));
+    const base = (produtores || []);
+    const filtered = base.filter((p) => allowedProdutoresNumerocm.includes(String(p.numerocm)));
+    return filtered;
   }, [produtores, allowedProdutoresNumerocm, safraId]);
 
   const allowedAreasSet = useMemo(() => {
@@ -223,7 +225,9 @@ export const FormAplicacaoDefensivo = ({
 
   const fazendasFiltradas = useMemo(() => {
     if (!safraId || !produtorNumerocm) return [] as NonNullable<typeof fazendas>;
-    return (fazendas || []).filter((f) => allowedAreasSet.has(String(f.nomefazenda)));
+    const base = (fazendas || []);
+    const filtered = base.filter((f) => allowedAreasSet.has(String(f.nomefazenda)));
+    return filtered;
   }, [fazendas, allowedAreasSet, safraId, produtorNumerocm]);
 
   return (
@@ -294,7 +298,7 @@ export const FormAplicacaoDefensivo = ({
                 <Command>
                   <CommandInput placeholder="Buscar produtor..." />
                   <CommandList>
-                    <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
+                    <CommandEmpty>Nenhum produtor com Cultivar nesta safra.</CommandEmpty>
                     <CommandGroup>
                       {(produtoresFiltrados || []).map((produtor) => (
                         <CommandItem
@@ -352,7 +356,7 @@ export const FormAplicacaoDefensivo = ({
                 <Command>
                   <CommandInput placeholder="Buscar fazenda..." />
                   <CommandList>
-                    <CommandEmpty>Nenhuma fazenda encontrada.</CommandEmpty>
+                    <CommandEmpty>Nenhuma fazenda com Cultivar nesta safra.</CommandEmpty>
                     <CommandGroup>
                       {(fazendasFiltradas || []).map((f) => (
                         <CommandItem

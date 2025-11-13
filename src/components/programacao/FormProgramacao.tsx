@@ -51,7 +51,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
   return (
     <div className="space-y-3 p-4 border rounded-lg">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
         <div className="space-y-2">
           <Label>Cultivar</Label>
           <Select value={item.cultivar} onValueChange={(value) => onChange(index, "cultivar", value)}>
@@ -102,6 +102,15 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               <SelectItem value="INDUSTRIAL">INDUSTRIAL</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Data provável de plantio</Label>
+          <Input
+            type="date"
+            value={item.data_plantio || ""}
+            onChange={(e) => onChange(index, "data_plantio", e.target.value)}
+          />
         </div>
 
         <div className="space-y-2">
@@ -664,7 +673,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           ) : (
             <div className="space-y-4">
               {itensAdubacao.map((item, index) => (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 border rounded-lg">
+                <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border rounded-lg">
                   <div className="space-y-2">
                     <Label>Formulação</Label>
                     <Select
@@ -706,6 +715,15 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                       max="100"
                       value={item.percentual_cobertura}
                       onChange={(e) => handleAdubacaoChange(index, "percentual_cobertura", Number(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Data provável de aplicação</Label>
+                    <Input
+                      type="date"
+                      value={item.data_aplicacao || ""}
+                      onChange={(e) => handleAdubacaoChange(index, "data_aplicacao", e.target.value)}
                     />
                   </div>
 

@@ -119,7 +119,8 @@ export const useProgramacoes = () => {
           semente_propria: item.semente_propria || false,
           referencia_rnc_mapa: item.referencia_rnc_mapa || null,
           sementes_por_saca: item.sementes_por_saca || 0,
-          safra: null,
+          // Grava o id da safra na linha de cultivar para facilitar o filtro
+          safra: newProgramacao.safra_id || null,
           porcentagem_salva: 0
         });
         });
@@ -165,7 +166,8 @@ export const useProgramacoes = () => {
           deve_faturar: true,
           porcentagem_salva: 0,
           total: null,
-          safra_id: null
+          // Grava o id da safra para adubação
+          safra_id: newProgramacao.safra_id || null
         }));
 
         const adubResponse = await (supabase as any)
@@ -268,7 +270,8 @@ export const useProgramacoes = () => {
           semente_propria: item.semente_propria || false,
           referencia_rnc_mapa: item.referencia_rnc_mapa || null,
           sementes_por_saca: item.sementes_por_saca || 0,
-          safra: null,
+          // Grava o id da safra na linha de cultivar para facilitar o filtro
+          safra: data.safra_id || null,
           porcentagem_salva: 0
         });
         });
@@ -319,7 +322,8 @@ export const useProgramacoes = () => {
           deve_faturar: true,
           porcentagem_salva: 0,
           total: null,
-          safra_id: null
+          // Grava o id da safra para adubação
+          safra_id: data.safra_id || null
         }));
         const adubInsert = await (supabase as any)
           .from("programacao_adubacao")
@@ -426,7 +430,8 @@ export const useProgramacoes = () => {
         semente_propria: !!c.semente_propria,
         referencia_rnc_mapa: c.referencia_rnc_mapa || null,
         sementes_por_saca: c.sementes_por_saca || 0,
-        safra: null,
+        // Preserva a safra original na replicação
+        safra: original.data.safra_id || null,
         porcentagem_salva: 0,
       }));
       if (cultivaresData.length > 0) {
@@ -479,7 +484,8 @@ export const useProgramacoes = () => {
         deve_faturar: true,
         porcentagem_salva: 0,
         total: null,
-        safra_id: null,
+        // Preserva a safra original na replicação
+        safra_id: original.data.safra_id || null,
       }));
       if (adubacaoData.length > 0) {
         const adubInsert = await (supabase as any)
