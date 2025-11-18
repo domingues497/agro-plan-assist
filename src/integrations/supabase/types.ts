@@ -625,7 +625,7 @@ export type Database = {
             foreignKeyName: "programacao_defensivos_safra_id_fkey"
             columns: ["safra_id"]
             isOneToOne: false
-            referencedRelation: "programacao_defensivos"
+            referencedRelation: "safras"
             referencedColumns: ["id"]
           },
         ]
