@@ -569,6 +569,7 @@ export type Database = {
           alvo: string | null
           aplicacao_id: string | null
           area_hectares: number | null
+          classe: string | null
           created_at: string | null
           defensivo: string
           deve_faturar: boolean | null
@@ -585,6 +586,7 @@ export type Database = {
           alvo?: string | null
           aplicacao_id?: string | null
           area_hectares?: number | null
+          classe?: string | null
           created_at?: string | null
           defensivo: string
           deve_faturar?: boolean | null
@@ -601,6 +603,7 @@ export type Database = {
           alvo?: string | null
           aplicacao_id?: string | null
           area_hectares?: number | null
+          classe?: string | null
           created_at?: string | null
           defensivo?: string
           deve_faturar?: boolean | null
