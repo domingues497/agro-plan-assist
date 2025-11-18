@@ -8,6 +8,7 @@ export type DefensivoItem = {
   dose: number;
   unidade: string;
   alvo: string | null;
+  classe?: string; // Classe selecionada (ex.: HERBICIDA, ADUBO FOLIAR)
   aplicacoes?: string[]; // Array de descrições de aplicação selecionadas
   produto_salvo: boolean;
   deve_faturar: boolean;
@@ -148,6 +149,7 @@ export const useAplicacoesDefensivos = () => {
       const defensivosToInsert = data.defensivos.map((def) => ({
         aplicacao_id: aplicacao.id,
         user_id: user.id,
+        classe: def.classe || null,
         defensivo: def.defensivo,
         dose: def.dose,
         unidade: def.unidade,
@@ -159,9 +161,23 @@ export const useAplicacoesDefensivos = () => {
         safra_id: def.safra_id,
       }));
 
-      const { error: defensivosError } = await supabase
+      let { error: defensivosError } = await supabase
         .from("programacao_defensivos")
         .insert(defensivosToInsert);
+
+      // Fallback: se coluna 'classe' não existir no banco, reenvia sem a coluna
+      if (defensivosError && String(defensivosError.message || "").toLowerCase().includes("classe")) {
+        const defensivosFallback = defensivosToInsert.map(({ classe, ...rest }) => rest);
+        const { error: fallbackError } = await supabase
+          .from("programacao_defensivos")
+          .insert(defensivosFallback);
+        if (!fallbackError) {
+          toast.info("Classe não persistida (coluna ausente). Migre o banco para salvar a classe.");
+          defensivosError = null as any;
+        } else {
+          defensivosError = fallbackError;
+        }
+      }
 
       if (defensivosError) throw defensivosError;
 
@@ -205,6 +221,7 @@ export const useAplicacoesDefensivos = () => {
       const defensivosToInsert = data.defensivos.map((def) => ({
         aplicacao_id: id,
         user_id: user.id,
+        classe: def.classe || null,
         defensivo: def.defensivo,
         dose: def.dose,
         unidade: def.unidade,
@@ -216,9 +233,23 @@ export const useAplicacoesDefensivos = () => {
         safra_id: def.safra_id,
       }));
 
-      const { error: defensivosError } = await supabase
+      let { error: defensivosError } = await supabase
         .from("programacao_defensivos")
         .insert(defensivosToInsert);
+
+      // Fallback: se coluna 'classe' não existir no banco, reenvia sem a coluna
+      if (defensivosError && String(defensivosError.message || "").toLowerCase().includes("classe")) {
+        const defensivosFallback = defensivosToInsert.map(({ classe, ...rest }) => rest);
+        const { error: fallbackError } = await supabase
+          .from("programacao_defensivos")
+          .insert(defensivosFallback);
+        if (!fallbackError) {
+          toast.info("Classe não persistida (coluna ausente). Migre o banco para salvar a classe.");
+          defensivosError = null as any;
+        } else {
+          defensivosError = fallbackError;
+        }
+      }
 
       if (defensivosError) throw defensivosError;
 

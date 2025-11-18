@@ -107,6 +107,7 @@ export const FormAplicacaoDefensivo = ({
       ...defensivos,
       {
         tempId: crypto.randomUUID(),
+        classe: "",
         defensivo: "",
         dose: 0,
         unidade: "L/ha",
@@ -127,19 +128,19 @@ export const FormAplicacaoDefensivo = ({
   };
 
   const handleDefensivoChange = (tempId: string, field: keyof Omit<DefensivoItem, "id">, value: any) => {
-    setDefensivos(
-      defensivos.map((d) => {
+    setDefensivos((prev) =>
+      prev.map((d) => {
         if (d.tempId === tempId) {
-          const updated = { ...d, [field]: value };
+          const updated = { ...d, [field]: value } as Omit<DefensivoItem, "id"> & { tempId: string };
           if (field === "porcentagem_salva") {
             const coberturaRaw = parseFloat(value);
-            const cobertura = isNaN(coberturaRaw) ? 100 : Math.min(100, Math.max(1, coberturaRaw));
-            updated.porcentagem_salva = cobertura;
+            const cobertura = isNaN(coberturaRaw) ? 100 : Math.min(100, Math.max(0, coberturaRaw));
+            updated.porcentagem_salva = cobertura as any;
           }
           if (field === "dose" || field === "porcentagem_salva") {
-            const dose = Number(field === "dose" ? value : updated.dose) || 0;
-            const cobertura = Math.min(100, Math.max(1, Number(updated.porcentagem_salva ?? 100)));
-            updated.total = dose * (selectedAreaHa || 0) * (cobertura / 100);
+            const dose = Number(field === "dose" ? value : (updated as any).dose) || 0;
+            const cobertura = Math.min(100, Math.max(0, Number((updated as any).porcentagem_salva ?? 100)));
+            (updated as any).total = dose * (selectedAreaHa || 0) * (cobertura / 100);
           }
           return updated;
         }
@@ -147,6 +148,20 @@ export const FormAplicacaoDefensivo = ({
       })
     );
   };
+
+  // Mapa de defensivos já selecionados por aplicação (para evitar duplicados na mesma aplicação)
+  const existingByAplicacao = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    defensivos.forEach((d) => {
+      const ap = (d.aplicacoes && d.aplicacoes[0]) || d.alvo || "";
+      const key = String(ap || "").trim();
+      const name = String(d.defensivo || "").trim();
+      if (!key || !name) return;
+      if (!map[key]) map[key] = [];
+      map[key].push(name);
+    });
+    return map;
+  }, [defensivos]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -428,6 +443,7 @@ export const FormAplicacaoDefensivo = ({
               index={index}
               defensivosCatalog={(defensivosCatalog || [])}
               calendario={calendario}
+              existingByAplicacao={existingByAplicacao}
               onChange={(field, value) => handleDefensivoChange(defensivo.tempId, field, value)}
               onRemove={() => handleRemoveDefensivo(defensivo.tempId)}
               canRemove={defensivos.length > 1}
@@ -453,6 +469,7 @@ type DefensivoRowProps = {
   index: number;
   defensivosCatalog: Array<{ item: string | null; cod_item: string; marca: string | null; principio_ativo: string | null; grupo: string | null }>;
   calendario?: { classes: string[]; aplicacoesPorClasse: Record<string, string[]> } | undefined;
+  existingByAplicacao: Record<string, string[]>;
   onChange: (field: keyof Omit<DefensivoItem, "id">, value: any) => void;
   onRemove: () => void;
   canRemove: boolean;
@@ -472,7 +489,7 @@ const CLASS_SYNONYMS: Record<string, string[]> = {
   "TRAT SEMENTES": ["TS", "TRAT. SEMENTES", "TRATAMENTO DE SEMENTES", "TRATAMENTO SEMENTES"],
 };
 
-const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChange, onRemove, canRemove }: DefensivoRowProps) => {
+const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existingByAplicacao, onChange, onRemove, canRemove }: DefensivoRowProps) => {
   const [openDefensivoPopover, setOpenDefensivoPopover] = useState(false);
   const [openClassePopover, setOpenClassePopover] = useState(false);
   const [openAplicacoesPopover, setOpenAplicacoesPopover] = useState(false);
@@ -484,10 +501,42 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
     setSelectedAplicacoes(defensivo.aplicacoes || []);
   }, [defensivo.aplicacoes]);
 
-  // Inicializa a classe ao editar, inferindo de aplicacoes/alvo
+  // Inicializa a classe ao editar, inferindo primeiro pelo catálogo do defensivo,
+  // depois por aplicacoes e por fim pelo alvo
   useEffect(() => {
+    // Se já veio salvo, priorizar o valor persistido
+    if (defensivo.classe && defensivo.classe.trim()) {
+      setSelectedClasse(defensivo.classe);
+      return;
+    }
     if (selectedClasse) return; // não sobrescrever se já houve seleção
+
     const classes = Object.keys(calendario?.aplicacoesPorClasse || {});
+
+    // 1) Tentar identificar a classe pelo catálogo do defensivo selecionado
+    const defName = String(defensivo.defensivo || "").trim();
+    if (defName) {
+      const match = (defensivosCatalog || []).find((d) => normalizeText(String(d.item || "")) === normalizeText(defName));
+      const grupo = String(match?.grupo || "").trim();
+      if (grupo) {
+        setSelectedClasse(grupo);
+        onChange("classe", grupo);
+        return;
+      }
+      // 1b) Se não encontrou no catálogo, tentar extrair prefixo antes de "-"
+      const prefix = defName.split("-")[0]?.trim();
+      if (prefix) {
+        const prefixNorm = normalizeText(prefix);
+        const clsFromPrefix = classes.find((c) => normalizeText(c) === prefixNorm);
+        if (clsFromPrefix) {
+          setSelectedClasse(clsFromPrefix);
+          onChange("classe", clsFromPrefix);
+          return;
+        }
+      }
+    }
+
+    // 2) Em seguida, inferir pela primeira aplicação selecionada
     if (defensivo.aplicacoes && defensivo.aplicacoes.length > 0) {
       const firstAp = defensivo.aplicacoes[0];
       const cls = classes.find((c) =>
@@ -495,41 +544,56 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
       );
       if (cls) {
         setSelectedClasse(cls);
+        onChange("classe", cls);
         return;
       }
     }
+
+    // 3) Por fim, inferir pelo alvo com match exato
     const alvo = String(defensivo.alvo || "").trim();
     if (alvo) {
       const alvoNorm = normalizeText(alvo);
       const cls = classes.find((c) =>
-        (calendario?.aplicacoesPorClasse?.[c] || []).some((ap) => {
-          const apNorm = normalizeText(ap);
-          return apNorm === alvoNorm || alvoNorm.includes(apNorm) || apNorm.includes(alvoNorm);
-        })
+        (calendario?.aplicacoesPorClasse?.[c] || []).some((ap) => normalizeText(ap) === alvoNorm)
       );
-      if (cls) setSelectedClasse(cls);
+      if (cls) {
+        setSelectedClasse(cls);
+        onChange("classe", cls);
+      }
     }
-  }, [defensivo.aplicacoes, defensivo.alvo, calendario, selectedClasse]);
+  }, [defensivo.classe, defensivo.defensivo, defensivo.aplicacoes, defensivo.alvo, calendario, selectedClasse, defensivosCatalog, onChange]);
 
   const filteredCatalog = (defensivosCatalog || []).filter((d: any) => {
     const cls = String(selectedClasse || "").trim();
     if (!cls) return true;
 
     const clsNorm = normalizeText(cls);
-    // Quando classe = OUTROS, mostrar todos os produtos
-    if (clsNorm === "OUTROS") return true;
-    const synonyms = (CLASS_SYNONYMS[clsNorm] || []).map(normalizeText);
-    const needles = [clsNorm, ...synonyms];
-
     const grupoNorm = normalizeText(d.grupo || "");
-    const itemNorm = normalizeText(d.item || "");
-    const marcaNorm = normalizeText(d.marca || "");
-    const principioNorm = normalizeText(d.principio_ativo || "");
 
-    // Match se o grupo for exatamente a classe/sinônimo OU se algum texto contiver a classe/sinônimo
-    return needles.some((n) =>
-      grupoNorm === n || itemNorm.includes(n) || marcaNorm.includes(n) || principioNorm.includes(n)
-    );
+    // Regra solicitada: somente itens cujo grupo == classe selecionada
+    // Caso classe seja "OUTROS", considera grupo vazio ou "OUTROS"
+    const matchesClasse = clsNorm === "OUTROS"
+      ? (grupoNorm === "" || grupoNorm === "OUTROS")
+      : grupoNorm === clsNorm;
+
+    if (!matchesClasse) return false;
+
+    // Evitar duplicados na mesma aplicação: se já existe um defensivo com o mesmo "core"
+    const apKey = String((selectedAplicacoes[0] || defensivo.alvo || "").trim());
+    if (!apKey) return true;
+    const existing = (existingByAplicacao[apKey] || [])
+      .map((n) => normalizeText(String(n || "").replace(/%/g, "")))
+      .filter((n) => n && n !== normalizeText(defensivo.defensivo || ""));
+
+    // Remover prefixo da classe do nome existente para comparar núcleo (ex.: "HERBICIDA DUAL GOLD" -> "DUAL GOLD")
+    const clsPrefix = clsNorm + " ";
+    const cores = existing.map((n) => (n.startsWith(clsPrefix) ? n.slice(clsPrefix.length).trim() : n));
+
+    const isDuplicateByItem = cores.some((core) => core && itemNorm.includes(core));
+    const isDuplicateByMarca = cores.some((core) => core && marcaNorm.includes(core));
+
+    if (isDuplicateByItem || isDuplicateByMarca) return false;
+    return true;
   });
 
   return (
@@ -560,8 +624,10 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
                             setSelectedAplicacoes([]);
                             onChange("aplicacoes", []);
                             onChange("alvo", "");
+                            onChange("classe", cls);
                             onChange("defensivo", "");
                             onChange("dose", 0);
+                            onChange("porcentagem_salva", 0);
                             setOpenClassePopover(false);
                           }}
                         >
@@ -581,10 +647,10 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
             <Popover open={openAplicacoesPopover} onOpenChange={setOpenAplicacoesPopover}>
               <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" className="w-full justify-between">
-                  {selectedAplicacoes.length > 0 
-                    ? `${selectedAplicacoes.length} selecionada(s)`
-                    : selectedClasse 
-                      ? "Selecione..." 
+                  {selectedAplicacoes.length > 0
+                    ? selectedAplicacoes[0]
+                    : selectedClasse
+                      ? "Selecione..."
                       : "Selecione uma classe"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -602,11 +668,11 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
                           key={ap}
                           value={ap}
                           onSelect={() => {
-                            const newSelection = selectedAplicacoes.includes(ap)
-                              ? selectedAplicacoes.filter(a => a !== ap)
-                              : [...selectedAplicacoes, ap];
+                            // Seleção única: alterna entre nenhuma e a aplicação escolhida
+                            const newSelection = selectedAplicacoes.includes(ap) ? [] : [ap];
                             setSelectedAplicacoes(newSelection);
                             onChange("aplicacoes", newSelection);
+                            onChange("alvo", newSelection[0] ?? "");
                           }}
                         >
                           <Check
@@ -686,12 +752,12 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
             <Input
               type="number"
               step="0.1"
-              min="1"
+              min="0"
               max="100"
               value={defensivo.porcentagem_salva ?? 100}
               onChange={(e) => {
                 const raw = parseFloat(e.target.value);
-                const val = isNaN(raw) ? 100 : Math.min(100, Math.max(1, raw));
+                const val = isNaN(raw) ? 100 : Math.min(100, Math.max(0, raw));
                 onChange("porcentagem_salva", val);
               }}
               placeholder="100"

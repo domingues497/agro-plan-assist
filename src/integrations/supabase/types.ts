@@ -566,6 +566,7 @@ export type Database = {
       }
       programacao_defensivos: {
         Row: {
+          classe: string | null
           alvo: string | null
           aplicacao_id: string | null
           area_hectares: number | null
@@ -583,6 +584,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          classe?: string | null
           alvo?: string | null
           aplicacao_id?: string | null
           area_hectares?: number | null
@@ -600,6 +602,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          classe?: string | null
           alvo?: string | null
           aplicacao_id?: string | null
           area_hectares?: number | null
