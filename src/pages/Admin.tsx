@@ -20,6 +20,7 @@ import { ImportFazendas } from "@/components/admin/ImportFazendas";
 import { ImportSafras } from "@/components/admin/ImportSafras";
 import { ReplicarSafras } from "@/components/admin/ReplicarSafras";
 import { ImportTratamentos } from "@/components/admin/ImportTratamentos";
+import { ImportCultivaresTratamentos } from "@/components/admin/ImportCultivaresTratamentos";
 import { ImportCalendario } from "@/components/admin/ImportCalendario";
 import { ImportJustificativas } from "@/components/admin/ImportJustificativas";
 import { ImportCalendarioAplicacoes } from "@/components/admin/ImportCalendarioAplicacoes";
@@ -245,6 +246,14 @@ export default function Admin() {
                     onClick={() => setSelected("tratamentos")}
                   >
                     Tratamentos
+                  </Button>
+                  <Button
+                    variant={selected === "cultivares-tratamentos" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("cultivares-tratamentos")}
+                  >
+                    Cultivares × Tratamentos
                   </Button>
                   <Button
                     variant={selected === "justificativas" ? "secondary" : "ghost"}
