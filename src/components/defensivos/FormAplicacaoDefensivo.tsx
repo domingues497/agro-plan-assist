@@ -489,6 +489,11 @@ const CLASS_SYNONYMS: Record<string, string[]> = {
   "TRAT SEMENTES": ["TS", "TRAT. SEMENTES", "TRATAMENTO DE SEMENTES", "TRATAMENTO SEMENTES"],
 };
 
+// Aplicações que não devem aparecer na programação de defensivos
+const EXCLUDED_APLICACOES = new Set<string>([
+  normalizeText("Tratamento de Semente - TS"),
+]);
+
 const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existingByAplicacao, onChange, onRemove, canRemove }: DefensivoRowProps) => {
   const [openDefensivoPopover, setOpenDefensivoPopover] = useState(false);
   const [openClassePopover, setOpenClassePopover] = useState(false);
@@ -667,7 +672,9 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
                       {selectedClasse ? "Nenhuma aplicação encontrada." : "Selecione uma classe primeiro."}
                     </CommandEmpty>
                     <CommandGroup>
-                      {(calendario?.aplicacoesPorClasse?.[selectedClasse] || []).map((ap) => (
+                      {((calendario?.aplicacoesPorClasse?.[selectedClasse] || [])
+                        .filter((ap) => !EXCLUDED_APLICACOES.has(normalizeText(ap)))
+                      ).map((ap) => (
                         <CommandItem
                           key={ap}
                           value={ap}
