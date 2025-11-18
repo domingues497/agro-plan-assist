@@ -90,6 +90,8 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               // Se usuário escolher "NÃO", limpamos os tratamentos específicos selecionados
               if (value === "NÃO") {
                 onChange(index, "tratamento_ids" as any, []);
+                // Também limpar o tratamento único para evitar regravação indevida
+                onChange(index, "tratamento_id", undefined as any);
               }
             }}
           >
@@ -117,10 +119,15 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
           <Label>% Cobertura</Label>
           <Input
             type="number"
-            step="0.01"
+            step="0.1"
+            min="1"
             max="100"
-            value={item.percentual_cobertura}
-            onChange={(e) => onChange(index, "percentual_cobertura", Number(e.target.value))}
+            value={item.percentual_cobertura ?? 100}
+            onChange={(e) => {
+              const raw = Number(e.target.value);
+              const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
+              onChange(index, "percentual_cobertura", val);
+            }}
           />
         </div>
 
@@ -178,6 +185,14 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
           </Popover>
         </div>
       )}
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={`cultivar-salvo-${item.uiId || index}`}
+          checked={!!item.semente_propria}
+          onCheckedChange={(checked) => onChange(index, "semente_propria", !!checked)}
+        />
+        <Label htmlFor={`cultivar-salvo-${item.uiId || index}`}>Semente salva de safra anterior (RN012)</Label>
+      </div>
     </div>
   );
 }
@@ -195,6 +210,15 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const { data: fertilizantes = [] } = useFertilizantesCatalog();
   const { safras = [], defaultSafra } = useSafras();
   const { data: justificativas = [] } = useJustificativasAdubacao();
+
+  // Normaliza valores vindos do banco para o enum do select
+  const normalizeTipoTratamento = (s?: string): ItemCultivar["tipo_tratamento"] => {
+    const t = String(s || "").toUpperCase().trim();
+    if (t === "NÃO" || t === "NAO") return "NÃO";
+    if (t === "NA FAZENDA" || t.includes("FAZENDA")) return "NA FAZENDA";
+    if (t === "INDUSTRIAL" || t.startsWith("INDUSTR")) return "INDUSTRIAL";
+    return "NÃO";
+  };
 
   // Evita duplicatas de itens de fertilizantes pelo nome exibido
   const fertilizantesDistinct = useMemo(() => {
@@ -263,7 +287,15 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (typeof initialData.area === "string") setArea(initialData.area);
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
-    if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => ({ ...c, uiId: makeUiId() })));
+    if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => {
+      const tipo = normalizeTipoTratamento((c as any).tipo_tratamento);
+      const base: ItemCultivar & { uiId: string } = { ...(c as ItemCultivar), tipo_tratamento: tipo, uiId: makeUiId() };
+      if (tipo === "NÃO") {
+        (base as any).tratamento_ids = [];
+        (base as any).tratamento_id = undefined;
+      }
+      return base;
+    }));
     if (Array.isArray(initialData.adubacao)) setItensAdubacao(initialData.adubacao as ItemAdubacao[]);
     // Detecta caso de "não fazer adubação" quando há apenas justificativa sem formulação
     if (Array.isArray(initialData.adubacao)) {
@@ -317,7 +349,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     setItensCultivar([...itensCultivar, {
       uiId: makeUiId(),
       cultivar: "",
-      percentual_cobertura: 0,
+      percentual_cobertura: 100,
       tipo_embalagem: "BAG 5000K" as const,
       tipo_tratamento: "NÃO" as const
     }]);
@@ -334,7 +366,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   };
 
   const handleAddAdubacao = () => {
-    setItensAdubacao([...itensAdubacao, { formulacao: "", dose: 0, percentual_cobertura: 0 }]);
+    setItensAdubacao([...itensAdubacao, { formulacao: "", dose: 0, percentual_cobertura: 100 }]);
   };
 
   const handleRemoveAdubacao = (index: number) => {
@@ -432,11 +464,18 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       cultivares: itensCultivar
         .filter(item => item.cultivar)
         .map(({ uiId, ...rest }) => {
+          // Blindagem: se usuário definiu "NÃO", não enviamos nenhum tratamento
+          if (rest.tipo_tratamento === "NÃO") {
+            const base = { ...rest } as any;
+            base.tratamento_ids = [];
+            base.tratamento_id = undefined;
+            return base;
+          }
+          // Caso contrário, compatibilidade: usa o primeiro selecionado
           const ids = Array.isArray((rest as any).tratamento_ids)
             ? ((rest as any).tratamento_ids as string[])
             : [];
           const first = ids[0] || (rest as any).tratamento_id || undefined;
-          // Por compatibilidade, garante tratamento_id preenchido com o primeiro selecionado
           return { ...rest, tratamento_id: first } as any;
         }),
       adubacao: naoFazerAdubacao
@@ -711,10 +750,15 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     <Label>% Cobertura</Label>
                     <Input
                       type="number"
-                      step="0.01"
+                      step="0.1"
+                      min="1"
                       max="100"
-                      value={item.percentual_cobertura}
-                      onChange={(e) => handleAdubacaoChange(index, "percentual_cobertura", Number(e.target.value))}
+                      value={item.percentual_cobertura ?? 100}
+                      onChange={(e) => {
+                        const raw = Number(e.target.value);
+                        const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
+                        handleAdubacaoChange(index, "percentual_cobertura", val);
+                      }}
                     />
                   </div>
 
@@ -737,6 +781,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                  </div>
+
+                  {/* RN012: checkbox de fertilizante salvo dentro do grid */}
+                  <div className="flex items-center gap-2 mt-2 md:col-span-5">
+                    <Checkbox
+                      id={`adubacao-salvo-${index}`}
+                      checked={!!item.fertilizante_salvo}
+                      onCheckedChange={(checked) => handleAdubacaoChange(index, "fertilizante_salvo", !!checked)}
+                    />
+                  <Label htmlFor={`adubacao-salvo-${index}`}>Fertilizante salvo de safra anterior (RN012)</Label>
                   </div>
                 </div>
               ))}

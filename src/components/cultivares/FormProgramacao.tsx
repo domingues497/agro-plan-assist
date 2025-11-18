@@ -600,7 +600,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               onCheckedChange={(checked) => setFormData({ ...formData, semente_propria: !!checked })}
             />
             <Label htmlFor="semente_propria" className="font-medium">
-              Semente própria
+              Semente salva de safra anterior (RN012)
             </Label>
           </div>
 

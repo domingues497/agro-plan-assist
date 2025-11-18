@@ -61,7 +61,7 @@ export const FormAplicacaoDefensivo = ({
       aplicacoes: [],
       produto_salvo: false,
       deve_faturar: true,
-      porcentagem_salva: 0,
+      porcentagem_salva: 100,
       area_hectares: 0,
       total: 0,
     },
@@ -84,7 +84,8 @@ export const FormAplicacaoDefensivo = ({
             tempId: crypto.randomUUID(),
             // Separar as aplicações concatenadas do campo alvo
             aplicacoes: def.alvo ? def.alvo.split(",").map(a => a.trim()) : [],
-            total: (def.area_hectares || 0) * def.dose,
+            porcentagem_salva: Math.min(100, Math.max(1, Number(def.porcentagem_salva ?? 100))),
+            total: ( (Number(def.dose) || 0) * (Number(def.area_hectares) || 0) * (Math.min(100, Math.max(1, Number(def.porcentagem_salva ?? 100))) / 100) ),
           }))
         );
         setSelectedAreaHa(initialData.defensivos[0]?.area_hectares || 0);
@@ -96,7 +97,7 @@ export const FormAplicacaoDefensivo = ({
     setDefensivos((prev) =>
       prev.map((d) => ({
         ...d,
-        total: (d.dose || 0) * (selectedAreaHa || 0),
+        total: ( (Number(d.dose) || 0) * (selectedAreaHa || 0) * ( (Math.min(100, Math.max(1, Number(d.porcentagem_salva ?? 100))) ) / 100) ),
       }))
     );
   }, [selectedAreaHa]);
@@ -113,7 +114,7 @@ export const FormAplicacaoDefensivo = ({
         aplicacoes: [],
         produto_salvo: false,
         deve_faturar: true,
-        porcentagem_salva: 0,
+        porcentagem_salva: 100,
         area_hectares: 0,
         total: 0,
       },
@@ -130,9 +131,15 @@ export const FormAplicacaoDefensivo = ({
       defensivos.map((d) => {
         if (d.tempId === tempId) {
           const updated = { ...d, [field]: value };
-          if (field === "dose") {
-            const dose = value;
-            updated.total = (dose || 0) * (selectedAreaHa || 0);
+          if (field === "porcentagem_salva") {
+            const coberturaRaw = parseFloat(value);
+            const cobertura = isNaN(coberturaRaw) ? 100 : Math.min(100, Math.max(1, coberturaRaw));
+            updated.porcentagem_salva = cobertura;
+          }
+          if (field === "dose" || field === "porcentagem_salva") {
+            const dose = Number(field === "dose" ? value : updated.dose) || 0;
+            const cobertura = Math.min(100, Math.max(1, Number(updated.porcentagem_salva ?? 100)));
+            updated.total = dose * (selectedAreaHa || 0) * (cobertura / 100);
           }
           return updated;
         }
@@ -644,6 +651,23 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
 
           {/* Área por produto removida: usa-se a área da fazenda selecionada */}
 
+          <div className="space-y-2">
+            <Label>Cobertura em %</Label>
+            <Input
+              type="number"
+              step="0.1"
+              min="1"
+              max="100"
+              value={defensivo.porcentagem_salva ?? 100}
+              onChange={(e) => {
+                const raw = parseFloat(e.target.value);
+                const val = isNaN(raw) ? 100 : Math.min(100, Math.max(1, raw));
+                onChange("porcentagem_salva", val);
+              }}
+              placeholder="100"
+            />
+          </div>
+
           <div className="space-y-2 md:col-span-2">
             <Label>Total</Label>
             <Input
@@ -666,21 +690,6 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
                 Produto salvo (RN012)
               </Label>
             </div>
-
-            {defensivo.produto_salvo && (
-              <div className="space-y-2 ml-6">
-                <Label>% Salva</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={defensivo.porcentagem_salva}
-                  onChange={(e) => onChange("porcentagem_salva", parseFloat(e.target.value) || 0)}
-                  placeholder="0"
-                />
-              </div>
-            )}
           </div>
         </div>
 

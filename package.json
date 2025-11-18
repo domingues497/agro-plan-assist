@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 5174 --strictPort",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview --port 5174 --strictPort",
     "types:gen": "supabase gen types typescript --project-id kndaphgvedudbbmikqye --schema public > src/integrations/supabase/types.ts",
     "types:gen:linked": "supabase gen types typescript --linked --schema public > src/integrations/supabase/types.ts"
   },

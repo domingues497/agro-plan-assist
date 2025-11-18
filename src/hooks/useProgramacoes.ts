@@ -24,6 +24,10 @@ export interface ItemAdubacao {
   data_aplicacao?: string;
   responsavel?: string;
   justificativa_nao_adubacao_id?: string;
+  // Flags RN012/RN013 na programação
+  fertilizante_salvo?: boolean;
+  deve_faturar?: boolean;
+  porcentagem_salva?: number;
 }
 
 export interface Programacao {
@@ -100,7 +104,7 @@ export const useProgramacoes = () => {
       if (newProgramacao.cultivares.length > 0) {
         const cultivaresData = newProgramacao.cultivares.map(item => {
           const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
-          const firstTratamento = tratamentoIds[0] || null;
+          const firstTratamento = item.tipo_tratamento === 'NÃO' ? null : (tratamentoIds[0] || null);
           return ({
           user_id: user.id,
           programacao_id: progResponse.data.id,
@@ -132,8 +136,26 @@ export const useProgramacoes = () => {
 
         if (cultResponse.error) throw cultResponse.error;
 
+        // Hardening: garantir remoção de vínculos se algum item for "NÃO"
+        try {
+          const naoIds = (cultResponse.data || [])
+            .map((row: any, idx: number) => ({ id: row.id, tipo: newProgramacao.cultivares[idx]?.tipo_tratamento }))
+            .filter((p) => p.tipo === 'NÃO')
+            .map((p) => p.id)
+            .filter(Boolean);
+          if (naoIds.length > 0) {
+            await (supabase as any)
+              .from('programacao_cultivares_tratamentos')
+              .delete()
+              .in('programacao_cultivar_id', naoIds);
+          }
+        } catch (_) {
+          // silencioso
+        }
+
         // Inserir tratamentos na tabela de junção N:N
         const tratamentosData = newProgramacao.cultivares.flatMap((item, idx) => {
+          if (item.tipo_tratamento === 'NÃO') return [] as any[];
           const cultivarId = cultResponse.data[idx]?.id;
           const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
           return tratamentoIds.map(tratamentoId => ({
@@ -162,9 +184,11 @@ export const useProgramacoes = () => {
           data_aplicacao: item.data_aplicacao || null,
           responsavel: item.responsavel || null,
           justificativa_nao_adubacao_id: item.justificativa_nao_adubacao_id || null,
-          fertilizante_salvo: false,
-          deve_faturar: true,
-          porcentagem_salva: 0,
+          fertilizante_salvo: !!item.fertilizante_salvo,
+          deve_faturar: typeof item.deve_faturar === 'boolean' ? item.deve_faturar : true,
+          porcentagem_salva: Number.isFinite(item.porcentagem_salva as number)
+            ? Math.min(100, Math.max(0, Number(item.porcentagem_salva)))
+            : 0,
           total: null,
           // Grava o id da safra para adubação
           safra_id: newProgramacao.safra_id || null
@@ -251,7 +275,7 @@ export const useProgramacoes = () => {
       if (data.cultivares.length > 0) {
         const cultivaresData = data.cultivares.map(item => {
           const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
-          const firstTratamento = tratamentoIds[0] || null;
+          const firstTratamento = item.tipo_tratamento === 'NÃO' ? null : (tratamentoIds[0] || null);
           return ({
           user_id: user.id,
           programacao_id: id,
@@ -281,8 +305,26 @@ export const useProgramacoes = () => {
           .select();
         if (cultInsert.error) throw cultInsert.error;
 
+        // Hardening: garantir remoção de vínculos se algum item for "NÃO"
+        try {
+          const naoIds = (cultInsert.data || [])
+            .map((row: any, idx: number) => ({ id: row.id, tipo: data.cultivares[idx]?.tipo_tratamento }))
+            .filter((p) => p.tipo === 'NÃO')
+            .map((p) => p.id)
+            .filter(Boolean);
+          if (naoIds.length > 0) {
+            await (supabase as any)
+              .from('programacao_cultivares_tratamentos')
+              .delete()
+              .in('programacao_cultivar_id', naoIds);
+          }
+        } catch (_) {
+          // silencioso
+        }
+
         // Inserir tratamentos na tabela de junção N:N
         const tratamentosData = data.cultivares.flatMap((item, idx) => {
+          if (item.tipo_tratamento === 'NÃO') return [] as any[];
           const cultivarId = cultInsert.data[idx]?.id;
           const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
           return tratamentoIds.map(tratamentoId => ({
@@ -318,9 +360,11 @@ export const useProgramacoes = () => {
           data_aplicacao: item.data_aplicacao || null,
           responsavel: item.responsavel || null,
           justificativa_nao_adubacao_id: item.justificativa_nao_adubacao_id || null,
-          fertilizante_salvo: false,
-          deve_faturar: true,
-          porcentagem_salva: 0,
+          fertilizante_salvo: !!item.fertilizante_salvo,
+          deve_faturar: typeof item.deve_faturar === 'boolean' ? item.deve_faturar : true,
+          porcentagem_salva: Number.isFinite(item.porcentagem_salva as number)
+            ? Math.min(100, Math.max(0, Number(item.porcentagem_salva)))
+            : 0,
           total: null,
           // Grava o id da safra para adubação
           safra_id: data.safra_id || null
