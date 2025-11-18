@@ -140,6 +140,42 @@ export type Database = {
         }
         Relationships: []
       }
+      cultivares_tratamentos: {
+        Row: {
+          created_at: string | null
+          cultivar_cod_item: string
+          id: string
+          tratamento_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          cultivar_cod_item: string
+          id?: string
+          tratamento_id: string
+        }
+        Update: {
+          created_at?: string | null
+          cultivar_cod_item?: string
+          id?: string
+          tratamento_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cultivares_tratamentos_cultivar_cod_item_fkey"
+            columns: ["cultivar_cod_item"]
+            isOneToOne: false
+            referencedRelation: "cultivares_catalog"
+            referencedColumns: ["cod_item"]
+          },
+          {
+            foreignKeyName: "cultivares_tratamentos_tratamento_id_fkey"
+            columns: ["tratamento_id"]
+            isOneToOne: false
+            referencedRelation: "tratamentos_sementes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       defensivos_catalog: {
         Row: {
           cod_item: string
