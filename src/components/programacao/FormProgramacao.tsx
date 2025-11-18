@@ -17,6 +17,8 @@ import { useSafras } from "@/hooks/useSafras";
 import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
 import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
+import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
+import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
 import { Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +51,10 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
   const codItem = cultivarSelecionado?.cod_item;
   const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(codItem);
+  const { data: defensivosCatalog = [] } = useDefensivosCatalog();
+  const { data: calendario = [] } = useCalendarioAplicacoes();
+  const [openDefensivo, setOpenDefensivo] = useState(false);
+  const [openAplicacao, setOpenAplicacao] = useState(false);
 
   return (
     <div className="space-y-3 p-4 border rounded-lg">
@@ -184,6 +190,102 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               </Command>
             </PopoverContent>
           </Popover>
+        </div>
+      )}
+
+      {item.cultivar && item.tipo_tratamento === "NA FAZENDA" && (
+        <div className="space-y-3 pt-3 border-t">
+          <Label className="text-sm font-semibold">Defensivos</Label>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="space-y-2">
+              <Label>Defensivo</Label>
+              <Popover open={openDefensivo} onOpenChange={setOpenDefensivo}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" type="button" role="combobox" className="w-full justify-between">
+                    {(item as any).defensivo || "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command shouldFilter={true}>
+                    <CommandInput placeholder="Buscar defensivo..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {defensivosCatalog.map((d) => (
+                          <CommandItem
+                            key={d.cod_item}
+                            value={`${d.item}`}
+                            onSelect={() => {
+                              onChange(index, "defensivo" as any, d.item);
+                              setOpenDefensivo(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", (item as any).defensivo === d.item ? "opacity-100" : "opacity-0")} />
+                            {d.item}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Dose</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={(item as any).dose_defensivo || ""}
+                onChange={(e) => onChange(index, "dose_defensivo" as any, parseFloat(e.target.value) || 0)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Unidade</Label>
+              <Input
+                value={(item as any).unidade_defensivo || "L/ha"}
+                onChange={(e) => onChange(index, "unidade_defensivo" as any, e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Aplicação</Label>
+              <Popover open={openAplicacao} onOpenChange={setOpenAplicacao}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" type="button" role="combobox" className="w-full justify-between">
+                    {(item as any).aplicacao_defensivo || "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command shouldFilter={true}>
+                    <CommandInput placeholder="Buscar aplicação..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma aplicação encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        {(Array.isArray(calendario) ? calendario : calendario?.rows || []).map((c) => (
+                          <CommandItem
+                            key={c.cod_aplic}
+                            value={`${c.descr_aplicacao}`}
+                            onSelect={() => {
+                              onChange(index, "aplicacao_defensivo" as any, c.descr_aplicacao);
+                              setOpenAplicacao(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", (item as any).aplicacao_defensivo === c.descr_aplicacao ? "opacity-100" : "opacity-0")} />
+                            {c.descr_aplicacao}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
         </div>
       )}
       <div className="flex items-center gap-2">
