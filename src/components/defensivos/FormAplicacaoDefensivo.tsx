@@ -484,6 +484,33 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
     setSelectedAplicacoes(defensivo.aplicacoes || []);
   }, [defensivo.aplicacoes]);
 
+  // Inicializa a classe ao editar, inferindo de aplicacoes/alvo
+  useEffect(() => {
+    if (selectedClasse) return; // não sobrescrever se já houve seleção
+    const classes = Object.keys(calendario?.aplicacoesPorClasse || {});
+    if (defensivo.aplicacoes && defensivo.aplicacoes.length > 0) {
+      const firstAp = defensivo.aplicacoes[0];
+      const cls = classes.find((c) =>
+        (calendario?.aplicacoesPorClasse?.[c] || []).some((ap) => normalizeText(ap) === normalizeText(firstAp))
+      );
+      if (cls) {
+        setSelectedClasse(cls);
+        return;
+      }
+    }
+    const alvo = String(defensivo.alvo || "").trim();
+    if (alvo) {
+      const alvoNorm = normalizeText(alvo);
+      const cls = classes.find((c) =>
+        (calendario?.aplicacoesPorClasse?.[c] || []).some((ap) => {
+          const apNorm = normalizeText(ap);
+          return apNorm === alvoNorm || alvoNorm.includes(apNorm) || apNorm.includes(alvoNorm);
+        })
+      );
+      if (cls) setSelectedClasse(cls);
+    }
+  }, [defensivo.aplicacoes, defensivo.alvo, calendario, selectedClasse]);
+
   const filteredCatalog = (defensivosCatalog || []).filter((d: any) => {
     const cls = String(selectedClasse || "").trim();
     if (!cls) return true;
@@ -532,6 +559,9 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, onChang
                             setSelectedClasse(cls);
                             setSelectedAplicacoes([]);
                             onChange("aplicacoes", []);
+                            onChange("alvo", "");
+                            onChange("defensivo", "");
+                            onChange("dose", 0);
                             setOpenClassePopover(false);
                           }}
                         >
