@@ -65,7 +65,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     porcentagem_salva: initialData?.porcentagem_salva ?? 0,
     populacao_recomendada: initialData?.populacao_recomendada ?? 0,
     sementes_por_saca: initialData?.sementes_por_saca ?? 0,
-    tratamento_id: initialData?.tratamento_id ?? null,
+    tratamento_ids: initialData?.tratamento_ids ?? [],
   });
 
   // Seleciona automaticamente a safra padrão ao iniciar nova programação
@@ -599,7 +599,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tratamento">Tratamento de Sementes</Label>
+            <Label htmlFor="tratamento">Tratamentos de Sementes</Label>
             <Popover open={openTratamento} onOpenChange={setOpenTratamento}>
               <PopoverTrigger asChild>
                 <Button
@@ -609,9 +609,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                   className="w-full justify-between"
                   disabled={!formData.cultivar}
                 >
-                  {formData.tratamento_id
-                    ? tratamentosDisponiveis.find(t => t.id === formData.tratamento_id)?.nome || "Selecione..."
-                    : "Selecione um tratamento..."}
+                  {(formData.tratamento_ids && formData.tratamento_ids.length > 0)
+                    ? `${formData.tratamento_ids.length} tratamento(s) selecionado(s)`
+                    : "Selecione tratamentos..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -621,29 +621,53 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                   <CommandList>
                     <CommandEmpty>Nenhum tratamento encontrado para este cultivar.</CommandEmpty>
                     <CommandGroup>
-                      {tratamentosDisponiveis?.map((tratamento) => (
-                        <CommandItem
-                          key={tratamento.id}
-                          value={tratamento.nome}
-                          onSelect={() => {
-                            setFormData({ ...formData, tratamento_id: tratamento.id });
-                            setOpenTratamento(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              formData.tratamento_id === tratamento.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {tratamento.nome}
-                        </CommandItem>
-                      ))}
+                      {tratamentosDisponiveis?.map((tratamento) => {
+                        const isSelected = formData.tratamento_ids?.includes(tratamento.id) || false;
+                        return (
+                          <CommandItem
+                            key={tratamento.id}
+                            value={tratamento.nome}
+                            onSelect={() => {
+                              const newIds = isSelected
+                                ? (formData.tratamento_ids || []).filter(id => id !== tratamento.id)
+                                : [...(formData.tratamento_ids || []), tratamento.id];
+                              setFormData({ ...formData, tratamento_ids: newIds });
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                isSelected ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {tratamento.nome}
+                          </CommandItem>
+                        );
+                      })}
                     </CommandGroup>
                   </CommandList>
                 </Command>
               </PopoverContent>
             </Popover>
+            {formData.tratamento_ids && formData.tratamento_ids.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.tratamento_ids.map((id) => {
+                  const t = tratamentosDisponiveis.find(t => t.id === id);
+                  return t ? (
+                    <div key={id} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-sm">
+                      {t.nome}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => {
+                          const newIds = formData.tratamento_ids?.filter(tid => tid !== id) || [];
+                          setFormData({ ...formData, tratamento_ids: newIds });
+                        }}
+                      />
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            )}
           </div>
         </div>
 
