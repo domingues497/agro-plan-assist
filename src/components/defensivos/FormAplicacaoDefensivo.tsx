@@ -47,7 +47,7 @@ export const FormAplicacaoDefensivo = ({
   const [openFazenda, setOpenFazenda] = useState(false);
   const { data: fazendas } = useFazendas(produtorNumerocm);
   const [selectedAreaHa, setSelectedAreaHa] = useState<number>(0);
-  const { safras } = useSafras();
+  const { safras, defaultSafra } = useSafras();
   const [safraId, setSafraId] = useState<string>("");
   const [openSafra, setOpenSafra] = useState(false);
   
@@ -92,6 +92,13 @@ export const FormAplicacaoDefensivo = ({
       }
     }
   }, [initialData]);
+
+  // Ao abrir nova aplicação, selecionar automaticamente a safra padrão do banco
+  useEffect(() => {
+    if (!initialData && !safraId && defaultSafra) {
+      setSafraId(String(defaultSafra.id));
+    }
+  }, [defaultSafra, initialData, safraId]);
 
   useEffect(() => {
     setDefensivos((prev) =>
