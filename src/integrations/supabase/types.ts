@@ -742,7 +742,7 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string | null
-          cultura: string
+          cultura: string | null
           id: string
           nome: string
           updated_at: string | null
@@ -750,7 +750,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string | null
-          cultura: string
+          cultura?: string | null
           id?: string
           nome: string
           updated_at?: string | null
@@ -758,7 +758,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string | null
-          cultura?: string
+          cultura?: string | null
           id?: string
           nome?: string
           updated_at?: string | null

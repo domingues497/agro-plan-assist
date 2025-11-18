@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,6 @@ export const ImportTratamentos = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [nome, setNome] = useState("");
-  const [cultura, setCultura] = useState<"MILHO" | "SOJA">("MILHO");
 
   const { data: tratamentos = [] } = useQuery({
     queryKey: ["admin-tratamentos"],
@@ -34,7 +33,7 @@ export const ImportTratamentos = () => {
     mutationFn: async () => {
       const { error } = await supabase
         .from("tratamentos_sementes")
-        .insert({ nome, cultura, ativo: true });
+        .insert({ nome, ativo: true });
       
       if (error) throw error;
     },
@@ -97,7 +96,7 @@ export const ImportTratamentos = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nome do Tratamento</Label>
               <Input
@@ -106,18 +105,6 @@ export const ImportTratamentos = () => {
                 placeholder="Ex: Tratamento Premium"
                 required
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Cultura</Label>
-              <Select value={cultura} onValueChange={(value) => setCultura(value as "MILHO" | "SOJA")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MILHO">Milho</SelectItem>
-                  <SelectItem value="SOJA">Soja</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="flex items-end">
               <Button type="submit" className="w-full" disabled={createMutation.isPending}>
@@ -133,7 +120,6 @@ export const ImportTratamentos = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Cultura</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
@@ -142,7 +128,6 @@ export const ImportTratamentos = () => {
               {tratamentos.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell>{t.nome}</TableCell>
-                  <TableCell>{t.cultura}</TableCell>
                   <TableCell>{t.ativo ? "Ativo" : "Inativo"}</TableCell>
                   <TableCell>
                     <Button
