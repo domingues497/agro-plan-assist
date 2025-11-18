@@ -589,6 +589,10 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     const clsPrefix = clsNorm + " ";
     const cores = existing.map((n) => (n.startsWith(clsPrefix) ? n.slice(clsPrefix.length).trim() : n));
 
+    // Normalizar item e marca do defensivo atual para comparação
+    const itemNorm = normalizeText(d.item || "");
+    const marcaNorm = normalizeText(d.marca || "");
+
     const isDuplicateByItem = cores.some((core) => core && itemNorm.includes(core));
     const isDuplicateByMarca = cores.some((core) => core && marcaNorm.includes(core));
 
