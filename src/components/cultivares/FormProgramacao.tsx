@@ -14,6 +14,7 @@ import { useSafras } from "@/hooks/useSafras";
 import { CreateProgramacaoCultivar } from "@/hooks/useProgramacaoCultivares";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
+import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 
 type FormProgramacaoProps = {
   onSubmit: (data: CreateProgramacaoCultivar) => void;
@@ -32,6 +33,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const [openGrupo, setOpenGrupo] = useState(false);
   const [openFazenda, setOpenFazenda] = useState(false);
   const [openSafra, setOpenSafra] = useState(false);
+  const [openTratamento, setOpenTratamento] = useState(false);
   const [filtroGrupo, setFiltroGrupo] = useState("");
   const [searchCultivar, setSearchCultivar] = useState("");
   const normalizeCM = (v: string | undefined | null) => String(v ?? "").trim().toLowerCase();
@@ -44,6 +46,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const [resultadoEmbalagens, setResultadoEmbalagens] = useState<string>("");
   const { safras, defaultSafra } = useSafras();
   const safrasAtivas = (safras || []).filter((s) => s.ativa);
+  
+  // Buscar cod_item do cultivar selecionado
+  const cultivarSelecionado = cultivares?.find(c => c.item === formData.cultivar);
+  const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(cultivarSelecionado?.cod_item);
   
   const [formData, setFormData] = useState<CreateProgramacaoCultivar>({
     cultivar: initialData?.cultivar ?? "",
@@ -59,6 +65,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     porcentagem_salva: initialData?.porcentagem_salva ?? 0,
     populacao_recomendada: initialData?.populacao_recomendada ?? 0,
     sementes_por_saca: initialData?.sementes_por_saca ?? 0,
+    tratamento_id: initialData?.tratamento_id ?? null,
   });
 
   // Seleciona automaticamente a safra padrão ao iniciar nova programação
@@ -589,6 +596,54 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               value={formData.data_plantio || ""}
               onChange={(e) => setFormData({ ...formData, data_plantio: e.target.value || null })}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tratamento">Tratamento de Sementes</Label>
+            <Popover open={openTratamento} onOpenChange={setOpenTratamento}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openTratamento}
+                  className="w-full justify-between"
+                  disabled={!formData.cultivar}
+                >
+                  {formData.tratamento_id
+                    ? tratamentosDisponiveis.find(t => t.id === formData.tratamento_id)?.nome || "Selecione..."
+                    : "Selecione um tratamento..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar tratamento..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum tratamento encontrado para este cultivar.</CommandEmpty>
+                    <CommandGroup>
+                      {tratamentosDisponiveis?.map((tratamento) => (
+                        <CommandItem
+                          key={tratamento.id}
+                          value={tratamento.nome}
+                          onSelect={() => {
+                            setFormData({ ...formData, tratamento_id: tratamento.id });
+                            setOpenTratamento(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.tratamento_id === tratamento.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {tratamento.nome}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
