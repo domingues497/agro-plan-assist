@@ -12,41 +12,41 @@ import { Label } from "@/components/ui/label";
 export const ImportCultivaresTratamentos = () => {
   const { data: cultivares } = useCultivaresCatalog();
   const { data: tratamentos } = useTratamentosSementes();
-  const [selectedCultivar, setSelectedCultivar] = useState<string>("");
-  const [selectedTratamentos, setSelectedTratamentos] = useState<string[]>([]);
+  const [selectedTratamento, setSelectedTratamento] = useState<string>("");
+  const [selectedCultivares, setSelectedCultivares] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleToggleTratamento = (tratamentoId: string) => {
-    setSelectedTratamentos(prev => 
-      prev.includes(tratamentoId)
-        ? prev.filter(id => id !== tratamentoId)
-        : [...prev, tratamentoId]
+  const handleToggleCultivar = (cultivarCodItem: string) => {
+    setSelectedCultivares(prev => 
+      prev.includes(cultivarCodItem)
+        ? prev.filter(id => id !== cultivarCodItem)
+        : [...prev, cultivarCodItem]
     );
   };
 
   const handleSave = async () => {
-    if (!selectedCultivar) {
-      toast.error("Selecione um cultivar");
+    if (!selectedTratamento) {
+      toast.error("Selecione um tratamento");
       return;
     }
 
-    if (selectedTratamentos.length === 0) {
-      toast.error("Selecione pelo menos um tratamento");
+    if (selectedCultivares.length === 0) {
+      toast.error("Selecione pelo menos um cultivar");
       return;
     }
 
     setLoading(true);
     try {
-      // Remove vínculos existentes
+      // Remove vínculos existentes deste tratamento
       await supabase
         .from("cultivares_tratamentos")
         .delete()
-        .eq("cultivar_cod_item", selectedCultivar);
+        .eq("tratamento_id", selectedTratamento);
 
       // Insere novos vínculos
-      const inserts = selectedTratamentos.map(tratamentoId => ({
-        cultivar_cod_item: selectedCultivar,
-        tratamento_id: tratamentoId,
+      const inserts = selectedCultivares.map(cultivarCodItem => ({
+        cultivar_cod_item: cultivarCodItem,
+        tratamento_id: selectedTratamento,
       }));
 
       const { error } = await supabase
@@ -55,57 +55,52 @@ export const ImportCultivaresTratamentos = () => {
 
       if (error) throw error;
 
-      toast.success("Tratamentos vinculados com sucesso!");
-      setSelectedCultivar("");
-      setSelectedTratamentos([]);
+      toast.success("Cultivares vinculados com sucesso!");
+      setSelectedTratamento("");
+      setSelectedCultivares([]);
     } catch (error) {
-      console.error("Erro ao vincular tratamentos:", error);
-      toast.error("Erro ao vincular tratamentos");
+      console.error("Erro ao vincular cultivares:", error);
+      toast.error("Erro ao vincular cultivares");
     } finally {
       setLoading(false);
     }
   };
 
-  const cultivarSelecionado = cultivares?.find(c => c.cod_item === selectedCultivar);
-  const tratamentosFiltrados = tratamentos?.filter(
-    t => !cultivarSelecionado?.cultura || t.cultura === cultivarSelecionado.cultura
-  );
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Vincular Tratamentos aos Cultivares</CardTitle>
+        <CardTitle>Vincular Cultivares aos Tratamentos</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label>Cultivar</Label>
-          <Select value={selectedCultivar} onValueChange={setSelectedCultivar}>
+          <Label>Tratamento</Label>
+          <Select value={selectedTratamento} onValueChange={setSelectedTratamento}>
             <SelectTrigger>
-              <SelectValue placeholder="Selecione um cultivar" />
+              <SelectValue placeholder="Selecione um tratamento" />
             </SelectTrigger>
             <SelectContent>
-              {cultivares?.map((c) => (
-                <SelectItem key={c.cod_item} value={c.cod_item}>
-                  {c.cultivar} - {c.cultura}
+              {tratamentos?.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.nome}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {selectedCultivar && (
+        {selectedTratamento && (
           <div className="space-y-2">
-            <Label>Tratamentos Disponíveis</Label>
+            <Label>Cultivares Disponíveis</Label>
             <div className="border rounded-md p-4 space-y-2 max-h-64 overflow-y-auto">
-              {tratamentosFiltrados?.map((t) => (
-                <div key={t.id} className="flex items-center space-x-2">
+              {cultivares?.map((c) => (
+                <div key={c.cod_item} className="flex items-center space-x-2">
                   <Checkbox
-                    id={t.id}
-                    checked={selectedTratamentos.includes(t.id)}
-                    onCheckedChange={() => handleToggleTratamento(t.id)}
+                    id={c.cod_item}
+                    checked={selectedCultivares.includes(c.cod_item)}
+                    onCheckedChange={() => handleToggleCultivar(c.cod_item)}
                   />
-                  <Label htmlFor={t.id} className="cursor-pointer">
-                    {t.nome} ({t.cultura})
+                  <Label htmlFor={c.cod_item} className="cursor-pointer">
+                    {c.cultivar} - {c.cultura}
                   </Label>
                 </div>
               ))}
@@ -113,7 +108,7 @@ export const ImportCultivaresTratamentos = () => {
           </div>
         )}
 
-        <Button onClick={handleSave} disabled={loading || !selectedCultivar}>
+        <Button onClick={handleSave} disabled={loading || !selectedTratamento}>
           {loading ? "Salvando..." : "Salvar Vínculos"}
         </Button>
       </CardContent>
