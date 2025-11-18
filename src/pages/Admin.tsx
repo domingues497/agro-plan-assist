@@ -29,6 +29,7 @@ import { ListConsultores } from "@/components/admin/ListConsultores";
 import { ListProdutores } from "@/components/admin/ListProdutores";
 import { ListFazendas } from "@/components/admin/ListFazendas";
 import { ListCalendario } from "@/components/admin/ListCalendario";
+import { ImportCultivaresTratamentos } from "@/components/admin/ImportCultivaresTratamentos";
 
 const ADMIN_PASSWORD = "Co0p@gr!#0la";
 
@@ -247,6 +248,14 @@ export default function Admin() {
                     Tratamentos
                   </Button>
                   <Button
+                    variant={selected === "cultivares-tratamentos" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("cultivares-tratamentos")}
+                  >
+                    Cultivares x Tratamentos
+                  </Button>
+                  <Button
                     variant={selected === "justificativas" ? "secondary" : "ghost"}
                     className="w-full justify-start"
                     size="sm"
@@ -330,6 +339,7 @@ export default function Admin() {
           )}
           {selected === "safras" && <ImportSafras />}
           {selected === "tratamentos" && <ImportTratamentos />}
+          {selected === "cultivares-tratamentos" && <ImportCultivaresTratamentos />}
           {selected === "justificativas" && <ImportJustificativas />}
           {selected === "replicar" && <ReplicarSafras />}
           {selected === "historico" && <HistoricoImportacoes />}

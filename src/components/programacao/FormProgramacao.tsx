@@ -15,6 +15,7 @@ import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { useFertilizantesCatalog } from "@/hooks/useFertilizantesCatalog";
 import { useSafras } from "@/hooks/useSafras";
 import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
+import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +39,7 @@ type CultivarRowProps = {
   item: ItemCultivar & { uiId?: string };
   index: number;
   cultivaresDistinct: Array<{ cultivar: string | null }>;
-  cultivaresCatalog: Array<{ cultivar: string | null; cultura: string | null }>;
+  cultivaresCatalog: Array<{ cultivar: string | null; cultura: string | null; cod_item: string }>;
   canRemove: boolean;
   onChange: (index: number, field: keyof ItemCultivar, value: any) => void;
   onRemove: (index: number) => void;
@@ -46,8 +47,8 @@ type CultivarRowProps = {
 
 function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRemove, onChange, onRemove }: CultivarRowProps) {
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
-  const cultura = (cultivarSelecionado as any)?.cultura as string | undefined;
-  const { data: tratamentosDisponiveis = [] } = useTratamentosSementes(cultura);
+  const codItem = cultivarSelecionado?.cod_item;
+  const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(codItem);
 
   return (
     <div className="space-y-3 p-4 border rounded-lg">
