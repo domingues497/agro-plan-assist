@@ -339,6 +339,7 @@ export default function Admin() {
           )}
           {selected === "safras" && <ImportSafras />}
           {selected === "tratamentos" && <ImportTratamentos />}
+          {selected === "cultivares-tratamentos" && <ImportCultivaresTratamentos />}
           {selected === "justificativas" && <ImportJustificativas />}
           {selected === "replicar" && <ReplicarSafras />}
           {selected === "historico" && <HistoricoImportacoes />}
