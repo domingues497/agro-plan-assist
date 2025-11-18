@@ -100,6 +100,20 @@ export const FormAplicacaoDefensivo = ({
     }
   }, [defaultSafra, initialData, safraId]);
 
+  // Fallback adicional: se não houver padrão explícito, escolher primeira ativa ou a primeira da lista
+  useEffect(() => {
+    if (initialData || safraId) return;
+    const list = safras || [];
+    if (!list.length) return;
+    const candidate = defaultSafra
+      || list.find((s: any) => s?.is_default)
+      || list.find((s: any) => s?.ativa)
+      || list[0];
+    if (candidate?.id) {
+      setSafraId(String(candidate.id));
+    }
+  }, [safras, defaultSafra, initialData, safraId]);
+
   useEffect(() => {
     setDefensivos((prev) =>
       prev.map((d) => ({
