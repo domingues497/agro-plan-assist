@@ -362,11 +362,16 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                 <div className="space-y-2">
                   <Label>Dose *</Label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={defensivo.dose || ""}
-                    onChange={(e) => handleDefensivoChange(defensivo.tempId, "dose", parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(',', '.');
+                      const numValue = parseFloat(value);
+                      if (value === '' || value === '0' || value.endsWith('.') || !isNaN(numValue)) {
+                        handleDefensivoChange(defensivo.tempId, "dose", value === '' ? 0 : (isNaN(numValue) ? 0 : numValue));
+                      }
+                    }}
                   />
                 </div>
 
