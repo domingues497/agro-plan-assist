@@ -208,18 +208,18 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
       }
     }
     
-    // Se está desmarcando a flag, verifica se tem outro produto igual com flag marcada
+    // Se está desmarcando a flag, verifica se tem outro produto IGUAL sem flag marcada
     if (field === 'produto_salvo' && !value && updated[index].defensivo) {
-      const produtoIgualComFlag = defensivosFazenda.find((def, idx) => 
+      const outrosProdutosIguaisSemFlag = defensivosFazenda.filter((def, idx) => 
         idx !== index && 
         def.defensivo === updated[index].defensivo &&
-        def.produto_salvo
+        !def.produto_salvo
       );
       
-      if (!produtoIgualComFlag) {
+      if (outrosProdutosIguaisSemFlag.length > 0) {
         toast({
           title: "Não é possível desmarcar",
-          description: "Ao menos um dos produtos repetidos deve ter a flag 'Produto salvo' marcada.",
+          description: "Existe outro produto igual sem a flag marcada. Ao menos um deve ter a flag 'Produto salvo' marcada.",
           variant: "destructive",
         });
         return;
