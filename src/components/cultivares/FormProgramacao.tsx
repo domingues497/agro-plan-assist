@@ -7,13 +7,15 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { X, Check, ChevronsUpDown } from "lucide-react";
+import { X, Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { useSafras } from "@/hooks/useSafras";
-import { CreateProgramacaoCultivar } from "@/hooks/useProgramacaoCultivares";
+import { CreateProgramacaoCultivar, DefensivoFazenda } from "@/hooks/useProgramacaoCultivares";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
+import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
+import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
 
 type FormProgramacaoProps = {
   onSubmit: (data: CreateProgramacaoCultivar) => void;
@@ -44,6 +46,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const [resultadoEmbalagens, setResultadoEmbalagens] = useState<string>("");
   const { safras, defaultSafra } = useSafras();
   const safrasAtivas = (safras || []).filter((s) => s.ativa);
+  const { data: defensivosCatalog } = useDefensivosCatalog();
+  const { data: calendarioAplicacoes } = useCalendarioAplicacoes();
+  const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoFazenda[]>([]);
   
   const [formData, setFormData] = useState<CreateProgramacaoCultivar>({
     cultivar: initialData?.cultivar ?? "",
@@ -59,6 +64,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     porcentagem_salva: initialData?.porcentagem_salva ?? 0,
     populacao_recomendada: initialData?.populacao_recomendada ?? 0,
     sementes_por_saca: initialData?.sementes_por_saca ?? 0,
+    defensivos_fazenda: initialData?.defensivos_fazenda ?? [],
   });
 
   // Seleciona automaticamente a safra padrão ao iniciar nova programação
@@ -135,6 +141,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
         produtor_numerocm: typeof initialData.produtor_numerocm === "string" ? initialData.produtor_numerocm.trim() : prev.produtor_numerocm,
         cultivar: initialData.cultivar ?? prev.cultivar,
       }));
+      if (initialData.defensivos_fazenda) {
+        setDefensivosFazenda(initialData.defensivos_fazenda);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData?.produtor_numerocm, initialData?.cultivar]);
@@ -155,7 +164,39 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({ ...formData, defensivos_fazenda: defensivosFazenda });
+  };
+
+  const handleAddDefensivo = () => {
+    setDefensivosFazenda([
+      ...defensivosFazenda,
+      {
+        aplicacao: "Tratamento de Semente - TS",
+        defensivo: "",
+        dose: 0,
+        cobertura: 100,
+        total: 0,
+        produto_salvo: false,
+      },
+    ]);
+  };
+
+  const handleRemoveDefensivo = (index: number) => {
+    setDefensivosFazenda(defensivosFazenda.filter((_, i) => i !== index));
+  };
+
+  const handleDefensivoChange = (index: number, field: keyof DefensivoFazenda, value: any) => {
+    const updated = [...defensivosFazenda];
+    updated[index] = { ...updated[index], [field]: value };
+    
+    // Calcula o total automaticamente quando mudar dose ou cobertura
+    if (field === 'dose' || field === 'cobertura') {
+      const dose = field === 'dose' ? value : updated[index].dose;
+      const cobertura = field === 'cobertura' ? value : updated[index].cobertura;
+      updated[index].total = (dose * cobertura) / 100;
+    }
+    
+    setDefensivosFazenda(updated);
   };
 
   const cultivaresFiltrados = (cultivares || []).filter((c) => {
@@ -669,6 +710,149 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               <p className="text-xs text-muted-foreground">
                 Porcentagem da área que usará semente salva
               </p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4 pt-4 border-t">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium">Defensivos para Tratamento de Sementes</h4>
+            <Button type="button" variant="outline" size="sm" onClick={handleAddDefensivo}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar defensivo
+            </Button>
+          </div>
+
+          {defensivosFazenda.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum defensivo adicionado</p>
+          ) : (
+            <div className="space-y-4">
+              {defensivosFazenda.map((defensivo, index) => (
+                <Card key={index} className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Aplicação</Label>
+                          <Select
+                            value={defensivo.aplicacao}
+                            onValueChange={(value) => handleDefensivoChange(index, 'aplicacao', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {calendarioAplicacoes?.rows
+                                ?.filter(a => a.trat_sementes === "S")
+                                .map((aplic) => (
+                                  <SelectItem key={aplic.id} value={aplic.descr_aplicacao}>
+                                    {aplic.descr_aplicacao}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Defensivo</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between"
+                              >
+                                {defensivo.defensivo || "Selecione..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0">
+                              <Command>
+                                <CommandInput placeholder="Buscar defensivo..." />
+                                <CommandList>
+                                  <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
+                                  <CommandGroup>
+                                    {defensivosCatalog?.map((def) => (
+                                      <CommandItem
+                                        key={def.cod_item}
+                                        value={def.item || ""}
+                                        onSelect={() => {
+                                          handleDefensivoChange(index, 'defensivo', def.item);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            defensivo.defensivo === def.item ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {def.item}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Dose (L ou kg/ha)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={defensivo.dose || ""}
+                            onChange={(e) => handleDefensivoChange(index, 'dose', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Cobertura (%)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            value={defensivo.cobertura || ""}
+                            onChange={(e) => handleDefensivoChange(index, 'cobertura', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Total</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={defensivo.total || ""}
+                            readOnly
+                            className="bg-muted"
+                          />
+                        </div>
+
+                        <div className="space-y-2 flex items-center">
+                          <Checkbox
+                            id={`produto-salvo-${index}`}
+                            checked={defensivo.produto_salvo}
+                            onCheckedChange={(checked) => handleDefensivoChange(index, 'produto_salvo', !!checked)}
+                          />
+                          <Label htmlFor={`produto-salvo-${index}`} className="ml-2">
+                            Produto salvo
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveDefensivo(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </Card>
+              ))}
             </div>
           )}
         </div>
