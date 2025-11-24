@@ -22,6 +22,7 @@ export default function Programacao() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [editingTratamentos, setEditingTratamentos] = useState<Record<string, string[]>>({});
+  const [editingDefensivos, setEditingDefensivos] = useState<Record<string, any[]>>({});
   const { programacoes, isLoading, create, delete: deleteProgramacao, update, isUpdating, replicate, isReplicating } = useProgramacoes();
   const { data: fazendas = [] } = useFazendas();
   const { data: produtores = [] } = useProdutores();
@@ -94,21 +95,19 @@ export default function Programacao() {
           <FormProgramacao
             title="Editar Programação"
             submitLabel={isUpdating ? "Salvando..." : "Salvar alterações"}
-            initialData={(() => {
-              const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
-              const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
-              return {
-                produtor_numerocm: editing.produtor_numerocm,
-                fazenda_idfazenda: editing.fazenda_idfazenda,
-                area: editing.area,
-                area_hectares: editing.area_hectares,
-                safra_id: editing.safra_id || undefined,
-                cultivares: cults.map((c: any) => ({
+            initialData={{
+              produtor_numerocm: editing.produtor_numerocm,
+              fazenda_idfazenda: editing.fazenda_idfazenda,
+              area: editing.area,
+              area_hectares: editing.area_hectares,
+              safra_id: editing.safra_id || undefined,
+              cultivares: (() => {
+                const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
+                return cults.map((c: any) => ({
                   cultivar: c.cultivar,
                   percentual_cobertura: Number(c.percentual_cobertura) || 0,
                   tipo_embalagem: c.tipo_embalagem,
                   tipo_tratamento: c.tipo_tratamento,
-                  // Usa múltiplos tratamentos da tabela de junção quando disponíveis
                   tratamento_ids: (editingTratamentos as Record<string, string[]>)[c.id]
                     ?? (Array.isArray(c.tratamento_ids) ? c.tratamento_ids : (c.tratamento_id ? [c.tratamento_id] : [])),
                   tratamento_id: c.tratamento_id || undefined,
@@ -117,26 +116,32 @@ export default function Programacao() {
                   semente_propria: Boolean(c.semente_propria),
                   referencia_rnc_mapa: c.referencia_rnc_mapa || undefined,
                   sementes_por_saca: Number(c.sementes_por_saca) || 0,
-                })),
-                adubacao: adubs.map((a: any) => ({
+                  defensivos_fazenda: editingDefensivos[c.id] || []
+                }));
+              })(),
+              adubacao: (() => {
+                const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
+                return adubs.map((a: any) => ({
                   formulacao: a.formulacao,
                   dose: Number(a.dose) || 0,
                   percentual_cobertura: Number(a.percentual_cobertura) || 0,
                   data_aplicacao: a.data_aplicacao || undefined,
                   responsavel: a.responsavel || undefined,
                   justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
-                }))
-              };
-            })()}
+                }));
+              })()
+            }}
             onSubmit={(data) => {
               update({ id: editing.id, ...data }).then(() => {
                 setEditing(null);
                 setEditingTratamentos({});
+                setEditingDefensivos({});
               });
             }}
             onCancel={() => {
               setEditing(null);
               setEditingTratamentos({});
+              setEditingDefensivos({});
             }}
           />
         )}
@@ -185,20 +190,43 @@ export default function Programacao() {
                       variant="outline"
                       size="icon"
                       onClick={async () => {
-                        // Buscar tratamentos da tabela de junção antes de abrir edição
+                        // Buscar tratamentos e defensivos da tabela de junção antes de abrir edição
                         const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === prog.id);
                         const tratamentosMap: Record<string, string[]> = {};
+                        const defensivosMap: Record<string, any[]> = {};
                         
                         for (const cult of cults) {
-                          const { data } = await (supabase as any)
+                          // Buscar tratamentos
+                          const { data: tratData } = await (supabase as any)
                             .from("programacao_cultivares_tratamentos")
                             .select("tratamento_id")
                             .eq("programacao_cultivar_id", cult.id);
                           
-                          tratamentosMap[cult.id] = (data || []).map((t: any) => t.tratamento_id);
+                          tratamentosMap[cult.id] = (tratData || []).map((t: any) => t.tratamento_id);
+                          
+                          // Buscar defensivos se tipo_tratamento for "NA FAZENDA"
+                          if (cult.tipo_tratamento === "NA FAZENDA") {
+                            const { data: defData } = await (supabase as any)
+                              .from("programacao_cultivares_defensivos")
+                              .select("*")
+                              .eq("programacao_cultivar_id", cult.id);
+                            
+                            defensivosMap[cult.id] = (defData || []).map((d: any) => ({
+                              tempId: crypto.randomUUID(),
+                              classe: d.classe || "",
+                              aplicacao: d.aplicacao,
+                              defensivo: d.defensivo,
+                              dose: Number(d.dose) || 0,
+                              cobertura: Number(d.cobertura) || 100,
+                              total: Number(d.total) || 0,
+                              produto_salvo: Boolean(d.produto_salvo),
+                              porcentagem_salva: 100
+                            }));
+                          }
                         }
                         
                         setEditingTratamentos(tratamentosMap);
+                        setEditingDefensivos(defensivosMap);
                         setEditing(prog);
                       }}
                       title="Editar"
