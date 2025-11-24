@@ -366,10 +366,11 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                     inputMode="decimal"
                     value={defensivo.dose || ""}
                     onChange={(e) => {
-                      const value = e.target.value.replace(',', '.');
-                      const numValue = parseFloat(value);
-                      if (value === '' || value === '0' || value.endsWith('.') || !isNaN(numValue)) {
-                        handleDefensivoChange(defensivo.tempId, "dose", value === '' ? 0 : (isNaN(numValue) ? 0 : numValue));
+                      let value = e.target.value.replace(',', '.');
+                      // Permitir apenas números e um ponto decimal
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        const numValue = value === '' ? 0 : (parseFloat(value) || 0);
+                        handleDefensivoChange(defensivo.tempId, "dose", numValue);
                       }
                     }}
                   />
