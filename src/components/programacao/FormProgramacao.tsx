@@ -128,6 +128,27 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
       }
     }
     
+    // Se está desmarcando a flag, verifica se tem outro produto igual com flag marcada
+    if (field === 'produto_salvo' && !value) {
+      const defensivoAtual = defensivosFazenda.find(d => d.tempId === tempId);
+      if (defensivoAtual?.defensivo) {
+        const produtoIgualComFlag = defensivosFazenda.find((def) => 
+          def.tempId !== tempId && 
+          def.defensivo === defensivoAtual.defensivo &&
+          def.produto_salvo
+        );
+        
+        if (!produtoIgualComFlag) {
+          toast({
+            title: "Não é possível desmarcar",
+            description: "Ao menos um dos produtos repetidos deve ter a flag 'Produto salvo' marcada.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+    
     setDefensivosFazenda(prev => 
       prev.map(d => {
         if (d.tempId === tempId) {
