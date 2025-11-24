@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
+import { normalizeProductName } from "@/lib/importUtils";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -77,18 +78,34 @@ export const ImportFertilizantes = () => {
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
       setTotalRows(jsonData.length);
 
+      // Processar e normalizar dados
+      const processedData = new Map<string, any>();
+      
       for (const row of jsonData as any[]) {
+        const item = row["ITEM"] || null;
+        const normalizedItem = normalizeProductName(item);
+        
+        // Se já existe um item com o mesmo nome normalizado, pular
+        if (processedData.has(normalizedItem)) {
+          continue;
+        }
+        
         const fertilizanteData = {
-          cod_item: row["COD. ITEM"] || row["COD ITEM"],
-          item: row["ITEM"],
-          grupo: row["GRUPO"],
-          marca: row["MARCA"],
-          principio_ativo: row["PRINCIPIO_ATIVO"] || row["PRINCIPIO ATIVO"],
+          cod_item: row["COD.ITEM"] || row["COD. ITEM"] || null,
+          item: normalizedItem || item,
+          grupo: row["GRUPO"]?.toString().toUpperCase().trim() || null,
+          marca: row["MARCA"]?.toString().toUpperCase().trim() || null,
+          principio_ativo: row["PRINCIPIO ATIVO"]?.toString().toUpperCase().trim() || row["PRINCÍPIO ATIVO"]?.toString().toUpperCase().trim() || null,
         };
+        
+        processedData.set(normalizedItem, fertilizanteData);
+      }
 
+      // Importar dados únicos
+      let imported = 0;
+      for (const fertilizanteData of processedData.values()) {
         const { error } = await supabase
           .from("fertilizantes_catalog")
           .upsert(fertilizanteData, { 
@@ -99,7 +116,8 @@ export const ImportFertilizantes = () => {
         if (error) {
           console.error("Erro ao importar fertilizante:", error);
         } else {
-          setImportedRows((prev) => prev + 1);
+          imported++;
+          setImportedRows(imported);
         }
       }
 
@@ -113,7 +131,7 @@ export const ImportFertilizantes = () => {
         limpar_antes: limparAntes,
       });
 
-      toast.success(`Importação concluída! ${importedRows} de ${totalRows} processadas`);
+      toast.success(`Importação concluída! ${importedRows} registros únicos de ${totalRows} linhas processadas`);
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);
