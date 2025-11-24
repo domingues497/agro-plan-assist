@@ -19,14 +19,30 @@ export const useInactivityLogout = () => {
   };
 
   const logout = async () => {
-    toast({
-      title: "Sessão encerrada",
-      description: "Você foi desconectado por inatividade.",
-      variant: "destructive",
-    });
-    
-    await supabase.auth.signOut();
-    window.location.href = '/auth';
+    try {
+      // Limpar timers
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+
+      // Verificar se ainda há sessão ativa antes de fazer logout
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        toast({
+          title: "Sessão encerrada",
+          description: "Você foi desconectado por inatividade.",
+          variant: "destructive",
+        });
+        
+        await supabase.auth.signOut();
+      }
+      
+      // Limpar storage e redirecionar
+      window.location.replace('/auth');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      window.location.replace('/auth');
+    }
   };
 
   const resetTimer = () => {
