@@ -364,14 +364,25 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                   <Input
                     type="text"
                     inputMode="decimal"
-                    value={defensivo.dose || ""}
+                    value={defensivo.dose === 0 ? "0" : (defensivo.dose || "")}
                     onChange={(e) => {
                       let value = e.target.value.replace(',', '.');
                       // Permitir apenas números e um ponto decimal
                       if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                        const numValue = value === '' ? 0 : (parseFloat(value) || 0);
-                        handleDefensivoChange(defensivo.tempId, "dose", numValue);
+                        // Se terminar com ponto, manter como string temporariamente
+                        if (value.endsWith('.')) {
+                          handleDefensivoChange(defensivo.tempId, "dose", value as any);
+                        } else {
+                          const numValue = value === '' ? 0 : (parseFloat(value) || 0);
+                          handleDefensivoChange(defensivo.tempId, "dose", numValue);
+                        }
                       }
+                    }}
+                    onBlur={(e) => {
+                      // No blur, garantir que é número
+                      const value = e.target.value.replace(',', '.');
+                      const numValue = parseFloat(value) || 0;
+                      handleDefensivoChange(defensivo.tempId, "dose", numValue);
                     }}
                   />
                 </div>
