@@ -61,6 +61,7 @@ type CultivarRowProps = {
 };
 
 function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRemove, areaHectares, onChange, onRemove }: CultivarRowProps) {
+  const { toast } = useToast();
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
   const codItem = cultivarSelecionado?.cod_item;
   const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(codItem);
@@ -109,6 +110,24 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
   };
 
   const handleDefensivoChange = (tempId: string, field: keyof DefensivoNaFazenda, value: any) => {
+    // Se está alterando o defensivo, verifica se pode repetir o produto
+    if (field === 'defensivo' && value) {
+      const produtoExistente = defensivosFazenda.find((def) => 
+        def.tempId !== tempId && 
+        def.defensivo === value &&
+        !def.produto_salvo
+      );
+      
+      if (produtoExistente) {
+        toast({
+          title: "Produto não pode ser repetido",
+          description: "Para repetir este produto, marque a flag 'Produto salvo' no registro anterior.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     setDefensivosFazenda(prev => 
       prev.map(d => {
         if (d.tempId === tempId) {
