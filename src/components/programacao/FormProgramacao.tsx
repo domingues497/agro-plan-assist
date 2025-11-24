@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList, CommandInput } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronsUpDown, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeRandomUUID } from "@/lib/utils";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
@@ -70,7 +70,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
   const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoNaFazenda[]>(
     item.defensivos_fazenda || [
       {
-        tempId: crypto.randomUUID(),
+        tempId: safeRandomUUID(),
         classe: "",
         aplicacao: "Tratamento de Semente - TS",
         defensivo: "",
@@ -91,7 +91,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
     setDefensivosFazenda([
       ...defensivosFazenda,
       {
-        tempId: crypto.randomUUID(),
+        tempId: safeRandomUUID(),
         classe: "",
         aplicacao: "Tratamento de Semente - TS",
         defensivo: "",

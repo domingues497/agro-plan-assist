@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeRandomUUID } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
@@ -53,7 +53,7 @@ export const FormAplicacaoDefensivo = ({
   
   const [defensivos, setDefensivos] = useState<Array<Omit<DefensivoItem, "id"> & { tempId: string; total?: number }>>([
     {
-      tempId: crypto.randomUUID(),
+      tempId: safeRandomUUID(),
       defensivo: "",
       dose: 0,
       unidade: "L/ha",
@@ -81,7 +81,7 @@ export const FormAplicacaoDefensivo = ({
         setDefensivos(
           initialData.defensivos.map((def) => ({
             ...def,
-            tempId: crypto.randomUUID(),
+            tempId: safeRandomUUID(),
             // Separar as aplicações concatenadas do campo alvo
             aplicacoes: def.alvo ? def.alvo.split(",").map(a => a.trim()) : [],
             porcentagem_salva: Math.min(100, Math.max(1, Number(def.porcentagem_salva ?? 100))),
@@ -127,7 +127,7 @@ export const FormAplicacaoDefensivo = ({
     setDefensivos([
       ...defensivos,
       {
-        tempId: crypto.randomUUID(),
+        tempId: safeRandomUUID(),
         classe: "",
         defensivo: "",
         dose: 0,

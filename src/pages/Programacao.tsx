@@ -13,7 +13,7 @@ import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
+import { cn, safeRandomUUID } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -212,7 +212,7 @@ export default function Programacao() {
                               .eq("programacao_cultivar_id", cult.id);
                             
                             defensivosMap[cult.id] = (defData || []).map((d: any) => ({
-                              tempId: crypto.randomUUID(),
+                              tempId: safeRandomUUID(),
                               classe: d.classe || "",
                               aplicacao: d.aplicacao,
                               defensivo: d.defensivo,
