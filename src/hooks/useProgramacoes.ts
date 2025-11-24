@@ -2,6 +2,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+export interface DefensivoFazenda {
+  tempId: string;
+  classe: string;
+  aplicacao: string;
+  defensivo: string;
+  dose: number;
+  cobertura: number;
+  total: number;
+  produto_salvo: boolean;
+  porcentagem_salva: number;
+}
+
 export interface ItemCultivar {
   cultivar: string;
   percentual_cobertura: number;
@@ -15,6 +27,7 @@ export interface ItemCultivar {
   semente_propria?: boolean;
   referencia_rnc_mapa?: string;
   sementes_por_saca?: number;
+  defensivos_fazenda?: DefensivoFazenda[];
 }
 
 export interface ItemAdubacao {
@@ -169,6 +182,30 @@ export const useProgramacoes = () => {
             .from("programacao_cultivares_tratamentos")
             .insert(tratamentosData);
           if (tratResponse.error) throw tratResponse.error;
+        }
+
+        // Inserir defensivos "NA FAZENDA" na tabela programacao_cultivares_defensivos
+        const defensivosData = newProgramacao.cultivares.flatMap((item, idx) => {
+          if (item.tipo_tratamento !== 'NA FAZENDA' || !item.defensivos_fazenda || item.defensivos_fazenda.length === 0) {
+            return [] as any[];
+          }
+          const cultivarId = cultResponse.data[idx]?.id;
+          return item.defensivos_fazenda.map(def => ({
+            programacao_cultivar_id: cultivarId,
+            aplicacao: def.aplicacao,
+            defensivo: def.defensivo,
+            dose: def.dose,
+            cobertura: def.cobertura,
+            total: def.total,
+            produto_salvo: def.produto_salvo || false
+          }));
+        }).filter(d => d.programacao_cultivar_id);
+
+        if (defensivosData.length > 0) {
+          const defResponse = await (supabase as any)
+            .from("programacao_cultivares_defensivos")
+            .insert(defensivosData);
+          if (defResponse.error) throw defResponse.error;
         }
       }
 
@@ -338,6 +375,30 @@ export const useProgramacoes = () => {
             .from("programacao_cultivares_tratamentos")
             .insert(tratamentosData);
           if (tratResponse.error) throw tratResponse.error;
+        }
+
+        // Inserir defensivos "NA FAZENDA" na tabela programacao_cultivares_defensivos
+        const defensivosData = data.cultivares.flatMap((item, idx) => {
+          if (item.tipo_tratamento !== 'NA FAZENDA' || !item.defensivos_fazenda || item.defensivos_fazenda.length === 0) {
+            return [] as any[];
+          }
+          const cultivarId = cultInsert.data[idx]?.id;
+          return item.defensivos_fazenda.map(def => ({
+            programacao_cultivar_id: cultivarId,
+            aplicacao: def.aplicacao,
+            defensivo: def.defensivo,
+            dose: def.dose,
+            cobertura: def.cobertura,
+            total: def.total,
+            produto_salvo: def.produto_salvo || false
+          }));
+        }).filter(d => d.programacao_cultivar_id);
+
+        if (defensivosData.length > 0) {
+          const defResponse = await (supabase as any)
+            .from("programacao_cultivares_defensivos")
+            .insert(defensivosData);
+          if (defResponse.error) throw defResponse.error;
         }
       }
 
