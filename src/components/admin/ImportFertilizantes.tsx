@@ -97,7 +97,7 @@ export const ImportFertilizantes = () => {
           item: normalizedItem || item,
           grupo: row["GRUPO"]?.toString().toUpperCase().trim() || null,
           marca: row["MARCA"]?.toString().toUpperCase().trim() || null,
-          principio_ativo: row["PRINCIPIO ATIVO"]?.toString().toUpperCase().trim() || row["PRINCÍPIO ATIVO"]?.toString().toUpperCase().trim() || null,
+          principio_ativo: row["PRINCIPIO_ATIVO"]?.toString().toUpperCase().trim() || row["PRINCIPIO ATIVO"]?.toString().toUpperCase().trim() || row["PRINCÍPIO ATIVO"]?.toString().toUpperCase().trim() || null,
         };
         
         processedData.set(normalizedItem, fertilizanteData);
