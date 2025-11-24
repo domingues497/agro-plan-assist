@@ -208,6 +208,24 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
       }
     }
     
+    // Se está desmarcando a flag, verifica se tem outro produto igual com flag marcada
+    if (field === 'produto_salvo' && !value && updated[index].defensivo) {
+      const produtoIgualComFlag = defensivosFazenda.find((def, idx) => 
+        idx !== index && 
+        def.defensivo === updated[index].defensivo &&
+        def.produto_salvo
+      );
+      
+      if (!produtoIgualComFlag) {
+        toast({
+          title: "Não é possível desmarcar",
+          description: "Ao menos um dos produtos repetidos deve ter a flag 'Produto salvo' marcada.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     updated[index] = { ...updated[index], [field]: value };
     
     // Calcula o total automaticamente quando mudar dose ou cobertura
