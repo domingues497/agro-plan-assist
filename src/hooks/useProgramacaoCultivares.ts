@@ -2,6 +2,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export type DefensivoFazenda = {
+  id?: string;
+  aplicacao: string;
+  defensivo: string;
+  dose: number;
+  cobertura: number;
+  total: number;
+  produto_salvo: boolean;
+};
+
 export type ProgramacaoCultivar = {
   id: string;
   user_id?: string;
@@ -22,6 +32,8 @@ export type ProgramacaoCultivar = {
   updated_at: string;
   // IDs dos tratamentos vinculados via tabela de junção
   tratamento_ids?: string[];
+  // Defensivos aplicados na fazenda para tratamento de sementes
+  defensivos_fazenda?: DefensivoFazenda[];
 };
 
 export type CreateProgramacaoCultivar = Omit<ProgramacaoCultivar, "id" | "created_at" | "updated_at">;
@@ -115,9 +127,35 @@ export const useProgramacaoCultivares = () => {
           joinMap[key].push(tid);
         });
       }
+      
+      // Buscar defensivos da fazenda vinculados
+      let defensivosMap: Record<string, DefensivoFazenda[]> = {};
+      if (ids.length > 0) {
+        const { data: defensivosRows, error: defErr } = await supabase
+          .from("programacao_cultivares_defensivos")
+          .select("*")
+          .in("programacao_cultivar_id", ids);
+        if (defErr) throw defErr;
+        (defensivosRows || []).forEach((d: any) => {
+          const key = d.programacao_cultivar_id as string;
+          if (!key) return;
+          if (!defensivosMap[key]) defensivosMap[key] = [];
+          defensivosMap[key].push({
+            id: d.id,
+            aplicacao: d.aplicacao,
+            defensivo: d.defensivo,
+            dose: d.dose,
+            cobertura: d.cobertura,
+            total: d.total,
+            produto_salvo: d.produto_salvo,
+          });
+        });
+      }
+      
       return hydrated.map((item) => ({
         ...item,
         tratamento_ids: joinMap[item.id] || [],
+        defensivos_fazenda: defensivosMap[item.id] || [],
       }));
     },
   });
@@ -126,7 +164,10 @@ export const useProgramacaoCultivares = () => {
     mutationFn: async (programacao: CreateProgramacaoCultivar) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
-      const payload = { ...programacao, user_id: user.id } as any;
+      
+      const { defensivos_fazenda, ...cultivarData } = programacao as any;
+      const payload = { ...cultivarData, user_id: user.id } as any;
+      
       const { data, error } = await supabase
         .from("programacao_cultivares")
         .insert(payload)
@@ -143,15 +184,37 @@ export const useProgramacaoCultivares = () => {
             .select()
             .single();
           if (fallback.error) throw fallback.error;
-          // Persistimos o vínculo localmente até o schema estar atualizado
           setProdutorMapping(fallback.data?.id, programacao.produtor_numerocm);
           toast.message("Migração pendente: vínculo com produtor será aplicado após atualização do schema.");
           return fallback.data;
         }
         throw error;
       }
-      // Em cenários normais, também persistimos o vínculo para consistência
+      
       setProdutorMapping(data?.id, programacao.produtor_numerocm);
+      
+      // Salvar defensivos da fazenda se houver
+      if (defensivos_fazenda && Array.isArray(defensivos_fazenda) && defensivos_fazenda.length > 0) {
+        const defensivosPayload = defensivos_fazenda
+          .filter((d: any) => d.defensivo && d.defensivo.trim())
+          .map((d: any) => ({
+            programacao_cultivar_id: data.id,
+            aplicacao: d.aplicacao || "Tratamento de Semente - TS",
+            defensivo: d.defensivo,
+            dose: d.dose || 0,
+            cobertura: d.cobertura || 100,
+            total: d.total || 0,
+            produto_salvo: d.produto_salvo || false,
+          }));
+        
+        if (defensivosPayload.length > 0) {
+          const { error: defError } = await supabase
+            .from("programacao_cultivares_defensivos")
+            .insert(defensivosPayload);
+          if (defError) throw defError;
+        }
+      }
+      
       return data;
     },
     onSuccess: (_data, _variables) => {
@@ -165,9 +228,11 @@ export const useProgramacaoCultivares = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<ProgramacaoCultivar> & { id: string }) => {
+      const { defensivos_fazenda, ...cultivarUpdates } = updates as any;
+      
       const { data, error } = await supabase
         .from("programacao_cultivares")
-        .update(updates as any)
+        .update(cultivarUpdates)
         .eq("id", id)
         .select()
         .single();
@@ -175,21 +240,54 @@ export const useProgramacaoCultivares = () => {
       if (error) {
         const missingColumn = /schema cache/i.test(error.message) && /produtor_numerocm/.test(error.message);
         if (missingColumn) {
-          const { produtor_numerocm, ...rest } = updates as any;
+          const { produtor_numerocm, ...rest } = cultivarUpdates;
           const fallback = await supabase
             .from("programacao_cultivares")
-            .update(rest as any)
+            .update(rest)
             .eq("id", id)
             .select()
             .single();
           if (fallback.error) throw fallback.error;
-          setProdutorMapping(id, (updates as any)?.produtor_numerocm);
+          setProdutorMapping(id, cultivarUpdates?.produtor_numerocm);
           toast.message("Migração pendente: vínculo com produtor será aplicado após atualização do schema.");
           return fallback.data;
         }
         throw error;
       }
-      setProdutorMapping(id, (updates as any)?.produtor_numerocm);
+      
+      setProdutorMapping(id, cultivarUpdates?.produtor_numerocm);
+      
+      // Atualizar defensivos da fazenda: deletar antigos e inserir novos
+      if (defensivos_fazenda !== undefined) {
+        // Deletar defensivos antigos
+        await supabase
+          .from("programacao_cultivares_defensivos")
+          .delete()
+          .eq("programacao_cultivar_id", id);
+        
+        // Inserir novos defensivos se houver
+        if (Array.isArray(defensivos_fazenda) && defensivos_fazenda.length > 0) {
+          const defensivosPayload = defensivos_fazenda
+            .filter((d: any) => d.defensivo && d.defensivo.trim())
+            .map((d: any) => ({
+              programacao_cultivar_id: id,
+              aplicacao: d.aplicacao || "Tratamento de Semente - TS",
+              defensivo: d.defensivo,
+              dose: d.dose || 0,
+              cobertura: d.cobertura || 100,
+              total: d.total || 0,
+              produto_salvo: d.produto_salvo || false,
+            }));
+          
+          if (defensivosPayload.length > 0) {
+            const { error: defError } = await supabase
+              .from("programacao_cultivares_defensivos")
+              .insert(defensivosPayload);
+            if (defError) throw defError;
+          }
+        }
+      }
+      
       return data;
     },
     onSuccess: (_data, _variables) => {
