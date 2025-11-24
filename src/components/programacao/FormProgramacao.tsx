@@ -658,6 +658,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       cultivares: itensCultivar
         .filter(item => item.cultivar)
         .map(({ uiId, ...rest }) => {
+          // Se for NA FAZENDA, incluir defensivos_fazenda
+          if (rest.tipo_tratamento === "NA FAZENDA") {
+            const result = { ...rest, defensivos_fazenda: (rest as any).defensivos_fazenda || [] } as any;
+            const ids = Array.isArray((rest as any).tratamento_ids)
+              ? ((rest as any).tratamento_ids as string[])
+              : [];
+            const first = ids[0] || (rest as any).tratamento_id || undefined;
+            result.tratamento_id = first;
+            return result;
+          }
           // Blindagem: se usuário definiu "NÃO", não enviamos nenhum tratamento
           if (rest.tipo_tratamento === "NÃO") {
             const base = { ...rest } as any;

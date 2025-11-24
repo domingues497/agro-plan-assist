@@ -564,6 +564,53 @@ export type Database = {
           },
         ]
       }
+      programacao_cultivares_defensivos: {
+        Row: {
+          aplicacao: string
+          cobertura: number
+          created_at: string | null
+          defensivo: string
+          dose: number
+          id: string
+          produto_salvo: boolean | null
+          programacao_cultivar_id: string
+          total: number
+          updated_at: string | null
+        }
+        Insert: {
+          aplicacao?: string
+          cobertura?: number
+          created_at?: string | null
+          defensivo: string
+          dose?: number
+          id?: string
+          produto_salvo?: boolean | null
+          programacao_cultivar_id: string
+          total?: number
+          updated_at?: string | null
+        }
+        Update: {
+          aplicacao?: string
+          cobertura?: number
+          created_at?: string | null
+          defensivo?: string
+          dose?: number
+          id?: string
+          produto_salvo?: boolean | null
+          programacao_cultivar_id?: string
+          total?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programacao_cultivares_defensivos_programacao_cultivar_id_fkey"
+            columns: ["programacao_cultivar_id"]
+            isOneToOne: false
+            referencedRelation: "programacao_cultivares"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programacao_cultivares_tratamentos: {
         Row: {
           created_at: string | null
