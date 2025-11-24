@@ -36,25 +36,111 @@ interface FormProgramacaoProps {
   initialData?: Partial<CreateProgramacao>;
 }
 
+// Tipo para defensivo dentro da cultivar
+type DefensivoNaFazenda = {
+  tempId: string;
+  classe: string;
+  aplicacao: string;
+  defensivo: string;
+  dose: number;
+  cobertura: number;
+  total: number;
+  produto_salvo: boolean;
+  porcentagem_salva: number;
+};
+
 // Linha separada: subcomponente para uma linha de cultivar
 type CultivarRowProps = {
-  item: ItemCultivar & { uiId?: string };
+  item: ItemCultivar & { uiId?: string; defensivos_fazenda?: DefensivoNaFazenda[] };
   index: number;
   cultivaresDistinct: Array<{ cultivar: string | null }>;
   cultivaresCatalog: Array<{ cultivar: string | null; cultura: string | null; cod_item: string }>;
   canRemove: boolean;
+  areaHectares: number;
   onChange: (index: number, field: keyof ItemCultivar, value: any) => void;
   onRemove: (index: number) => void;
 };
 
-function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRemove, onChange, onRemove }: CultivarRowProps) {
+function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRemove, areaHectares, onChange, onRemove }: CultivarRowProps) {
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
   const codItem = cultivarSelecionado?.cod_item;
   const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(codItem);
   const { data: defensivosCatalog = [] } = useDefensivosCatalog();
   const { data: calendario = [] } = useCalendarioAplicacoes();
-  const [openDefensivo, setOpenDefensivo] = useState(false);
-  const [openAplicacao, setOpenAplicacao] = useState(false);
+  
+  const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoNaFazenda[]>(
+    item.defensivos_fazenda || [
+      {
+        tempId: crypto.randomUUID(),
+        classe: "",
+        aplicacao: "",
+        defensivo: "",
+        dose: 0,
+        cobertura: 100,
+        total: 0,
+        produto_salvo: false,
+        porcentagem_salva: 100,
+      }
+    ]
+  );
+
+  useEffect(() => {
+    onChange(index, "defensivos_fazenda" as any, defensivosFazenda);
+  }, [defensivosFazenda]);
+
+  const handleAddDefensivo = () => {
+    setDefensivosFazenda([
+      ...defensivosFazenda,
+      {
+        tempId: crypto.randomUUID(),
+        classe: "",
+        aplicacao: "",
+        defensivo: "",
+        dose: 0,
+        cobertura: 100,
+        total: 0,
+        produto_salvo: false,
+        porcentagem_salva: 100,
+      }
+    ]);
+  };
+
+  const handleRemoveDefensivo = (tempId: string) => {
+    if (defensivosFazenda.length === 1) return;
+    setDefensivosFazenda(defensivosFazenda.filter(d => d.tempId !== tempId));
+  };
+
+  const handleDefensivoChange = (tempId: string, field: keyof DefensivoNaFazenda, value: any) => {
+    setDefensivosFazenda(prev => 
+      prev.map(d => {
+        if (d.tempId === tempId) {
+          const updated = { ...d, [field]: value };
+          if (field === "dose" || field === "cobertura") {
+            const dose = Number(field === "dose" ? value : d.dose) || 0;
+            const cobertura = Math.min(100, Math.max(0, Number(field === "cobertura" ? value : d.cobertura) || 100));
+            updated.total = dose * (areaHectares || 0) * (cobertura / 100);
+            updated.cobertura = cobertura;
+          }
+          return updated;
+        }
+        return d;
+      })
+    );
+  };
+
+  const classesUnicas = useMemo(() => {
+    const classes = new Set<string>();
+    (Array.isArray(calendario) ? calendario : calendario?.rows || []).forEach((c: any) => {
+      if (c.descricao_classe) classes.add(c.descricao_classe);
+    });
+    return Array.from(classes).sort();
+  }, [calendario]);
+
+  const getAplicacoesPorClasse = (classe: string) => {
+    return (Array.isArray(calendario) ? calendario : calendario?.rows || [])
+      .filter((c: any) => c.descricao_classe === classe)
+      .sort((a: any, b: any) => (a.descr_aplicacao || "").localeCompare(b.descr_aplicacao || ""));
+  };
 
   return (
     <div className="space-y-3 p-4 border rounded-lg">
@@ -195,97 +281,151 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
       {item.cultivar && item.tipo_tratamento === "NA FAZENDA" && (
         <div className="space-y-3 pt-3 border-t">
-          <Label className="text-sm font-semibold">Defensivos</Label>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="space-y-2">
-              <Label>Defensivo</Label>
-              <Popover open={openDefensivo} onOpenChange={setOpenDefensivo}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" type="button" role="combobox" className="w-full justify-between">
-                    {(item as any).defensivo || "Selecione..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command shouldFilter={true}>
-                    <CommandInput placeholder="Buscar defensivo..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        {defensivosCatalog.map((d) => (
-                          <CommandItem
-                            key={d.cod_item}
-                            value={`${d.item}`}
-                            onSelect={() => {
-                              onChange(index, "defensivo" as any, d.item);
-                              setOpenDefensivo(false);
-                            }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", (item as any).defensivo === d.item ? "opacity-100" : "opacity-0")} />
-                            {d.item}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Dose</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={(item as any).dose_defensivo || ""}
-                onChange={(e) => onChange(index, "dose_defensivo" as any, parseFloat(e.target.value) || 0)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Unidade</Label>
-              <Input
-                value={(item as any).unidade_defensivo || "L/ha"}
-                onChange={(e) => onChange(index, "unidade_defensivo" as any, e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Aplicação</Label>
-              <Popover open={openAplicacao} onOpenChange={setOpenAplicacao}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" type="button" role="combobox" className="w-full justify-between">
-                    {(item as any).aplicacao_defensivo || "Selecione..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command shouldFilter={true}>
-                    <CommandInput placeholder="Buscar aplicação..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhuma aplicação encontrada.</CommandEmpty>
-                      <CommandGroup>
-                        {(Array.isArray(calendario) ? calendario : calendario?.rows || []).map((c) => (
-                          <CommandItem
-                            key={c.cod_aplic}
-                            value={`${c.descr_aplicacao}`}
-                            onSelect={() => {
-                              onChange(index, "aplicacao_defensivo" as any, c.descr_aplicacao);
-                              setOpenAplicacao(false);
-                            }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", (item as any).aplicacao_defensivo === c.descr_aplicacao ? "opacity-100" : "opacity-0")} />
-                            {c.descr_aplicacao}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">Defensivos aplicados</Label>
+            <Button type="button" variant="outline" size="sm" onClick={handleAddDefensivo}>
+              <Plus className="h-4 w-4 mr-1" />
+              Adicionar defensivo
+            </Button>
           </div>
+
+          {defensivosFazenda.map((defensivo, defIndex) => (
+            <div key={defensivo.tempId} className="space-y-3 p-3 border rounded-md bg-muted/30">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Descrição da Classe</Label>
+                  <Select
+                    value={defensivo.classe}
+                    onValueChange={(value) => {
+                      handleDefensivoChange(defensivo.tempId, "classe", value);
+                      handleDefensivoChange(defensivo.tempId, "aplicacao", "");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classesUnicas.map((classe) => (
+                        <SelectItem key={classe} value={classe}>
+                          {classe}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Descrição da Aplicação</Label>
+                  <Select
+                    value={defensivo.aplicacao}
+                    onValueChange={(value) => handleDefensivoChange(defensivo.tempId, "aplicacao", value)}
+                    disabled={!defensivo.classe}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={defensivo.classe ? "Selecione..." : "Selecione uma classe"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAplicacoesPorClasse(defensivo.classe).map((aplic: any) => (
+                        <SelectItem key={aplic.cod_aplic} value={aplic.descr_aplicacao}>
+                          {aplic.descr_aplicacao}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Defensivo *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" type="button" role="combobox" className="w-full justify-between">
+                        {defensivo.defensivo || "Selecione..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command shouldFilter={true}>
+                        <CommandInput placeholder="Buscar defensivo..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {defensivosCatalog.map((d) => (
+                              <CommandItem
+                                key={d.cod_item}
+                                value={`${d.item}`}
+                                onSelect={() => handleDefensivoChange(defensivo.tempId, "defensivo", d.item)}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", defensivo.defensivo === d.item ? "opacity-100" : "opacity-0")} />
+                                {d.item}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="space-y-2">
+                  <Label>Dose *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={defensivo.dose || ""}
+                    onChange={(e) => handleDefensivoChange(defensivo.tempId, "dose", parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Cobertura em %</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    value={defensivo.cobertura}
+                    onChange={(e) => handleDefensivoChange(defensivo.tempId, "cobertura", parseFloat(e.target.value) || 100)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Total</Label>
+                  <Input
+                    type="number"
+                    value={defensivo.total.toFixed(2)}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+
+                <div className="flex items-end justify-between gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`produto-salvo-${defensivo.tempId}`}
+                      checked={defensivo.produto_salvo}
+                      onCheckedChange={(checked) => handleDefensivoChange(defensivo.tempId, "produto_salvo", !!checked)}
+                    />
+                    <Label htmlFor={`produto-salvo-${defensivo.tempId}`} className="text-sm">
+                      Produto salvo (RN012)
+                    </Label>
+                  </div>
+                  {defensivosFazenda.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveDefensivo(defensivo.tempId)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
       <div className="flex items-center gap-2">
@@ -745,10 +885,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 index={index}
                 cultivaresDistinct={cultivaresDistinct}
                 cultivaresCatalog={cultivares}
-                canRemove={itensCultivar.length > 1}
-                onChange={handleCultivarChange}
-                onRemove={handleRemoveCultivar}
-              />
+          canRemove={itensCultivar.length > 1}
+          areaHectares={Number(areaHectares) || 0}
+          onChange={handleCultivarChange}
+          onRemove={handleRemoveCultivar}
+        />
             ))}
           </div>
 
