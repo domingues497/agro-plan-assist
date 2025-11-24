@@ -18,7 +18,6 @@ import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
 import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
-import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
 import { Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -66,14 +65,13 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
   const codItem = cultivarSelecionado?.cod_item;
   const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(codItem);
   const { data: defensivosCatalog = [] } = useDefensivosCatalog();
-  const { data: calendario = [] } = useCalendarioAplicacoes();
   
   const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoNaFazenda[]>(
     item.defensivos_fazenda || [
       {
         tempId: crypto.randomUUID(),
         classe: "",
-        aplicacao: "",
+        aplicacao: "Tratamento de Semente - TS",
         defensivo: "",
         dose: 0,
         cobertura: 100,
@@ -94,7 +92,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
       {
         tempId: crypto.randomUUID(),
         classe: "",
-        aplicacao: "",
+        aplicacao: "Tratamento de Semente - TS",
         defensivo: "",
         dose: 0,
         cobertura: 100,
@@ -126,20 +124,6 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
         return d;
       })
     );
-  };
-
-  const classesUnicas = useMemo(() => {
-    const classes = new Set<string>();
-    (Array.isArray(calendario) ? calendario : calendario?.rows || []).forEach((c: any) => {
-      if (c.descricao_classe) classes.add(c.descricao_classe);
-    });
-    return Array.from(classes).sort();
-  }, [calendario]);
-
-  const getAplicacoesPorClasse = (classe: string) => {
-    return (Array.isArray(calendario) ? calendario : calendario?.rows || [])
-      .filter((c: any) => c.descricao_classe === classe)
-      .sort((a: any, b: any) => (a.descr_aplicacao || "").localeCompare(b.descr_aplicacao || ""));
   };
 
   return (
@@ -231,7 +215,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
         </div>
       </div>
 
-      {item.cultivar && item.tipo_tratamento !== "NÃO" && (
+      {item.cultivar && item.tipo_tratamento !== "NÃO" && item.tipo_tratamento !== "NA FAZENDA" && (
         <div className="space-y-2">
           <Label>Tratamento Específico</Label>
           <Popover>
@@ -291,47 +275,14 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
           {defensivosFazenda.map((defensivo, defIndex) => (
             <div key={defensivo.tempId} className="space-y-3 p-3 border rounded-md bg-muted/30">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Descrição da Classe</Label>
-                  <Select
-                    value={defensivo.classe}
-                    onValueChange={(value) => {
-                      handleDefensivoChange(defensivo.tempId, "classe", value);
-                      handleDefensivoChange(defensivo.tempId, "aplicacao", "");
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classesUnicas.map((classe) => (
-                        <SelectItem key={classe} value={classe}>
-                          {classe}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Descrição da Aplicação</Label>
-                  <Select
-                    value={defensivo.aplicacao}
-                    onValueChange={(value) => handleDefensivoChange(defensivo.tempId, "aplicacao", value)}
-                    disabled={!defensivo.classe}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={defensivo.classe ? "Selecione..." : "Selecione uma classe"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAplicacoesPorClasse(defensivo.classe).map((aplic: any) => (
-                        <SelectItem key={aplic.cod_aplic} value={aplic.descr_aplicacao}>
-                          {aplic.descr_aplicacao}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Aplicação</Label>
+                  <Input
+                    value="Tratamento de Semente - TS"
+                    disabled
+                    className="bg-muted"
+                  />
                 </div>
 
                 <div className="space-y-2">
