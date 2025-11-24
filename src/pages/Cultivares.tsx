@@ -96,12 +96,16 @@ const Cultivares = () => {
               area: editing.area,
               produtor_numerocm: (editing.produtor_numerocm && editing.produtor_numerocm.trim()) ? editing.produtor_numerocm : getProdutorMapping(editing.id),
               quantidade: editing.quantidade,
+              area_hectares: editing.area_hectares,
               unidade: editing.unidade,
               data_plantio: editing.data_plantio,
               safra: editing.safra,
               semente_propria: editing.semente_propria,
               referencia_rnc_mapa: editing.referencia_rnc_mapa,
               porcentagem_salva: editing.porcentagem_salva,
+              populacao_recomendada: editing.populacao_recomendada,
+              sementes_por_saca: editing.sementes_por_saca,
+              defensivos_fazenda: editing.defensivos_fazenda || [],
             }}
             onSubmit={(data) => {
               update({ id: editing.id, ...data });
