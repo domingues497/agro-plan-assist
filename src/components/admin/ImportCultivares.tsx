@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
+import { normalizeProductName } from "@/lib/importUtils";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -80,15 +81,32 @@ export const ImportCultivares = () => {
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
       setTotalRows(jsonData.length);
 
+      // Processar e normalizar dados
+      const processedData = new Map<string, any>();
+      
       for (const row of jsonData as any[]) {
+        const item = row["ITEM"] || null;
+        const normalizedItem = normalizeProductName(item);
+        
+        // Se já existe um item com o mesmo nome normalizado, pular
+        if (processedData.has(normalizedItem)) {
+          continue;
+        }
+        
         const cultivarData = {
           cod_item: row["COD.ITEM"] || row["COD. ITEM"] || null,
-          item: row["ITEM"] || null,
-          grupo: row["GRUPO"] || null,
-          marca: row["MARCA"] || null,
-          cultivar: row["CULTIVAR"] || null,
+          item: normalizedItem || item,
+          grupo: row["GRUPO"]?.toString().toUpperCase().trim() || null,
+          marca: row["MARCA"]?.toString().toUpperCase().trim() || null,
+          cultivar: row["CULTIVAR"]?.toString().toUpperCase().trim() || null,
         };
+        
+        processedData.set(normalizedItem, cultivarData);
+      }
 
+      // Importar dados únicos
+      let imported = 0;
+      for (const cultivarData of processedData.values()) {
         const { error } = await supabase
           .from("cultivares_catalog")
           .upsert(cultivarData, { 
@@ -99,21 +117,23 @@ export const ImportCultivares = () => {
         if (error) {
           console.error("Erro ao importar cultivar:", error);
         } else {
-          setImportedRows((prev) => prev + 1);
+          imported++;
+          setImportedRows(imported);
         }
       }
 
       // Registrar no histórico
+      const finalImported = importedRows;
       await supabase.from("import_history").insert({
         user_id: user.id,
         tabela_nome: "cultivares_catalog",
-        registros_importados: importedRows,
+        registros_importados: finalImported,
         registros_deletados: deletedRecords,
         arquivo_nome: file.name,
         limpar_antes: limparAntes,
       });
 
-      toast.success(`Importação concluída! ${importedRows} de ${totalRows} processadas`);
+      toast.success(`Importação concluída! ${finalImported} registros únicos de ${totalRows} linhas processadas`);
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);

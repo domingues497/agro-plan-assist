@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
+import { normalizeProductName } from "@/lib/importUtils";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -79,15 +80,32 @@ export const ImportDefensivos = () => {
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
       setTotalRows(jsonData.length);
 
+      // Processar e normalizar dados
+      const processedData = new Map<string, any>();
+      
       for (const row of jsonData as any[]) {
+        const item = row["ITEM"] || null;
+        const normalizedItem = normalizeProductName(item);
+        
+        // Se já existe um item com o mesmo nome normalizado, pular
+        if (processedData.has(normalizedItem)) {
+          continue;
+        }
+        
         const defensivoData = {
-          cod_item: row["COD. ITEM"] || row["COD ITEM"],
-          item: row["ITEM"],
-          grupo: row["GRUPO"],
-          marca: row["MARCA"],
-          principio_ativo: row["PRINCIPIO_ATIVO"] || row["PRINCIPIO ATIVO"],
+          cod_item: row["COD.ITEM"] || row["COD. ITEM"] || null,
+          item: normalizedItem || item,
+          grupo: row["GRUPO"]?.toString().toUpperCase().trim() || null,
+          marca: row["MARCA"]?.toString().toUpperCase().trim() || null,
+          principio_ativo: row["PRINCIPIO ATIVO"]?.toString().toUpperCase().trim() || row["PRINCÍPIO ATIVO"]?.toString().toUpperCase().trim() || null,
         };
+        
+        processedData.set(normalizedItem, defensivoData);
+      }
 
+      // Importar dados únicos
+      let imported = 0;
+      for (const defensivoData of processedData.values()) {
         const { error } = await supabase
           .from("defensivos_catalog")
           .upsert(defensivoData, { 
@@ -98,7 +116,8 @@ export const ImportDefensivos = () => {
         if (error) {
           console.error("Erro ao importar defensivo:", error);
         } else {
-          setImportedRows((prev) => prev + 1);
+          imported++;
+          setImportedRows(imported);
         }
       }
 
@@ -112,7 +131,7 @@ export const ImportDefensivos = () => {
         limpar_antes: limparAntes,
       });
 
-      toast.success(`Importação concluída! ${importedRows} de ${totalRows} processadas`);
+      toast.success(`Importação concluída! ${importedRows} registros únicos de ${totalRows} linhas processadas`);
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);
