@@ -16,6 +16,7 @@ import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
+import { useToast } from "@/hooks/use-toast";
 
 type FormProgramacaoProps = {
   onSubmit: (data: CreateProgramacaoCultivar) => void;
@@ -27,6 +28,7 @@ type FormProgramacaoProps = {
 };
 
 export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, title = "Nova Programação", submitLabel = "Salvar programação" }: FormProgramacaoProps) => {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const { data: cultivares } = useCultivaresCatalog();
   const { data: produtores } = useProdutores();
@@ -187,6 +189,25 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
 
   const handleDefensivoChange = (index: number, field: keyof DefensivoFazenda, value: any) => {
     const updated = [...defensivosFazenda];
+    
+    // Se está alterando o defensivo, verifica se pode repetir o produto
+    if (field === 'defensivo' && value) {
+      const produtoExistente = defensivosFazenda.find((def, idx) => 
+        idx !== index && 
+        def.defensivo === value &&
+        !def.produto_salvo
+      );
+      
+      if (produtoExistente) {
+        toast({
+          title: "Produto não pode ser repetido",
+          description: "Para repetir este produto, marque a flag 'Produto salvo' no registro anterior.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     updated[index] = { ...updated[index], [field]: value };
     
     // Calcula o total automaticamente quando mudar dose ou cobertura
