@@ -18,6 +18,7 @@ import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
 import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
+import { useTalhoes } from "@/hooks/useTalhoes";
 import { Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -521,6 +522,24 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   );
 
   const [fazendaFiltrada, setFazendaFiltrada] = useState<any[]>([]);
+  const [talhoesSelecionados, setTalhoesSelecionados] = useState<string[]>([]);
+
+  // Buscar talhões da fazenda selecionada
+  const fazendaSelecionadaObj = fazendas.find((f) => f.idfazenda === fazendaIdfazenda);
+  const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaObj?.id);
+
+  // Calcular área automaticamente com base nos talhões selecionados
+  useEffect(() => {
+    if (talhoesSelecionados.length > 0) {
+      const areaTotal = talhoesDaFazenda
+        .filter((t) => talhoesSelecionados.includes(t.id))
+        .reduce((sum, t) => sum + Number(t.area), 0);
+      setAreaHectares(areaTotal.toString());
+    } else if (fazendaIdfazenda && talhoesDaFazenda.length === 0) {
+      // Se não tem talhões, não define área
+      setAreaHectares("");
+    }
+  }, [talhoesSelecionados, talhoesDaFazenda, fazendaIdfazenda]);
 
   // Seleciona automaticamente a safra padrão, se disponível
   useEffect(() => {
@@ -575,23 +594,17 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       setFazendaFiltrada(filtered);
       setFazendaIdfazenda("");
       setArea("");
-      // Resetar hectares ao trocar de produtor para evitar resquícios
       setAreaHectares("");
+      setTalhoesSelecionados([]);
     }
   }, [produtorNumerocm, fazendas]);
 
-  // Auto-preenche área em hectares com o valor de area_cultivavel da fazenda selecionada
+  // Resetar talhões ao trocar de fazenda
   useEffect(() => {
-    if (!fazendaIdfazenda) return;
-    const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
-    const areaCultivavel = fazendaSelecionada?.area_cultivavel;
-    // Sincroniza o campo de "área" (nome da fazenda) com a fazenda selecionada
-    setArea(fazendaSelecionada?.nomefazenda || "");
-    if (areaCultivavel && areaCultivavel > 0) {
-      setAreaHectares(String(areaCultivavel));
-    } else {
-      // Se não existir ou for 0/null, não define valor para obrigar preenchimento manual
-      setAreaHectares("");
+    if (fazendaIdfazenda) {
+      setTalhoesSelecionados([]);
+      const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
+      setArea(fazendaSelecionada?.nomefazenda || "");
     }
   }, [fazendaIdfazenda, fazendaFiltrada]);
 
@@ -694,6 +707,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       return;
     }
 
+    // Validação de talhões
+    if (talhoesDaFazenda.length > 0 && talhoesSelecionados.length === 0) {
+      toast({
+        title: "Erro de validação",
+        description: "Selecione pelo menos um talhão da fazenda",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const adubacaoNormal = itensAdubacao.filter((item) => !!item.formulacao);
     if (!naoFazerAdubacao && adubacaoNormal.length === 0) {
       toast({
@@ -710,6 +733,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       area: areaNome,
       area_hectares: areaHectaresFinal,
       safra_id: safraId || undefined,
+      talhoes_ids: talhoesSelecionados, // IDs dos talhões selecionados
       // Remove uiId antes de enviar
       cultivares: itensCultivar
         .filter(item => item.cultivar)
@@ -851,6 +875,82 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             </Select>
           </div>
         </div>
+
+        {/* Seção de Talhões */}
+        {fazendaIdfazenda && talhoesDaFazenda.length > 0 && (
+          <div className="border-t pt-6">
+            <div className="space-y-4">
+              <div>
+                <Label className="text-base font-semibold">Talhões da Fazenda</Label>
+                <p className="text-sm text-muted-foreground">
+                  Selecione os talhões que farão parte desta programação. A área total será calculada automaticamente.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {talhoesDaFazenda.map((talhao) => (
+                  <div
+                    key={talhao.id}
+                    className={cn(
+                      "flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors",
+                      talhoesSelecionados.includes(talhao.id)
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    )}
+                    onClick={() => {
+                      setTalhoesSelecionados((prev) =>
+                        prev.includes(talhao.id)
+                          ? prev.filter((id) => id !== talhao.id)
+                          : [...prev, talhao.id]
+                      );
+                    }}
+                  >
+                    <Checkbox
+                      checked={talhoesSelecionados.includes(talhao.id)}
+                      onCheckedChange={(checked) => {
+                        setTalhoesSelecionados((prev) =>
+                          checked
+                            ? [...prev, talhao.id]
+                            : prev.filter((id) => id !== talhao.id)
+                        );
+                      }}
+                    />
+                    <div className="flex-1 space-y-1">
+                      <Label className="font-medium cursor-pointer">{talhao.nome}</Label>
+                      <p className="text-sm text-muted-foreground">{talhao.area} ha</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between bg-muted/50 rounded-lg p-4">
+                <div>
+                  <p className="text-sm font-medium">Talhões selecionados</p>
+                  <p className="text-xs text-muted-foreground">
+                    {talhoesSelecionados.length} de {talhoesDaFazenda.length}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">Área total</p>
+                  <p className="text-2xl font-bold text-primary">{Number(areaHectares || 0).toFixed(2)} ha</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {fazendaIdfazenda && talhoesDaFazenda.length === 0 && (
+          <div className="border-t pt-6">
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <p className="text-sm text-yellow-800 font-medium">
+                ⚠️ Esta fazenda não possui talhões cadastrados
+              </p>
+              <p className="text-sm text-yellow-700 mt-1">
+                Para utilizar o sistema de talhões, acesse a página Admin e cadastre os talhões desta fazenda.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Seção Cultivares */}
         <div className="border-t pt-6">

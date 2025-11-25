@@ -61,6 +61,7 @@ export interface CreateProgramacao {
   area: string;
   area_hectares: number;
   safra_id?: string;
+  talhoes_ids?: string[]; // IDs dos talhões selecionados
   cultivares: ItemCultivar[];
   adubacao: ItemAdubacao[];
 }
@@ -113,6 +114,20 @@ export const useProgramacoes = () => {
         .single();
 
       if (progResponse.error) throw progResponse.error;
+
+      // Salvar talhões selecionados na tabela de junção
+      if (newProgramacao.talhoes_ids && newProgramacao.talhoes_ids.length > 0) {
+        const talhoesData = newProgramacao.talhoes_ids.map(talhaoId => ({
+          programacao_id: progResponse.data.id,
+          talhao_id: talhaoId
+        }));
+
+        const talhoesResponse = await supabase
+          .from("programacao_talhoes")
+          .insert(talhoesData);
+
+        if (talhoesResponse.error) throw talhoesResponse.error;
+      }
 
       if (newProgramacao.cultivares.length > 0) {
         const cultivaresData = newProgramacao.cultivares.map(item => {
