@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     let errors = 0;
     
     for (const row of items as any[]) {
-      const cod_item = row["COD.ITEM"] ?? row["COD. ITEM"] ?? row["cod_item"] ?? row["codigo"] ?? null;
+      const cod_item = row["CODITEM"] ?? row["COD.ITEM"] ?? row["COD. ITEM"] ?? row["cod_item"] ?? row["codigo"] ?? null;
       const item = row["ITEM"] ?? row["item"] ?? null;
       const grupo = (row["GRUPO"] ?? row["grupo"] ?? null);
       const marca = (row["MARCA"] ?? row["marca"] ?? null);
