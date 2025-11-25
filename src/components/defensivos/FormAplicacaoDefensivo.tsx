@@ -605,6 +605,15 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     const clsNorm = normalizeWithoutPlural(cls);
     const grupoNorm = normalizeWithoutPlural(d.grupo || "");
     
+    // Debug logs
+    console.log('🔍 Filtro Debug:', {
+      selectedClasse: cls,
+      grupo_catalog: d.grupo,
+      clsNorm,
+      grupoNorm,
+      match: grupoNorm === clsNorm
+    });
+    
     // Também tentar match sem remover plural
     const clsNormOriginal = normalizeText(cls);
     const grupoNormOriginal = normalizeText(d.grupo || "");
