@@ -948,10 +948,31 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {Array.isArray(talhoesDaFazenda) && talhoesDaFazenda.length > 0 ? (
-                  talhoesDaFazenda
-                    .filter(t => t && t.id && t.nome != null && t.area != null)
-                    .map((talhao) => (
+                {(() => {
+                  console.log("Renderizando talhões:", {
+                    talhoesDaFazenda,
+                    isArray: Array.isArray(talhoesDaFazenda),
+                    length: talhoesDaFazenda?.length,
+                    filtered: talhoesDaFazenda?.filter(t => t && t.id && t.nome != null && t.area != null)
+                  });
+                  
+                  if (!Array.isArray(talhoesDaFazenda) || talhoesDaFazenda.length === 0) {
+                    return null;
+                  }
+                  
+                  const talhoesValidos = talhoesDaFazenda.filter(t => {
+                    const valido = t && t.id && t.nome != null && t.area != null;
+                    if (!valido) console.log("Talhão inválido:", t);
+                    return valido;
+                  });
+                  
+                  if (talhoesValidos.length === 0) {
+                    return null;
+                  }
+                  
+                  return talhoesValidos.map((talhao) => {
+                    console.log("Renderizando talhão individual:", talhao);
+                    return (
                       <div
                         key={talhao.id}
                         className={cn(
@@ -979,12 +1000,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                           }}
                         />
                         <div className="flex-1 space-y-1">
-                          <Label className="font-medium cursor-pointer">{talhao.nome}</Label>
-                          <p className="text-sm text-muted-foreground">{talhao.area} ha</p>
+                          <Label className="font-medium cursor-pointer">{String(talhao.nome)}</Label>
+                          <p className="text-sm text-muted-foreground">{String(talhao.area)} ha</p>
                         </div>
                       </div>
-                    ))
-                ) : null}
+                    );
+                  });
+                })()}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
