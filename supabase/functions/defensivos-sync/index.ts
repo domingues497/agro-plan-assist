@@ -152,10 +152,18 @@ Deno.serve(async (req) => {
       const grupo = (row["GRUPO"] ?? row["grupo"] ?? null);
       const marca = (row["MARCA"] ?? row["marca"] ?? null);
       const principio_ativo = row["PRINCIPIO_ATIVO"] ?? row["PRINCIPIO ATIVO"] ?? row["PRINCÍPIO ATIVO"] ?? row["principio_ativo"] ?? null;
+      const saldo = row["SALDO"] ?? row["saldo"] ?? row["Saldo"] ?? null;
 
       if (!cod_item && !item) {
         skipped++;
         continue;
+      }
+
+      // Normalizar saldo para número
+      let saldoNumerico = 0;
+      if (saldo !== null && saldo !== undefined) {
+        const saldoParsed = parseFloat(String(saldo).replace(',', '.'));
+        saldoNumerico = isNaN(saldoParsed) ? 0 : saldoParsed;
       }
 
       const defensivoData = {
@@ -164,6 +172,7 @@ Deno.serve(async (req) => {
         grupo: grupo ? String(grupo).toUpperCase().trim() : null,
         marca: marca ? String(marca).toUpperCase().trim() : null,
         principio_ativo: principio_ativo ? String(principio_ativo).toUpperCase().trim() : null,
+        saldo: saldoNumerico,
       };
 
       const { error } = await supabaseAdmin
