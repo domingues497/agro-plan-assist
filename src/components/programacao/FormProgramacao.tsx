@@ -533,6 +533,17 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const fazendaSelecionadaObj = fazendas.find((f) => f.idfazenda === fazendaIdfazenda);
   const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaObj?.id);
 
+  // Log para debug
+  useEffect(() => {
+    console.log("Debug talhões:", {
+      fazendaIdfazenda,
+      fazendaSelecionadaObj,
+      talhoesDaFazenda,
+      isArray: Array.isArray(talhoesDaFazenda),
+      validTalhoes: talhoesDaFazenda?.filter(t => t && t.id && t.nome && t.area)
+    });
+  }, [fazendaIdfazenda, fazendaSelecionadaObj, talhoesDaFazenda]);
+
   // Calcular área automaticamente com base nos talhões selecionados
   useEffect(() => {
     if (talhoesSelecionados.length > 0) {
@@ -937,39 +948,43 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {Array.isArray(talhoesDaFazenda) && talhoesDaFazenda.filter(t => t && t.id).map((talhao) => (
-                  <div
-                    key={talhao.id}
-                    className={cn(
-                      "flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors",
-                      talhoesSelecionados.includes(talhao.id)
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    )}
-                    onClick={() => {
-                      setTalhoesSelecionados((prev) =>
-                        prev.includes(talhao.id)
-                          ? prev.filter((id) => id !== talhao.id)
-                          : [...prev, talhao.id]
-                      );
-                    }}
-                  >
-                    <Checkbox
-                      checked={talhoesSelecionados.includes(talhao.id)}
-                      onCheckedChange={(checked) => {
-                        setTalhoesSelecionados((prev) =>
-                          checked
-                            ? [...prev, talhao.id]
-                            : prev.filter((id) => id !== talhao.id)
-                        );
-                      }}
-                    />
-                    <div className="flex-1 space-y-1">
-                      <Label className="font-medium cursor-pointer">{talhao.nome}</Label>
-                      <p className="text-sm text-muted-foreground">{talhao.area} ha</p>
-                    </div>
-                  </div>
-                ))}
+                {Array.isArray(talhoesDaFazenda) && talhoesDaFazenda.length > 0 ? (
+                  talhoesDaFazenda
+                    .filter(t => t && t.id && t.nome != null && t.area != null)
+                    .map((talhao) => (
+                      <div
+                        key={talhao.id}
+                        className={cn(
+                          "flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors",
+                          talhoesSelecionados.includes(talhao.id)
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        )}
+                        onClick={() => {
+                          setTalhoesSelecionados((prev) =>
+                            prev.includes(talhao.id)
+                              ? prev.filter((id) => id !== talhao.id)
+                              : [...prev, talhao.id]
+                          );
+                        }}
+                      >
+                        <Checkbox
+                          checked={talhoesSelecionados.includes(talhao.id)}
+                          onCheckedChange={(checked) => {
+                            setTalhoesSelecionados((prev) =>
+                              checked
+                                ? [...prev, talhao.id]
+                                : prev.filter((id) => id !== talhao.id)
+                            );
+                          }}
+                        />
+                        <div className="flex-1 space-y-1">
+                          <Label className="font-medium cursor-pointer">{talhao.nome}</Label>
+                          <p className="text-sm text-muted-foreground">{talhao.area} ha</p>
+                        </div>
+                      </div>
+                    ))
+                ) : null}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
