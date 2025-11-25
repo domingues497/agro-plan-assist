@@ -185,6 +185,7 @@ export type Database = {
           item: string | null
           marca: string | null
           principio_ativo: string | null
+          saldo: number | null
           updated_at: string | null
         }
         Insert: {
@@ -195,6 +196,7 @@ export type Database = {
           item?: string | null
           marca?: string | null
           principio_ativo?: string | null
+          saldo?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -205,6 +207,7 @@ export type Database = {
           item?: string | null
           marca?: string | null
           principio_ativo?: string | null
+          saldo?: number | null
           updated_at?: string | null
         }
         Relationships: []
