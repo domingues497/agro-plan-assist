@@ -7,21 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-/**
- * Normaliza o nome do produto removendo termos de embalagem
- */
-function normalizeProductName(text: string | null | undefined): string {
-  if (!text) return "";
-  
-  let normalized = text.toUpperCase().trim().replace(/\s+/g, " ");
-  normalized = normalized.replace(/\s*-?\s*\d+\s*(LT|L|KG|G|ML|SACA|SACAS|BIG\s*BAG|LITRO|LITROS|KILO|KILOS|GRAMAS?)\s*-?\s*/gi, " ");
-  normalized = normalized.replace(/\s*-?\s*(BIG\s*BAG|SACA|SACAS|LITRO|LITROS|KILO|KILOS|GRAMAS?)\s*-?\s*/gi, " ");
-  normalized = normalized.replace(/\s*-\s*-\s*/g, " - ");
-  normalized = normalized.replace(/\s+/g, " ");
-  normalized = normalized.replace(/^\s*-\s*|\s*-\s*$/g, "");
-  
-  return normalized.trim();
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -107,13 +92,19 @@ serve(async (req) => {
       const item = apiData[i];
       
       try {
-        const normalizedItem = normalizeProductName(item.item);
+        const itemName = item.item || '';
         
-        // Buscar produto existente pelo item normalizado
+        if (!itemName) {
+          console.log(`⚠️ [SKIP] Item sem nome válido:`, item);
+          errors++;
+          continue;
+        }
+        
+        // Buscar produto existente pelo item
         const { data: existing } = await supabaseAdmin
           .from('defensivos_catalog')
           .select('id')
-          .eq('item', normalizedItem)
+          .eq('item', itemName)
           .single();
 
         if (existing) {
@@ -127,7 +118,7 @@ serve(async (req) => {
             .eq('id', existing.id);
 
           if (updateError) {
-            console.error(`❌ [UPDATE] Erro ao atualizar ${normalizedItem}:`, updateError);
+            console.error(`❌ [UPDATE] Erro ao atualizar ${itemName}:`, updateError);
             errors++;
           } else {
             updated++;
@@ -138,7 +129,7 @@ serve(async (req) => {
             .from('defensivos_catalog')
             .insert({
               cod_item: item.cod_item,
-              item: normalizedItem,
+              item: itemName,
               grupo: item.grupo,
               marca: item.marca,
               principio_ativo: item.principio_ativo,
@@ -146,7 +137,7 @@ serve(async (req) => {
             });
 
           if (insertError) {
-            console.error(`❌ [INSERT] Erro ao inserir ${normalizedItem}:`, insertError);
+            console.error(`❌ [INSERT] Erro ao inserir ${itemName}:`, insertError);
             errors++;
           } else {
             inserted++;
