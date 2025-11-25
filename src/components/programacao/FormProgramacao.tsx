@@ -1052,7 +1052,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         </DialogHeader>
                         
                         <div className="space-y-4">
-                          {novosTalhoes.map((talhao, index) => (
+                          {Array.isArray(novosTalhoes) && novosTalhoes.map((talhao, index) => (
                             <div key={index} className="flex gap-3 items-end">
                               <div className="flex-1 space-y-2">
                                 <Label>Nome do Talhão</Label>
@@ -1105,7 +1105,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                             Adicionar outro talhão
                           </Button>
 
-                          {novosTalhoes.some(t => t.nome && t.area) && (
+                          {Array.isArray(novosTalhoes) && novosTalhoes.some(t => t.nome && t.area) && (
                             <div className="bg-muted/50 rounded-lg p-3">
                               <p className="text-sm font-medium">
                                 Área total: {novosTalhoes
