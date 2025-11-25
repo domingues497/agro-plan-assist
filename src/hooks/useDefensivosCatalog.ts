@@ -7,7 +7,7 @@ export const useDefensivosCatalog = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("defensivos_catalog")
-        .select("item, cod_item, marca, principio_ativo, grupo")
+        .select("item, cod_item, marca, principio_ativo, grupo, saldo")
         .order("item");
 
       if (error) throw error;

@@ -17,7 +17,7 @@ export const ListDefensivos = () => {
     const base = data || [];
     if (!q) return base;
     const result = base.filter((d: any) => {
-      const hay = `${d.cod_item ?? ""} ${d.item ?? ""} ${d.marca ?? ""} ${d.principio_ativo ?? ""} ${d.grupo ?? ""}`.toLowerCase();
+      const hay = `${d.cod_item ?? ""} ${d.item ?? ""} ${d.marca ?? ""} ${d.principio_ativo ?? ""} ${d.grupo ?? ""} ${d.saldo ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
     return result;
@@ -68,6 +68,7 @@ export const ListDefensivos = () => {
                 <TableHead>Grupo</TableHead>
                 <TableHead>Marca</TableHead>
                 <TableHead>Princípio ativo</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -82,11 +83,12 @@ export const ListDefensivos = () => {
                   <TableCell>{d.grupo}</TableCell>
                   <TableCell>{d.marca}</TableCell>
                   <TableCell>{d.principio_ativo}</TableCell>
+                  <TableCell className="text-right">{d.saldo?.toFixed(2) || '0.00'}</TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
+                  <TableCell colSpan={6} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
