@@ -134,20 +134,25 @@ export const ImportDefensivos = () => {
         processedData.set(normalizedItem, defensivoData);
       }
 
-      // Importar dados únicos
+      // Importar dados únicos em lotes de 500
+      const batchSize = 500;
+      const dataArray = Array.from(processedData.values());
       let imported = 0;
-      for (const defensivoData of processedData.values()) {
+      
+      for (let i = 0; i < dataArray.length; i += batchSize) {
+        const batch = dataArray.slice(i, i + batchSize);
+        
         const { error } = await supabase
           .from("defensivos_catalog")
-          .upsert(defensivoData, { 
+          .upsert(batch, { 
             onConflict: "cod_item",
             ignoreDuplicates: false 
           });
 
         if (error) {
-          console.error("Erro ao importar defensivo:", error);
+          console.error("Erro ao importar lote:", error);
         } else {
-          imported++;
+          imported += batch.length;
           setImportedRows(imported);
         }
       }
