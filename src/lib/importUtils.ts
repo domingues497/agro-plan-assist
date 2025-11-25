@@ -25,10 +25,21 @@ export function normalizeProductName(text: string | null | undefined): string {
 }
 
 /**
- * Verifica se dois textos normalizados são iguais
+ * Normaliza texto removendo pluralidade (S no final) para comparação flexível
+ */
+export function normalizeWithoutPlural(text: string | null | undefined): string {
+  const normalized = normalizeProductName(text);
+  // Remove 'S' no final se a palavra tiver mais de 3 caracteres
+  return normalized.length > 3 && normalized.endsWith('S') 
+    ? normalized.slice(0, -1) 
+    : normalized;
+}
+
+/**
+ * Verifica se dois textos normalizados são iguais, ignorando pluralidade
  */
 export function areProductsEqual(text1: string | null | undefined, text2: string | null | undefined): boolean {
-  const normalized1 = normalizeProductName(text1);
-  const normalized2 = normalizeProductName(text2);
+  const normalized1 = normalizeWithoutPlural(text1);
+  const normalized2 = normalizeWithoutPlural(text2);
   return normalized1 === normalized2 && normalized1 !== "";
 }

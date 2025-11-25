@@ -503,6 +503,15 @@ const normalizeText = (s: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase();
 
+// Normaliza texto removendo pluralidade (S no final) para comparação
+const normalizeWithoutPlural = (s: string) => {
+  const normalized = normalizeText(s);
+  // Remove 'S' no final se a palavra tiver mais de 3 caracteres
+  return normalized.length > 3 && normalized.endsWith('S') 
+    ? normalized.slice(0, -1) 
+    : normalized;
+};
+
 // Sinônimos/abreviações por classe (case/acentos serão normalizados na comparação)
 const CLASS_SYNONYMS: Record<string, string[]> = {
   TS: ["TRAT. SEMENTES", "TRAT SEMENTES", "TRATAMENTO DE SEMENTES", "TRATAMENTO SEMENTES"],
@@ -552,8 +561,8 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
       // 1b) Se não encontrou no catálogo, tentar extrair prefixo antes de "-"
       const prefix = defName.split("-")[0]?.trim();
       if (prefix) {
-        const prefixNorm = normalizeText(prefix);
-        const clsFromPrefix = classes.find((c) => normalizeText(c) === prefixNorm);
+        const prefixNorm = normalizeWithoutPlural(prefix);
+        const clsFromPrefix = classes.find((c) => normalizeWithoutPlural(c) === prefixNorm);
         if (clsFromPrefix) {
           setSelectedClasse(clsFromPrefix);
           onChange("classe", clsFromPrefix);
@@ -566,7 +575,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     if (defensivo.aplicacoes && defensivo.aplicacoes.length > 0) {
       const firstAp = defensivo.aplicacoes[0];
       const cls = classes.find((c) =>
-        (calendario?.aplicacoesPorClasse?.[c] || []).some((ap) => normalizeText(ap) === normalizeText(firstAp))
+        (calendario?.aplicacoesPorClasse?.[c] || []).some((ap) => normalizeWithoutPlural(ap) === normalizeWithoutPlural(firstAp))
       );
       if (cls) {
         setSelectedClasse(cls);
@@ -578,9 +587,9 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     // 3) Por fim, inferir pelo alvo com match exato
     const alvo = String(defensivo.alvo || "").trim();
     if (alvo) {
-      const alvoNorm = normalizeText(alvo);
+      const alvoNorm = normalizeWithoutPlural(alvo);
       const cls = classes.find((c) =>
-        (calendario?.aplicacoesPorClasse?.[c] || []).some((ap) => normalizeText(ap) === alvoNorm)
+        (calendario?.aplicacoesPorClasse?.[c] || []).some((ap) => normalizeWithoutPlural(ap) === alvoNorm)
       );
       if (cls) {
         setSelectedClasse(cls);
@@ -593,13 +602,13 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     const cls = String(selectedClasse || "").trim();
     if (!cls) return true;
 
-    const clsNorm = normalizeText(cls);
-    const grupoNorm = normalizeText(d.grupo || "");
+    const clsNorm = normalizeWithoutPlural(cls);
+    const grupoNorm = normalizeWithoutPlural(d.grupo || "");
 
     // Regra solicitada: somente itens cujo grupo == classe selecionada
     // Caso classe seja "OUTROS", considera grupo vazio ou "OUTROS"
-    const matchesClasse = clsNorm === "OUTROS"
-      ? (grupoNorm === "" || grupoNorm === "OUTROS")
+    const matchesClasse = clsNorm === "OUTRO"
+      ? (grupoNorm === "" || grupoNorm === "OUTRO")
       : grupoNorm === clsNorm;
 
     if (!matchesClasse) return false;
