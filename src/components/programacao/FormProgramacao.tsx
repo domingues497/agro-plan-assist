@@ -178,9 +178,9 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
-              {cultivaresDistinct.filter(c => c.cultivar).map((c) => (
+              {Array.isArray(cultivaresDistinct) && cultivaresDistinct.filter(c => c && c.cultivar).map((c) => (
                 <SelectItem key={`cult-${c.cultivar ?? 'null'}`} value={c.cultivar || ""}>
-                  {c.cultivar}
+                  {c.cultivar || 'Sem nome'}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -275,14 +275,14 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                 <CommandList>
                   <CommandEmpty>Nenhum tratamento encontrado.</CommandEmpty>
                   <CommandGroup>
-                    {Array.isArray(tratamentosDisponiveis) && tratamentosDisponiveis.filter(t => t && t.id).map((t) => {
+                    {Array.isArray(tratamentosDisponiveis) && tratamentosDisponiveis.filter(t => t && t.id && t.nome).map((t) => {
                       const selected = Array.isArray((item as any).tratamento_ids)
                         ? (item as any).tratamento_ids.includes(t.id)
                         : false;
                       return (
                         <CommandItem
                           key={t.id}
-                          value={`${t.nome}`}
+                          value={`${t.nome || ''}`}
                           onSelect={() => {
                             const current = Array.isArray((item as any).tratamento_ids)
                               ? [...(item as any).tratamento_ids]
@@ -293,7 +293,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                           }}
                         >
                           <Check className={cn("mr-2 h-4 w-4", selected ? "opacity-100" : "opacity-0")} />
-                          {t.nome}
+                          {t.nome || 'Sem nome'}
                         </CommandItem>
                       );
                     })}
@@ -315,7 +315,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
             </Button>
           </div>
 
-          {Array.isArray(defensivosFazenda) && defensivosFazenda.map((defensivo, defIndex) => (
+          {Array.isArray(defensivosFazenda) && defensivosFazenda.filter(d => d && d.tempId).map((defensivo, defIndex) => (
             <div key={defensivo.tempId} className="space-y-3 p-3 border rounded-md bg-muted/30">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -345,11 +345,11 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                             {Array.isArray(defensivosCatalog) && defensivosCatalog.filter(d => d && d.item && d.cod_item).map((d) => (
                               <CommandItem
                                 key={d.cod_item}
-                                value={`${d.item}`}
+                                value={`${d.item || ''}`}
                                 onSelect={() => handleDefensivoChange(defensivo.tempId, "defensivo", d.item)}
                               >
                                 <Check className={cn("mr-2 h-4 w-4", defensivo.defensivo === d.item ? "opacity-100" : "opacity-0")} />
-                                {d.item}
+                                {d.item || 'Sem nome'}
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -886,7 +886,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione o produtor" />
               </SelectTrigger>
               <SelectContent>
-                {produtores.map((p) => (
+                {Array.isArray(produtores) && produtores.filter(p => p && p.numerocm && p.nome).map((p) => (
                   <SelectItem key={p.numerocm} value={p.numerocm}>
                     {p.nome}
                   </SelectItem>
@@ -902,7 +902,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione a fazenda" />
               </SelectTrigger>
               <SelectContent>
-                {fazendaFiltrada.map((f) => {
+                {Array.isArray(fazendaFiltrada) && fazendaFiltrada.filter(f => f && f.idfazenda && f.nomefazenda).map((f) => {
                   const invalid = !f.area_cultivavel || Number(f.area_cultivavel) <= 0;
                   return (
                     <SelectItem key={f.idfazenda} value={f.idfazenda}>
@@ -926,7 +926,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione a safra" className="truncate" />
               </SelectTrigger>
               <SelectContent>
-                {(safras || []).filter((s) => s.ativa).map((s) => (
+                {Array.isArray(safras) && safras.filter(s => s && s.ativa && s.id && s.nome).map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.nome}{s.is_default ? " (Padrão)" : ""}
                   </SelectItem>
@@ -1245,7 +1245,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   <SelectValue placeholder="Selecione a justificativa" />
                 </SelectTrigger>
                 <SelectContent>
-                  {justificativas.map((j) => (
+                  {Array.isArray(justificativas) && justificativas.filter(j => j && j.id && j.descricao).map((j) => (
                     <SelectItem key={j.id} value={j.id}>
                       {j.descricao}
                     </SelectItem>
@@ -1271,9 +1271,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         {item.formulacao && !fertilizantesDistinct.some((f) => (f.item || "") === item.formulacao) && (
                           <SelectItem value={item.formulacao}>{item.formulacao}</SelectItem>
                         )}
-                        {fertilizantesDistinct.filter(f => f.item).map((f) => (
+                        {Array.isArray(fertilizantesDistinct) && fertilizantesDistinct.filter(f => f && f.item && f.cod_item).map((f) => (
                           <SelectItem key={f.cod_item ?? f.item} value={f.item || ""}>
-                            {f.item}
+                            {f.item || 'Sem nome'}
                           </SelectItem>
                         ))}
                       </SelectContent>
