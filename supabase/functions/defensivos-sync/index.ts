@@ -26,8 +26,17 @@ Deno.serve(async (req) => {
     const startTime = Date.now();
     console.log('🚀 [SYNC START] Iniciando sincronização de defensivos');
     
-    const { limparAntes = false } = await req.json().catch(() => ({ limparAntes: false }));
+    const { limparAntes = false, checkOnly = false } = await req.json().catch(() => ({ limparAntes: false, checkOnly: false }));
     console.log('📋 [CONFIG] Limpar antes:', limparAntes);
+
+    // Se for apenas verificação de conectividade, retornar sucesso rápido
+    if (checkOnly) {
+      console.log('🔍 [CHECK] Verificação de conectividade - retornando sucesso');
+      return new Response(
+        JSON.stringify({ status: 'online', message: 'API acessível' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {

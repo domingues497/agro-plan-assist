@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload } from "lucide-react";
+import { Wifi, WifiOff, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
 import { normalizeProductName } from "@/lib/importUtils";
@@ -19,6 +19,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 export const ImportDefensivos = () => {
   const [isImporting, setIsImporting] = useState(false);
@@ -29,11 +30,40 @@ export const ImportDefensivos = () => {
   const [deletedRows, setDeletedRows] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [isSyncingApi, setIsSyncingApi] = useState(false);
+  const [apiStatus, setApiStatus] = useState<'idle' | 'checking' | 'online' | 'offline'>('idle');
+  const [apiUrl, setApiUrl] = useState(import.meta.env.VITE_API_BASE_URL || '');
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
     setFile(selectedFile);
+  };
+
+  const checkApiConnectivity = async () => {
+    setApiStatus('checking');
+    
+    try {
+      // Tentar uma chamada simples à edge function para verificar conectividade
+      const { error } = await supabase.functions.invoke('defensivos-sync', {
+        body: { checkOnly: true }
+      });
+
+      if (error) {
+        console.error('API offline:', error);
+        setApiStatus('offline');
+        toast.error(`API não está acessível. Verifique se ${apiUrl} está disponível.`);
+        return false;
+      }
+
+      setApiStatus('online');
+      toast.success('API está acessível!');
+      return true;
+    } catch (error) {
+      console.error('Erro ao verificar API:', error);
+      setApiStatus('offline');
+      toast.error('Não foi possível conectar à API externa.');
+      return false;
+    }
   };
 
   const handleImport = async () => {
@@ -145,6 +175,12 @@ export const ImportDefensivos = () => {
   };
 
   const handleSyncApi = async () => {
+    // Validar conectividade primeiro
+    const isConnected = await checkApiConnectivity();
+    if (!isConnected) {
+      return;
+    }
+
     setIsSyncingApi(true);
     setIsImporting(true);
     setShowSummary(false);
@@ -225,13 +261,50 @@ export const ImportDefensivos = () => {
           </Label>
         </div>
 
-        <div className="flex gap-3">
-          <Button onClick={handleImport} disabled={isImporting || isSyncingApi || !file}>
-            {isImporting && !isSyncingApi ? "Importando..." : "Importar"}
-          </Button>
-          <Button variant="secondary" onClick={handleSyncApi} disabled={isImporting || isSyncingApi}>
-            {isSyncingApi ? "Sincronizando..." : "Sincronizar via API"}
-          </Button>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm">Status da API:</Label>
+            {apiStatus === 'idle' && (
+              <Badge variant="outline">
+                Não verificado
+              </Badge>
+            )}
+            {apiStatus === 'checking' && (
+              <Badge variant="outline">
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                Verificando...
+              </Badge>
+            )}
+            {apiStatus === 'online' && (
+              <Badge variant="default" className="bg-green-600">
+                <Wifi className="mr-1 h-3 w-3" />
+                Online
+              </Badge>
+            )}
+            {apiStatus === 'offline' && (
+              <Badge variant="destructive">
+                <WifiOff className="mr-1 h-3 w-3" />
+                Offline
+              </Badge>
+            )}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={checkApiConnectivity}
+              disabled={apiStatus === 'checking'}
+            >
+              Verificar Conexão
+            </Button>
+          </div>
+
+          <div className="flex gap-3">
+            <Button onClick={handleImport} disabled={isImporting || isSyncingApi || !file}>
+              {isImporting && !isSyncingApi ? "Importando..." : "Importar"}
+            </Button>
+            <Button variant="secondary" onClick={handleSyncApi} disabled={isImporting || isSyncingApi}>
+              {isSyncingApi ? "Sincronizando..." : "Sincronizar via API"}
+            </Button>
+          </div>
         </div>
         {isImporting && (
           <div className="space-y-2">
