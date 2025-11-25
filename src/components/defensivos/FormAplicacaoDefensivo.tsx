@@ -598,21 +598,15 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     }
   }, [defensivo.classe, defensivo.defensivo, defensivo.aplicacoes, defensivo.alvo, calendario, selectedClasse, defensivosCatalog, onChange]);
 
+  console.log('📦 Total items in catalog:', defensivosCatalog?.length);
+  console.log('🎯 Selected class:', selectedClasse);
+  
   const filteredCatalog = (defensivosCatalog || []).filter((d: any) => {
     const cls = String(selectedClasse || "").trim();
     if (!cls) return true;
 
     const clsNorm = normalizeWithoutPlural(cls);
     const grupoNorm = normalizeWithoutPlural(d.grupo || "");
-    
-    // Debug logs
-    console.log('🔍 Filtro Debug:', {
-      selectedClasse: cls,
-      grupo_catalog: d.grupo,
-      clsNorm,
-      grupoNorm,
-      match: grupoNorm === clsNorm
-    });
     
     // Também tentar match sem remover plural
     const clsNormOriginal = normalizeText(cls);
@@ -623,6 +617,10 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     const matchesClasse = 
       clsNorm === "OUTRO" ? (grupoNorm === "" || grupoNorm === "OUTRO") :
       (grupoNorm === clsNorm || grupoNormOriginal === clsNormOriginal);
+
+    if (matchesClasse && d.grupo === 'INSETICIDA') {
+      console.log('✅ MATCH INSETICIDA:', d.item);
+    }
 
     if (!matchesClasse) return false;
 
@@ -647,6 +645,8 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     if (isDuplicateByItem || isDuplicateByMarca) return false;
     return true;
   });
+
+  console.log('🎲 Filtered catalog length:', filteredCatalog.length);
 
   return (
     <Card className="p-4 bg-muted/50">
