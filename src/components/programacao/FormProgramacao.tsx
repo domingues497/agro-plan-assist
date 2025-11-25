@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList, CommandInput } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { ChevronsUpDown, Check } from "lucide-react";
 import { cn, safeRandomUUID } from "@/lib/utils";
 import { useProdutores } from "@/hooks/useProdutores";
@@ -523,6 +524,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
   const [fazendaFiltrada, setFazendaFiltrada] = useState<any[]>([]);
   const [talhoesSelecionados, setTalhoesSelecionados] = useState<string[]>([]);
+  const [dialogTalhoesAberto, setDialogTalhoesAberto] = useState(false);
+  const [novosTalhoes, setNovosTalhoes] = useState<Array<{ nome: string; area: string }>>([
+    { nome: "", area: "" }
+  ]);
 
   // Buscar talhões da fazenda selecionada
   const fazendaSelecionadaObj = fazendas.find((f) => f.idfazenda === fazendaIdfazenda);
@@ -661,6 +666,72 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
   const getTotalAdubacao = () => {
     return itensAdubacao.reduce((sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0);
+  };
+
+  const handleAdicionarNovoTalhao = () => {
+    setNovosTalhoes([...novosTalhoes, { nome: "", area: "" }]);
+  };
+
+  const handleRemoverNovoTalhao = (index: number) => {
+    if (novosTalhoes.length === 1) return;
+    setNovosTalhoes(novosTalhoes.filter((_, i) => i !== index));
+  };
+
+  const handleSalvarTalhoes = async () => {
+    // Validar campos
+    const talhoesValidos = novosTalhoes.filter(t => t.nome && t.area && Number(t.area) > 0);
+    
+    if (talhoesValidos.length === 0) {
+      toast({
+        title: "Erro de validação",
+        description: "Preencha pelo menos um talhão com nome e área válidos",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!fazendaSelecionadaObj?.id) {
+      toast({
+        title: "Erro",
+        description: "Fazenda não encontrada",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Inserir talhões no banco
+      const { error } = await supabase
+        .from("talhoes")
+        .insert(
+          talhoesValidos.map(t => ({
+            fazenda_id: fazendaSelecionadaObj.id,
+            nome: t.nome,
+            area: Number(t.area)
+          }))
+        );
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: `${talhoesValidos.length} talhão(ões) cadastrado(s) com sucesso`
+      });
+
+      // Atualizar lista de talhões
+      queryClient.invalidateQueries({ queryKey: ["talhoes", fazendaSelecionadaObj.id] });
+      
+      // Fechar dialog e resetar
+      setDialogTalhoesAberto(false);
+      setNovosTalhoes([{ nome: "", area: "" }]);
+    } catch (error) {
+      console.error("Erro ao salvar talhões:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível cadastrar os talhões. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -960,14 +1031,119 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     <li>Selecione os talhões desejados para a programação</li>
                     <li>A área total será calculada automaticamente</li>
                   </ol>
-                  <div className="pt-3">
+                  <div className="pt-3 flex gap-2">
+                    <Dialog open={dialogTalhoesAberto} onOpenChange={setDialogTalhoesAberto}>
+                      <DialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="default"
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Cadastrar Talhões Aqui
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Cadastrar Talhões</DialogTitle>
+                          <DialogDescription>
+                            Adicione os talhões da fazenda {fazendaSelecionadaObj?.nomefazenda}
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-4">
+                          {novosTalhoes.map((talhao, index) => (
+                            <div key={index} className="flex gap-3 items-end">
+                              <div className="flex-1 space-y-2">
+                                <Label>Nome do Talhão</Label>
+                                <Input
+                                  placeholder="Ex: Talhão 1, Área Norte..."
+                                  value={talhao.nome}
+                                  onChange={(e) => {
+                                    const updated = [...novosTalhoes];
+                                    updated[index].nome = e.target.value;
+                                    setNovosTalhoes(updated);
+                                  }}
+                                />
+                              </div>
+                              <div className="w-32 space-y-2">
+                                <Label>Área (ha)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  placeholder="0.00"
+                                  value={talhao.area}
+                                  onChange={(e) => {
+                                    const updated = [...novosTalhoes];
+                                    updated[index].area = e.target.value;
+                                    setNovosTalhoes(updated);
+                                  }}
+                                />
+                              </div>
+                              {novosTalhoes.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRemoverNovoTalhao(index)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleAdicionarNovoTalhao}
+                            className="w-full"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Adicionar outro talhão
+                          </Button>
+
+                          {novosTalhoes.some(t => t.nome && t.area) && (
+                            <div className="bg-muted/50 rounded-lg p-3">
+                              <p className="text-sm font-medium">
+                                Área total: {novosTalhoes
+                                  .filter(t => t.area && Number(t.area) > 0)
+                                  .reduce((sum, t) => sum + Number(t.area), 0)
+                                  .toFixed(2)} ha
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <DialogFooter>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setDialogTalhoesAberto(false);
+                              setNovosTalhoes([{ nome: "", area: "" }]);
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={handleSalvarTalhoes}
+                          >
+                            Salvar Talhões
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
                     <Button
                       type="button"
-                      variant="default"
+                      variant="outline"
                       onClick={() => window.location.href = '/admin?tab=talhoes'}
-                      className="bg-amber-600 hover:bg-amber-700"
                     >
-                      Ir para Admin → Talhões
+                      Ou ir para Admin
                     </Button>
                   </div>
                 </div>
