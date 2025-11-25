@@ -23,10 +23,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const startTime = Date.now();
+    console.log('🚀 [SYNC START] Iniciando sincronização de defensivos');
+    
     const { limparAntes = false } = await req.json().catch(() => ({ limparAntes: false }));
+    console.log('📋 [CONFIG] Limpar antes:', limparAntes);
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('❌ [AUTH] Requisição sem header Authorization');
       return new Response(
         JSON.stringify({ error: "Não autorizado" }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -47,37 +52,47 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
+      console.error('❌ [AUTH] Erro ao obter usuário:', userError?.message);
       return new Response(
         JSON.stringify({ error: "Usuário não encontrado" }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log('✅ [AUTH] Usuário autenticado:', user.email);
 
     // Limpeza opcional
     let deletedRecords = 0;
     if (limparAntes) {
+      console.log('🗑️ [CLEANUP] Iniciando limpeza da tabela');
       const { count } = await supabaseAdmin
         .from('defensivos_catalog')
         .select('*', { count: 'exact', head: true });
 
       deletedRecords = count || 0;
+      console.log(`📊 [CLEANUP] Registros a serem removidos: ${deletedRecords}`);
 
       const { error: delErr } = await supabaseAdmin
         .from('defensivos_catalog')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000');
       if (delErr) {
+        console.error('❌ [CLEANUP] Erro ao limpar tabela:', delErr.message);
         return new Response(
           JSON.stringify({ error: 'Erro ao limpar tabela', details: delErr.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      console.log(`✅ [CLEANUP] ${deletedRecords} registros removidos com sucesso`);
     }
 
     // Chamada à API externa
     const EXTERNAL_API_URL = Deno.env.get('EXTERNAL_API_URL') ?? 'http://192.168.0.230:8000/v1/itens';
     const EXTERNAL_API_SECRET = Deno.env.get('EXTERNAL_API_SECRET') ?? 'Co0p@gr!#0la';
     const payload = { client_id: 'admin', exp: 1893456000 };
+
+    console.log('🌐 [API] Consultando API externa:', EXTERNAL_API_URL);
+    const apiStartTime = Date.now();
 
     const extResp = await fetch(EXTERNAL_API_URL, {
       method: 'POST',
@@ -88,8 +103,12 @@ Deno.serve(async (req) => {
       body: JSON.stringify(payload),
     });
 
+    const apiDuration = Date.now() - apiStartTime;
+    console.log(`⏱️ [API] Tempo de resposta: ${apiDuration}ms`);
+
     if (!extResp.ok) {
       const text = await extResp.text();
+      console.error(`❌ [API] Falha na requisição - Status: ${extResp.status}`, text);
       return new Response(
         JSON.stringify({ error: 'Falha ao consultar API externa', status: extResp.status, body: text }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -98,14 +117,21 @@ Deno.serve(async (req) => {
 
     const items = await extResp.json();
     if (!Array.isArray(items)) {
+      console.error('❌ [API] Resposta inválida - não é um array');
       return new Response(
         JSON.stringify({ error: 'Resposta inesperada da API externa' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`📦 [API] ${items.length} itens recebidos da API externa`);
 
     // Processar e importar
+    console.log('🔄 [IMPORT] Iniciando processamento dos itens');
     let imported = 0;
+    let skipped = 0;
+    let errors = 0;
+    
     for (const row of items as any[]) {
       const cod_item = row["COD.ITEM"] ?? row["COD. ITEM"] ?? row["cod_item"] ?? row["codigo"] ?? null;
       const item = row["ITEM"] ?? row["item"] ?? null;
@@ -113,7 +139,10 @@ Deno.serve(async (req) => {
       const marca = (row["MARCA"] ?? row["marca"] ?? null);
       const principio_ativo = row["PRINCIPIO_ATIVO"] ?? row["PRINCIPIO ATIVO"] ?? row["PRINCÍPIO ATIVO"] ?? row["principio_ativo"] ?? null;
 
-      if (!cod_item && !item) continue; // ignorar linhas inválidas
+      if (!cod_item && !item) {
+        skipped++;
+        continue;
+      }
 
       const defensivoData = {
         cod_item: cod_item ?? null,
@@ -129,12 +158,19 @@ Deno.serve(async (req) => {
 
       if (!error) {
         imported++;
+        if (imported % 100 === 0) {
+          console.log(`📊 [IMPORT] Progresso: ${imported} itens importados`);
+        }
       } else {
-        console.error('Erro ao importar defensivo:', error.message);
+        errors++;
+        console.error(`❌ [IMPORT] Erro ao importar item ${cod_item}:`, error.message);
       }
     }
+    
+    console.log(`✅ [IMPORT] Processamento concluído: ${imported} importados, ${skipped} ignorados, ${errors} erros`);
 
     // Registrar histórico
+    console.log('📝 [HISTORY] Registrando histórico da importação');
     await supabaseAdmin.from('import_history').insert({
       user_id: user.id,
       tabela_nome: 'defensivos_catalog',
@@ -144,6 +180,10 @@ Deno.serve(async (req) => {
       limpar_antes: limparAntes,
     });
 
+    const totalDuration = Date.now() - startTime;
+    console.log(`✅ [SYNC END] Sincronização concluída em ${totalDuration}ms`);
+    console.log(`📊 [SUMMARY] Importados: ${imported} | Deletados: ${deletedRecords} | Ignorados: ${skipped} | Erros: ${errors}`);
+
     return new Response(
       JSON.stringify({ success: true, imported, deleted: deletedRecords }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -151,6 +191,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error('❌ [ERROR] Erro fatal na sincronização:', msg);
     return new Response(
       JSON.stringify({ error: msg }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
