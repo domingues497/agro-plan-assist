@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList, CommandInput } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { ChevronsUpDown, Check } from "lucide-react";
 import { cn, safeRandomUUID } from "@/lib/utils";
 import { useProdutores } from "@/hooks/useProdutores";
@@ -19,7 +18,6 @@ import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
 import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
-import { useTalhoes } from "@/hooks/useTalhoes";
 import { Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -34,7 +32,7 @@ interface FormProgramacaoProps {
   onCancel: () => void;
   title?: string;
   submitLabel?: string;
-  initialData?: Partial<CreateProgramacao> & { talhoes_ids?: string[] };
+  initialData?: Partial<CreateProgramacao>;
 }
 
 // Tipo para defensivo dentro da cultivar
@@ -178,14 +176,11 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
-              {Array.isArray(cultivaresDistinct) && cultivaresDistinct.filter(c => c && c.cultivar).map((c) => {
-                if (!c || !c.cultivar) return null;
-                return (
-                  <SelectItem key={`cult-${c.cultivar}`} value={c.cultivar}>
-                    {c.cultivar}
-                  </SelectItem>
-                );
-              })}
+              {cultivaresDistinct.map((c) => (
+                <SelectItem key={`cult-${c.cultivar ?? 'null'}`} value={c.cultivar || ""}>
+                  {c.cultivar}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -278,15 +273,14 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                 <CommandList>
                   <CommandEmpty>Nenhum tratamento encontrado.</CommandEmpty>
                   <CommandGroup>
-                    {Array.isArray(tratamentosDisponiveis) && tratamentosDisponiveis.filter(t => t && t.id && t.nome).map((t) => {
-                      if (!t || !t.id || !t.nome) return null;
+                    {tratamentosDisponiveis.map((t) => {
                       const selected = Array.isArray((item as any).tratamento_ids)
                         ? (item as any).tratamento_ids.includes(t.id)
                         : false;
                       return (
                         <CommandItem
                           key={t.id}
-                          value={t.nome}
+                          value={`${t.nome}`}
                           onSelect={() => {
                             const current = Array.isArray((item as any).tratamento_ids)
                               ? [...(item as any).tratamento_ids]
@@ -319,9 +313,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
             </Button>
           </div>
 
-          {Array.isArray(defensivosFazenda) && defensivosFazenda.filter(d => d && d.tempId).map((defensivo, defIndex) => {
-            if (!defensivo || !defensivo.tempId) return null;
-            return (
+          {defensivosFazenda.map((defensivo, defIndex) => (
             <div key={defensivo.tempId} className="space-y-3 p-3 border rounded-md bg-muted/30">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -348,19 +340,16 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                         <CommandList>
                           <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
                           <CommandGroup>
-                            {Array.isArray(defensivosCatalog) && defensivosCatalog.filter(d => d && d.item && d.cod_item).map((d) => {
-                              if (!d || !d.item || !d.cod_item) return null;
-                              return (
-                                <CommandItem
-                                  key={d.cod_item}
-                                  value={`${d.item || ''}`}
-                                  onSelect={() => handleDefensivoChange(defensivo.tempId, "defensivo", d.item)}
-                                >
-                                  <Check className={cn("mr-2 h-4 w-4", defensivo.defensivo === d.item ? "opacity-100" : "opacity-0")} />
-                                  {d.item || 'Sem nome'}
-                                </CommandItem>
-                              );
-                            })}
+                            {defensivosCatalog.map((d) => (
+                              <CommandItem
+                                key={d.cod_item}
+                                value={`${d.item}`}
+                                onSelect={() => handleDefensivoChange(defensivo.tempId, "defensivo", d.item)}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", defensivo.defensivo === d.item ? "opacity-100" : "opacity-0")} />
+                                {d.item}
+                              </CommandItem>
+                            ))}
                           </CommandGroup>
                         </CommandList>
                       </Command>
@@ -443,8 +432,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                 </div>
               </div>
             </div>
-            );
-          })}
+          ))}
         </div>
       )}
       <div className="flex items-center gap-2">
@@ -488,7 +476,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     return (fertilizantes || [])
       .filter((f) => {
         const nome = String(f.item || "").trim();
-        if (!nome || nome === "null" || nome === "undefined" || seen.has(nome)) return false;
+        if (!nome || seen.has(nome)) return false;
         seen.add(nome);
         return true;
       });
@@ -499,7 +487,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     return (cultivares || [])
       .filter((c) => {
         const nome = String(c.cultivar || "").trim();
-        if (!nome || nome === "null" || nome === "undefined" || seen.has(nome)) return false;
+        if (!nome || seen.has(nome)) return false;
         seen.add(nome);
         return true;
       });
@@ -533,28 +521,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   );
 
   const [fazendaFiltrada, setFazendaFiltrada] = useState<any[]>([]);
-  const [talhoesSelecionados, setTalhoesSelecionados] = useState<string[]>([]);
-  const [dialogTalhoesAberto, setDialogTalhoesAberto] = useState(false);
-  const [novosTalhoes, setNovosTalhoes] = useState<Array<{ nome: string; area: string }>>([
-    { nome: "", area: "" }
-  ]);
-
-  // Buscar talhões da fazenda selecionada
-  const fazendaSelecionadaObj = fazendas.find((f) => f.idfazenda === fazendaIdfazenda);
-  const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaObj?.id);
-
-  // Calcular área automaticamente com base nos talhões selecionados
-  useEffect(() => {
-    if (talhoesSelecionados.length > 0) {
-      const areaTotal = talhoesDaFazenda
-        .filter((t) => talhoesSelecionados.includes(t.id))
-        .reduce((sum, t) => sum + Number(t.area), 0);
-      setAreaHectares(areaTotal.toString());
-    } else if (fazendaIdfazenda && talhoesDaFazenda.length === 0) {
-      // Se não tem talhões, não define área
-      setAreaHectares("");
-    }
-  }, [talhoesSelecionados, talhoesDaFazenda, fazendaIdfazenda]);
 
   // Seleciona automaticamente a safra padrão, se disponível
   useEffect(() => {
@@ -571,7 +537,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (typeof initialData.area === "string") setArea(initialData.area);
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
-    if (Array.isArray(initialData.talhoes_ids)) setTalhoesSelecionados(initialData.talhoes_ids);
     if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => {
       const tipo = normalizeTipoTratamento((c as any).tipo_tratamento);
       const base: ItemCultivar & { uiId: string } = { ...(c as ItemCultivar), tipo_tratamento: tipo, uiId: makeUiId() };
@@ -605,30 +570,30 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   }, [naoFazerAdubacao]);
 
   useEffect(() => {
-    if (produtorNumerocm && !initialData) {
+    if (produtorNumerocm) {
       const filtered = fazendas.filter(f => f.numerocm === produtorNumerocm);
       setFazendaFiltrada(filtered);
       setFazendaIdfazenda("");
       setArea("");
+      // Resetar hectares ao trocar de produtor para evitar resquícios
       setAreaHectares("");
-      setTalhoesSelecionados([]);
-    } else if (produtorNumerocm) {
-      const filtered = fazendas.filter(f => f.numerocm === produtorNumerocm);
-      setFazendaFiltrada(filtered);
     }
-  }, [produtorNumerocm, fazendas, initialData]);
+  }, [produtorNumerocm, fazendas]);
 
-  // Resetar talhões ao trocar de fazenda (somente quando não está editando)
+  // Auto-preenche área em hectares com o valor de area_cultivavel da fazenda selecionada
   useEffect(() => {
-    if (fazendaIdfazenda && !initialData) {
-      setTalhoesSelecionados([]);
-      const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
-      setArea(fazendaSelecionada?.nomefazenda || "");
-    } else if (fazendaIdfazenda) {
-      const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
-      setArea(fazendaSelecionada?.nomefazenda || "");
+    if (!fazendaIdfazenda) return;
+    const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
+    const areaCultivavel = fazendaSelecionada?.area_cultivavel;
+    // Sincroniza o campo de "área" (nome da fazenda) com a fazenda selecionada
+    setArea(fazendaSelecionada?.nomefazenda || "");
+    if (areaCultivavel && areaCultivavel > 0) {
+      setAreaHectares(String(areaCultivavel));
+    } else {
+      // Se não existir ou for 0/null, não define valor para obrigar preenchimento manual
+      setAreaHectares("");
     }
-  }, [fazendaIdfazenda, fazendaFiltrada, initialData]);
+  }, [fazendaIdfazenda, fazendaFiltrada]);
 
   const handleAddCultivar = () => {
     setItensCultivar([...itensCultivar, {
@@ -676,72 +641,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
   const getTotalAdubacao = () => {
     return itensAdubacao.reduce((sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0);
-  };
-
-  const handleAdicionarNovoTalhao = () => {
-    setNovosTalhoes([...novosTalhoes, { nome: "", area: "" }]);
-  };
-
-  const handleRemoverNovoTalhao = (index: number) => {
-    if (novosTalhoes.length === 1) return;
-    setNovosTalhoes(novosTalhoes.filter((_, i) => i !== index));
-  };
-
-  const handleSalvarTalhoes = async () => {
-    // Validar campos
-    const talhoesValidos = novosTalhoes.filter(t => t.nome && t.area && Number(t.area) > 0);
-    
-    if (talhoesValidos.length === 0) {
-      toast({
-        title: "Erro de validação",
-        description: "Preencha pelo menos um talhão com nome e área válidos",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!fazendaSelecionadaObj?.id) {
-      toast({
-        title: "Erro",
-        description: "Fazenda não encontrada",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      // Inserir talhões no banco
-      const { error } = await supabase
-        .from("talhoes")
-        .insert(
-          talhoesValidos.map(t => ({
-            fazenda_id: fazendaSelecionadaObj.id,
-            nome: t.nome,
-            area: Number(t.area)
-          }))
-        );
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso",
-        description: `${talhoesValidos.length} talhão(ões) cadastrado(s) com sucesso`
-      });
-
-      // Atualizar lista de talhões
-      queryClient.invalidateQueries({ queryKey: ["talhoes", fazendaSelecionadaObj.id] });
-      
-      // Fechar dialog e resetar
-      setDialogTalhoesAberto(false);
-      setNovosTalhoes([{ nome: "", area: "" }]);
-    } catch (error) {
-      console.error("Erro ao salvar talhões:", error);
-      toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível cadastrar os talhões. Tente novamente.",
-        variant: "destructive"
-      });
-    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -795,16 +694,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       return;
     }
 
-    // Validação de talhões
-    if (talhoesDaFazenda.length > 0 && talhoesSelecionados.length === 0) {
-      toast({
-        title: "Erro de validação",
-        description: "Selecione pelo menos um talhão da fazenda",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const adubacaoNormal = itensAdubacao.filter((item) => !!item.formulacao);
     if (!naoFazerAdubacao && adubacaoNormal.length === 0) {
       toast({
@@ -821,7 +710,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       area: areaNome,
       area_hectares: areaHectaresFinal,
       safra_id: safraId || undefined,
-      talhoes_ids: talhoesSelecionados, // IDs dos talhões selecionados
       // Remove uiId antes de enviar
       cultivares: itensCultivar
         .filter(item => item.cultivar)
@@ -885,14 +773,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione o produtor" />
               </SelectTrigger>
               <SelectContent>
-                {Array.isArray(produtores) && produtores.filter(p => p && p.numerocm && p.nome).map((p) => {
-                  if (!p || !p.numerocm || !p.nome) return null;
-                  return (
-                    <SelectItem key={p.numerocm} value={p.numerocm}>
-                      {p.nome}
-                    </SelectItem>
-                  );
-                })}
+                {produtores.map((p) => (
+                  <SelectItem key={p.numerocm} value={p.numerocm}>
+                    {p.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -904,8 +789,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione a fazenda" />
               </SelectTrigger>
               <SelectContent>
-                {Array.isArray(fazendaFiltrada) && fazendaFiltrada.filter(f => f && f.idfazenda && f.nomefazenda).map((f) => {
-                  if (!f || !f.idfazenda || !f.nomefazenda) return null;
+                {fazendaFiltrada.map((f) => {
                   const invalid = !f.area_cultivavel || Number(f.area_cultivavel) <= 0;
                   return (
                     <SelectItem key={f.idfazenda} value={f.idfazenda}>
@@ -917,6 +801,35 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 })}
               </SelectContent>
             </Select>
+            {(() => {
+              // Exibe o aviso somente quando há fazenda selecionada
+              if (!fazendaIdfazenda) return null;
+              const fSel = fazendaFiltrada.find((f) => String(f.idfazenda) === String(fazendaIdfazenda));
+              if (!fSel) return null;
+              const invalid = fSel.area_cultivavel == null || Number(fSel.area_cultivavel) <= 0;
+              return invalid ? (
+                <div className="mt-2 space-y-2">
+                  <Badge variant="destructive">Fazenda sem área (ha).</Badge>
+                  {isConsultor && (
+                    <div className="space-y-2">
+                      <Label>Área cultivável da fazenda (ha)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Informe a área em hectares"
+                        value={areaHectares || ""}
+                        onChange={(e) => setAreaHectares(e.target.value)}
+                        disabled
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        A área da fazenda agora é calculada automaticamente pela soma dos talhões. 
+                        Para modificar, cadastre ou edite os talhões da fazenda na página Admin.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : null;
+            })()}
             
           </div>
 
@@ -929,263 +842,15 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione a safra" className="truncate" />
               </SelectTrigger>
               <SelectContent>
-                {Array.isArray(safras) && safras.filter(s => s && s.ativa && s.id && s.nome).map((s) => {
-                  if (!s || !s.id || !s.nome) return null;
-                  return (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.nome}{s.is_default ? " (Padrão)" : ""}
-                    </SelectItem>
-                  );
-                })}
+                {(safras || []).filter((s) => s.ativa).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.nome}{s.is_default ? " (Padrão)" : ""}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
-
-        {/* Seção de Talhões */}
-        {fazendaIdfazenda && talhoesDaFazenda.length > 0 && (
-          <div className="border-t pt-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="text-base font-semibold">Talhões da Fazenda</Label>
-                <p className="text-sm text-muted-foreground">
-                  Selecione os talhões que farão parte desta programação. A área total será calculada automaticamente.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {(() => {
-                  if (!Array.isArray(talhoesDaFazenda) || talhoesDaFazenda.length === 0) {
-                    return null;
-                  }
-                  
-                  const talhoesValidos = talhoesDaFazenda.filter(t => t && t.id && t.nome != null && t.area != null);
-                  
-                  if (talhoesValidos.length === 0) {
-                    return null;
-                  }
-                  
-                  return talhoesValidos.map((talhao) => {
-                    if (!talhao || !talhao.id) return null;
-                    return (
-                      <div
-                        key={talhao.id}
-                        className={cn(
-                          "flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors",
-                          talhoesSelecionados.includes(talhao.id)
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        )}
-                        onClick={() => {
-                          setTalhoesSelecionados((prev) =>
-                            prev.includes(talhao.id)
-                              ? prev.filter((id) => id !== talhao.id)
-                              : [...prev, talhao.id]
-                          );
-                        }}
-                      >
-                        <Checkbox
-                          checked={talhoesSelecionados.includes(talhao.id)}
-                          onCheckedChange={(checked) => {
-                            setTalhoesSelecionados((prev) =>
-                              checked
-                                ? [...prev, talhao.id]
-                                : prev.filter((id) => id !== talhao.id)
-                            );
-                          }}
-                        />
-                        <div className="flex-1 space-y-1">
-                          <Label className="font-medium cursor-pointer">{String(talhao.nome)}</Label>
-                          <p className="text-sm text-muted-foreground">{String(talhao.area)} ha</p>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-muted/30 rounded-lg p-4 border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Área total da fazenda</p>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {(Array.isArray(talhoesDaFazenda) ? talhoesDaFazenda : []).reduce((sum, t) => sum + Number(t?.area || 0), 0).toFixed(2)} ha
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Total de talhões</p>
-                      <p className="text-lg font-semibold">{(Array.isArray(talhoesDaFazenda) ? talhoesDaFazenda : []).length}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Talhões selecionados</p>
-                      <p className="text-sm font-medium">
-                        {(Array.isArray(talhoesSelecionados) ? talhoesSelecionados : []).length} de {(Array.isArray(talhoesDaFazenda) ? talhoesDaFazenda : []).length}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground mb-1">Área para programação</p>
-                      <p className="text-2xl font-bold text-primary">{Number(areaHectares || 0).toFixed(2)} ha</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {fazendaIdfazenda && talhoesDaFazenda.length === 0 && (
-          <div className="border-t pt-6">
-            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-6 space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">
-                  <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div className="flex-1 space-y-2">
-                  <p className="text-base font-semibold text-amber-900">
-                    ⚠️ Talhões não cadastrados
-                  </p>
-                  <p className="text-sm text-amber-800">
-                    Para continuar com a programação, você precisa cadastrar os talhões desta fazenda (nome e área em hectares).
-                  </p>
-                  <p className="text-sm text-amber-700 font-medium mt-3">
-                    Após cadastrar os talhões:
-                  </p>
-                  <ol className="list-decimal list-inside text-sm text-amber-800 space-y-1 ml-2">
-                    <li>A soma das áreas dos talhões aparecerá automaticamente</li>
-                    <li>Selecione os talhões desejados para a programação</li>
-                    <li>A área total será calculada automaticamente</li>
-                  </ol>
-                  <div className="pt-3 flex gap-2">
-                    <Dialog open={dialogTalhoesAberto} onOpenChange={setDialogTalhoesAberto}>
-                      <DialogTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="default"
-                          className="bg-primary hover:bg-primary/90"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Cadastrar Talhões Aqui
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Cadastrar Talhões</DialogTitle>
-                          <DialogDescription>
-                            Adicione os talhões da fazenda {fazendaSelecionadaObj?.nomefazenda}
-                          </DialogDescription>
-                        </DialogHeader>
-                        
-                        <div className="space-y-4">
-                          {Array.isArray(novosTalhoes) && novosTalhoes.map((talhao, index) => {
-                            if (!talhao) return null;
-                            return (
-                              <div key={index} className="flex gap-3 items-end">
-                              <div className="flex-1 space-y-2">
-                                <Label>Nome do Talhão</Label>
-                                <Input
-                                  placeholder="Ex: Talhão 1, Área Norte..."
-                                  value={talhao.nome}
-                                  onChange={(e) => {
-                                    const updated = [...novosTalhoes];
-                                    updated[index].nome = e.target.value;
-                                    setNovosTalhoes(updated);
-                                  }}
-                                />
-                              </div>
-                              <div className="w-32 space-y-2">
-                                <Label>Área (ha)</Label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0.01"
-                                  placeholder="0.00"
-                                  value={talhao.area}
-                                  onChange={(e) => {
-                                    const updated = [...novosTalhoes];
-                                    updated[index].area = e.target.value;
-                                    setNovosTalhoes(updated);
-                                  }}
-                                />
-                              </div>
-                              {novosTalhoes.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleRemoverNovoTalhao(index)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                            );
-                          })}
-                          
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleAdicionarNovoTalhao}
-                            className="w-full"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Adicionar outro talhão
-                          </Button>
-
-                          {Array.isArray(novosTalhoes) && novosTalhoes.some(t => t.nome && t.area) && (
-                            <div className="bg-muted/50 rounded-lg p-3">
-                              <p className="text-sm font-medium">
-                                Área total: {novosTalhoes
-                                  .filter(t => t.area && Number(t.area) > 0)
-                                  .reduce((sum, t) => sum + Number(t.area), 0)
-                                  .toFixed(2)} ha
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        <DialogFooter>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setDialogTalhoesAberto(false);
-                              setNovosTalhoes([{ nome: "", area: "" }]);
-                            }}
-                          >
-                            Cancelar
-                          </Button>
-                          <Button
-                            type="button"
-                            onClick={handleSalvarTalhoes}
-                          >
-                            Salvar Talhões
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => window.location.href = '/admin?tab=talhoes'}
-                    >
-                      Ou ir para Admin
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Seção Cultivares */}
         <div className="border-t pt-6">
@@ -1198,22 +863,19 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           <div className="space-y-4">
-            {Array.isArray(itensCultivar) && itensCultivar.map((item, index) => {
-              if (!item || !item.uiId) return null;
-              return (
-                <CultivarRow
-                  key={item.uiId}
-                  item={item}
-                  index={index}
-                  cultivaresDistinct={cultivaresDistinct}
-                  cultivaresCatalog={cultivares || []}
-                  canRemove={itensCultivar.length > 1}
-                  areaHectares={Number(areaHectares) || 0}
-                  onChange={handleCultivarChange}
-                  onRemove={handleRemoveCultivar}
-                />
-              );
-            })}
+            {itensCultivar.map((item, index) => (
+              <CultivarRow
+                key={item.uiId}
+                item={item}
+                index={index}
+                cultivaresDistinct={cultivaresDistinct}
+                cultivaresCatalog={cultivares}
+          canRemove={itensCultivar.length > 1}
+          areaHectares={Number(areaHectares) || 0}
+          onChange={handleCultivarChange}
+          onRemove={handleRemoveCultivar}
+        />
+            ))}
           </div>
 
           <div className={`mt-2 text-sm font-medium ${getTotalCultivar() === 100 ? "text-green-600" : "text-red-600"}`}>
@@ -1268,23 +930,18 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   <SelectValue placeholder="Selecione a justificativa" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.isArray(justificativas) && justificativas.filter(j => j && j.id && j.descricao).map((j) => {
-                    if (!j || !j.id || !j.descricao) return null;
-                    return (
-                      <SelectItem key={j.id} value={j.id}>
-                        {j.descricao}
-                      </SelectItem>
-                    );
-                  })}
+                  {justificativas.map((j) => (
+                    <SelectItem key={j.id} value={j.id}>
+                      {j.descricao}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           ) : (
             <div className="space-y-4">
-              {Array.isArray(itensAdubacao) && itensAdubacao.map((item, index) => {
-                if (!item) return null;
-                return (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border rounded-lg">
+              {itensAdubacao.map((item, index) => (
+                <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border rounded-lg">
                   <div className="space-y-2">
                     <Label>Formulação</Label>
                     <Select
@@ -1299,14 +956,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         {item.formulacao && !fertilizantesDistinct.some((f) => (f.item || "") === item.formulacao) && (
                           <SelectItem value={item.formulacao}>{item.formulacao}</SelectItem>
                         )}
-                        {Array.isArray(fertilizantesDistinct) && fertilizantesDistinct.filter(f => f && f.item && f.cod_item).map((f) => {
-                          if (!f || !f.item || !f.cod_item) return null;
-                          return (
-                            <SelectItem key={f.cod_item ?? f.item} value={f.item || ""}>
-                              {f.item || 'Sem nome'}
-                            </SelectItem>
-                          );
-                        })}
+                        {fertilizantesDistinct.map((f) => (
+                          <SelectItem key={f.cod_item ?? f.item} value={f.item || ""}>
+                            {f.item}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1368,8 +1022,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   <Label htmlFor={`adubacao-salvo-${index}`}>Fertilizante salvo de safra anterior (RN012)</Label>
                   </div>
                 </div>
-                );
-              })}
+              ))}
             </div>
           )}
 

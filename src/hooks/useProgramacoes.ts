@@ -61,7 +61,6 @@ export interface CreateProgramacao {
   area: string;
   area_hectares: number;
   safra_id?: string;
-  talhoes_ids?: string[]; // IDs dos talhões selecionados
   cultivares: ItemCultivar[];
   adubacao: ItemAdubacao[];
 }
@@ -114,20 +113,6 @@ export const useProgramacoes = () => {
         .single();
 
       if (progResponse.error) throw progResponse.error;
-
-      // Salvar talhões selecionados na tabela de junção
-      if (newProgramacao.talhoes_ids && newProgramacao.talhoes_ids.length > 0) {
-        const talhoesData = newProgramacao.talhoes_ids.map(talhaoId => ({
-          programacao_id: progResponse.data.id,
-          talhao_id: talhaoId
-        }));
-
-        const talhoesResponse = await supabase
-          .from("programacao_talhoes")
-          .insert(talhoesData);
-
-        if (talhoesResponse.error) throw talhoesResponse.error;
-      }
 
       if (newProgramacao.cultivares.length > 0) {
         const cultivaresData = newProgramacao.cultivares.map(item => {
@@ -316,27 +301,6 @@ export const useProgramacoes = () => {
         })
         .eq("id", id);
       if (progUpdate.error) throw progUpdate.error;
-
-      // Atualizar talhões selecionados
-      // Primeiro, deletar talhões antigos
-      const delTalhoes = await supabase
-        .from("programacao_talhoes")
-        .delete()
-        .eq("programacao_id", id);
-      if (delTalhoes.error) throw delTalhoes.error;
-
-      // Inserir novos talhões se houver
-      if (data.talhoes_ids && data.talhoes_ids.length > 0) {
-        const talhoesData = data.talhoes_ids.map(talhaoId => ({
-          programacao_id: id,
-          talhao_id: talhaoId
-        }));
-
-        const talhoesInsert = await supabase
-          .from("programacao_talhoes")
-          .insert(talhoesData);
-        if (talhoesInsert.error) throw talhoesInsert.error;
-      }
 
       // Substitui cultivares vinculadas (deletar também remove tratamentos via CASCADE)
       const delCult = await (supabase as any)

@@ -101,7 +101,6 @@ export default function Programacao() {
               area: editing.area,
               area_hectares: editing.area_hectares,
               safra_id: editing.safra_id || undefined,
-              talhoes_ids: editing.talhoes_ids || [],
               cultivares: (() => {
                 const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
                 return cults.map((c: any) => ({
@@ -187,22 +186,14 @@ export default function Programacao() {
                       </div>
                       
                    <div className="flex items-center gap-2">
-                     <Button
+                    <Button
                       variant="outline"
                       size="icon"
                       onClick={async () => {
-                        // Buscar tratamentos, defensivos e talhões antes de abrir edição
+                        // Buscar tratamentos e defensivos da tabela de junção antes de abrir edição
                         const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === prog.id);
                         const tratamentosMap: Record<string, string[]> = {};
                         const defensivosMap: Record<string, any[]> = {};
-                        
-                        // Buscar talhões selecionados
-                        const { data: talhoesData } = await supabase
-                          .from("programacao_talhoes")
-                          .select("talhao_id")
-                          .eq("programacao_id", prog.id);
-                        
-                        const talhoesIds = (talhoesData || []).map((t: any) => t.talhao_id);
                         
                         for (const cult of cults) {
                           // Buscar tratamentos
@@ -236,7 +227,7 @@ export default function Programacao() {
                         
                         setEditingTratamentos(tratamentosMap);
                         setEditingDefensivos(defensivosMap);
-                        setEditing({ ...prog, talhoes_ids: talhoesIds });
+                        setEditing(prog);
                       }}
                       title="Editar"
                     >
