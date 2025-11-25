@@ -608,6 +608,18 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     const clsNorm = normalizeWithoutPlural(cls);
     const grupoNorm = normalizeWithoutPlural(d.grupo || "");
     
+    // Log detalhado para INSETICIDA
+    if (d.grupo === 'INSETICIDA') {
+      console.log('🐛 Debug INSETICIDA:', {
+        grupo_original: d.grupo,
+        cls_original: cls,
+        clsNorm,
+        grupoNorm,
+        equal: clsNorm === grupoNorm,
+        item: d.item
+      });
+    }
+    
     // Também tentar match sem remover plural
     const clsNormOriginal = normalizeText(cls);
     const grupoNormOriginal = normalizeText(d.grupo || "");
