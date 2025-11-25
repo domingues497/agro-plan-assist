@@ -187,39 +187,58 @@ export const ImportDefensivos = () => {
     setImportedRows(0);
     setDeletedRows(0);
 
+    toast.info('🚀 Iniciando sincronização com API externa...', {
+      description: limparAntes ? 'Os dados existentes serão removidos antes da importação.' : 'Novos dados serão mesclados com os existentes.'
+    });
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
+
+      toast.loading('⏳ Conectando à API externa e processando dados...', {
+        description: 'Este processo pode levar alguns minutos.'
+      });
 
       const { data, error } = await supabase.functions.invoke('defensivos-sync', {
         body: { limparAntes }
       });
 
+      toast.dismiss();
+
       if (error) {
         console.error('Erro na função defensivos-sync:', error);
-        toast.error('Erro ao sincronizar via API');
+        toast.error('❌ Erro ao sincronizar via API', {
+          description: error.message || 'Verifique os logs para mais detalhes.'
+        });
         return;
       }
 
       if (data?.error) {
-        toast.error(String(data.error));
+        toast.error('❌ Erro na sincronização', {
+          description: String(data.error)
+        });
         return;
       }
 
       const imported = Number(data?.imported || 0);
       const deleted = Number(data?.deleted || 0);
+      const ignored = Number(data?.ignored || 0);
       setImportedRows(imported);
       setDeletedRows(deleted);
-      setTotalRows(imported); // não temos total da API, usamos importados como proxy
+      setTotalRows(imported);
 
-      // Registrar no histórico já é feito na função Edge; aqui apenas feedback
-      toast.success(`Sincronização concluída! ${imported} registros importados${deleted ? `, ${deleted} removidos` : ''}`);
+      toast.success('✅ Sincronização concluída com sucesso!', {
+        description: `${imported} registros importados${deleted ? `, ${deleted} removidos` : ''}${ignored ? `, ${ignored} ignorados` : ''}`
+      });
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);
     } catch (err) {
+      toast.dismiss();
       console.error('Erro ao sincronizar API:', err);
-      toast.error('Erro ao sincronizar API');
+      toast.error('❌ Erro inesperado ao sincronizar', {
+        description: err instanceof Error ? err.message : 'Erro desconhecido'
+      });
     } finally {
       setIsSyncingApi(false);
       setIsImporting(false);
@@ -307,11 +326,26 @@ export const ImportDefensivos = () => {
           </div>
         </div>
         {isImporting && (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Importando {importedRows} de {totalRows} linhas...
-            </p>
-            <Progress value={totalRows ? Math.round((importedRows / totalRows) * 100) : 0} />
+          <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <p className="text-sm font-medium">
+                {isSyncingApi ? 'Sincronizando com API externa...' : `Importando arquivo...`}
+              </p>
+            </div>
+            {!isSyncingApi && totalRows > 0 && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {importedRows} de {totalRows} linhas processadas
+                </p>
+                <Progress value={Math.round((importedRows / totalRows) * 100)} />
+              </>
+            )}
+            {isSyncingApi && (
+              <p className="text-sm text-muted-foreground">
+                Aguarde enquanto os dados são importados da API externa. Este processo pode levar alguns minutos.
+              </p>
+            )}
           </div>
         )}
       </CardContent>
@@ -319,17 +353,32 @@ export const ImportDefensivos = () => {
       <AlertDialog open={showSummary} onOpenChange={setShowSummary}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Resumo da Importação</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deletedRows > 0 && (
-                <>
-                  Registros removidos: {deletedRows}
-                  <br />
-                </>
-              )}
-              Total na planilha: {totalRows}
-              <br />
-              Linhas importadas: {importedRows}
+            <AlertDialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">✅</span>
+              Importação Concluída
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-2">
+                <div className="grid gap-2">
+                  {deletedRows > 0 && (
+                    <div className="flex justify-between items-center p-2 bg-destructive/10 rounded">
+                      <span className="text-sm font-medium">Registros removidos:</span>
+                      <Badge variant="destructive">{deletedRows}</Badge>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center p-2 bg-muted rounded">
+                    <span className="text-sm font-medium">Total processado:</span>
+                    <Badge variant="outline">{totalRows}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-primary/10 rounded">
+                    <span className="text-sm font-medium">Registros importados:</span>
+                    <Badge variant="default">{importedRows}</Badge>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground pt-2">
+                  A importação foi registrada no histórico de importações.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
