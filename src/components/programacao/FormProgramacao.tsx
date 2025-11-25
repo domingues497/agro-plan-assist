@@ -930,16 +930,35 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 ))}
               </div>
 
-              <div className="flex items-center justify-between bg-muted/50 rounded-lg p-4">
-                <div>
-                  <p className="text-sm font-medium">Talhões selecionados</p>
-                  <p className="text-xs text-muted-foreground">
-                    {talhoesSelecionados.length} de {talhoesDaFazenda.length}
-                  </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-muted/30 rounded-lg p-4 border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Área total da fazenda</p>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {talhoesDaFazenda.reduce((sum, t) => sum + Number(t.area || 0), 0).toFixed(2)} ha
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Total de talhões</p>
+                      <p className="text-lg font-semibold">{talhoesDaFazenda.length}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">Área total</p>
-                  <p className="text-2xl font-bold text-primary">{Number(areaHectares || 0).toFixed(2)} ha</p>
+
+                <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Talhões selecionados</p>
+                      <p className="text-sm font-medium">
+                        {talhoesSelecionados.length} de {talhoesDaFazenda.length}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground mb-1">Área para programação</p>
+                      <p className="text-2xl font-bold text-primary">{Number(areaHectares || 0).toFixed(2)} ha</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
