@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as jose from "https://deno.land/x/jose@v5.2.0/index.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,11 +110,20 @@ Deno.serve(async (req) => {
     console.log('🌐 [API] Consultando API externa:', EXTERNAL_API_URL);
     const apiStartTime = Date.now();
 
-    // API externa usa GET, não POST
+    // Gerar JWT válido para autenticação na API externa
+    const secret = new TextEncoder().encode(EXTERNAL_API_SECRET);
+    const jwt = await new jose.SignJWT({ client_id: 'admin' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('2030-01-01')
+      .sign(secret);
+
+    console.log('🔐 [AUTH] Token JWT gerado para API externa');
+
+    // API externa usa GET com token JWT
     const extResp = await fetch(EXTERNAL_API_URL, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${EXTERNAL_API_SECRET}`,
+        'Authorization': `Bearer ${jwt}`,
       },
     });
 
