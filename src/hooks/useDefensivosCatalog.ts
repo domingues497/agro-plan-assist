@@ -8,7 +8,8 @@ export const useDefensivosCatalog = () => {
       const { data, error } = await supabase
         .from("defensivos_catalog")
         .select("item, cod_item, marca, principio_ativo, grupo, saldo")
-        .order("item");
+        .order("item")
+        .limit(10000);
 
       if (error) throw error;
       return data;
