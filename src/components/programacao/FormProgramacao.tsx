@@ -364,25 +364,24 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                   <Input
                     type="text"
                     inputMode="decimal"
-                    value={defensivo.dose === 0 ? "0" : (defensivo.dose || "")}
+                    value={String(defensivo.dose || "")}
                     onChange={(e) => {
                       let value = e.target.value.replace(',', '.');
                       // Permitir apenas números e um ponto decimal
                       if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                        // Se terminar com ponto, manter como string temporariamente
-                        if (value.endsWith('.')) {
-                          handleDefensivoChange(defensivo.tempId, "dose", value as any);
-                        } else {
-                          const numValue = value === '' ? 0 : (parseFloat(value) || 0);
-                          handleDefensivoChange(defensivo.tempId, "dose", numValue);
-                        }
+                        // Manter como string durante a digitação para preservar "0.0" e "0.01"
+                        handleDefensivoChange(defensivo.tempId, "dose", value as any);
                       }
                     }}
                     onBlur={(e) => {
-                      // No blur, garantir que é número
-                      const value = e.target.value.replace(',', '.');
-                      const numValue = parseFloat(value) || 0;
-                      handleDefensivoChange(defensivo.tempId, "dose", numValue);
+                      // No blur, converter para número
+                      let value = e.target.value.replace(',', '.');
+                      const numValue = value === '' ? 0 : parseFloat(value);
+                      if (!isNaN(numValue)) {
+                        handleDefensivoChange(defensivo.tempId, "dose", numValue);
+                      } else {
+                        handleDefensivoChange(defensivo.tempId, "dose", 0);
+                      }
                     }}
                   />
                 </div>
