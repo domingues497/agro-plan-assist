@@ -7,21 +7,37 @@ export const useDefensivosCatalog = () => {
     queryFn: async () => {
       console.log("Buscando defensivos do catálogo...");
       
-      const { data, error, count } = await supabase
-        .from("defensivos_catalog")
-        .select("item, cod_item, marca, principio_ativo, grupo, saldo", { count: 'exact' })
-        .order("item")
-        .range(0, 9999);
+      let allData: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error("Erro ao buscar defensivos:", error);
-        throw error;
+      while (hasMore) {
+        const { data, error, count } = await supabase
+          .from("defensivos_catalog")
+          .select("item, cod_item, marca, principio_ativo, grupo, saldo", { count: 'exact' })
+          .order("item")
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          console.error("Erro ao buscar defensivos:", error);
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+
+        console.log(`Buscados ${allData.length} registros até agora...`);
       }
       
-      console.log(`Total de registros no banco: ${count}`);
-      console.log(`Total de registros retornados: ${data?.length || 0}`);
+      console.log(`Total de registros carregados: ${allData.length}`);
       
-      return data;
+      return allData;
     },
   });
 };
