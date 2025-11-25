@@ -604,12 +604,16 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
 
     const clsNorm = normalizeWithoutPlural(cls);
     const grupoNorm = normalizeWithoutPlural(d.grupo || "");
+    
+    // Também tentar match sem remover plural
+    const clsNormOriginal = normalizeText(cls);
+    const grupoNormOriginal = normalizeText(d.grupo || "");
 
-    // Regra solicitada: somente itens cujo grupo == classe selecionada
-    // Caso classe seja "OUTROS", considera grupo vazio ou "OUTROS"
-    const matchesClasse = clsNorm === "OUTRO"
-      ? (grupoNorm === "" || grupoNorm === "OUTRO")
-      : grupoNorm === clsNorm;
+    // Regra: somente itens cujo grupo == classe selecionada
+    // Tenta match com e sem plural
+    const matchesClasse = 
+      clsNorm === "OUTRO" ? (grupoNorm === "" || grupoNorm === "OUTRO") :
+      (grupoNorm === clsNorm || grupoNormOriginal === clsNormOriginal);
 
     if (!matchesClasse) return false;
 
