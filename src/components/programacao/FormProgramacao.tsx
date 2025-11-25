@@ -905,6 +905,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
               </SelectTrigger>
               <SelectContent>
                 {Array.isArray(fazendaFiltrada) && fazendaFiltrada.filter(f => f && f.idfazenda && f.nomefazenda).map((f) => {
+                  if (!f || !f.idfazenda || !f.nomefazenda) return null;
                   const invalid = !f.area_cultivavel || Number(f.area_cultivavel) <= 0;
                   return (
                     <SelectItem key={f.idfazenda} value={f.idfazenda}>
@@ -964,39 +965,42 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     return null;
                   }
                   
-                  return talhoesValidos.map((talhao) => (
-                    <div
-                      key={talhao.id}
-                      className={cn(
-                        "flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors",
-                        talhoesSelecionados.includes(talhao.id)
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      )}
-                      onClick={() => {
-                        setTalhoesSelecionados((prev) =>
-                          prev.includes(talhao.id)
-                            ? prev.filter((id) => id !== talhao.id)
-                            : [...prev, talhao.id]
-                        );
-                      }}
-                    >
-                      <Checkbox
-                        checked={talhoesSelecionados.includes(talhao.id)}
-                        onCheckedChange={(checked) => {
+                  return talhoesValidos.map((talhao) => {
+                    if (!talhao || !talhao.id) return null;
+                    return (
+                      <div
+                        key={talhao.id}
+                        className={cn(
+                          "flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors",
+                          talhoesSelecionados.includes(talhao.id)
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        )}
+                        onClick={() => {
                           setTalhoesSelecionados((prev) =>
-                            checked
-                              ? [...prev, talhao.id]
-                              : prev.filter((id) => id !== talhao.id)
+                            prev.includes(talhao.id)
+                              ? prev.filter((id) => id !== talhao.id)
+                              : [...prev, talhao.id]
                           );
                         }}
-                      />
-                      <div className="flex-1 space-y-1">
-                        <Label className="font-medium cursor-pointer">{String(talhao.nome)}</Label>
-                        <p className="text-sm text-muted-foreground">{String(talhao.area)} ha</p>
+                      >
+                        <Checkbox
+                          checked={talhoesSelecionados.includes(talhao.id)}
+                          onCheckedChange={(checked) => {
+                            setTalhoesSelecionados((prev) =>
+                              checked
+                                ? [...prev, talhao.id]
+                                : prev.filter((id) => id !== talhao.id)
+                            );
+                          }}
+                        />
+                        <div className="flex-1 space-y-1">
+                          <Label className="font-medium cursor-pointer">{String(talhao.nome)}</Label>
+                          <p className="text-sm text-muted-foreground">{String(talhao.area)} ha</p>
+                        </div>
                       </div>
-                    </div>
-                  ));
+                    );
+                  });
                 })()}
               </div>
 
@@ -1194,19 +1198,22 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           <div className="space-y-4">
-            {Array.isArray(itensCultivar) && itensCultivar.map((item, index) => (
-              <CultivarRow
-                key={item.uiId}
-                item={item}
-                index={index}
-                cultivaresDistinct={cultivaresDistinct}
-                cultivaresCatalog={cultivares || []}
-          canRemove={itensCultivar.length > 1}
-          areaHectares={Number(areaHectares) || 0}
-          onChange={handleCultivarChange}
-          onRemove={handleRemoveCultivar}
-        />
-            ))}
+            {Array.isArray(itensCultivar) && itensCultivar.map((item, index) => {
+              if (!item || !item.uiId) return null;
+              return (
+                <CultivarRow
+                  key={item.uiId}
+                  item={item}
+                  index={index}
+                  cultivaresDistinct={cultivaresDistinct}
+                  cultivaresCatalog={cultivares || []}
+                  canRemove={itensCultivar.length > 1}
+                  areaHectares={Number(areaHectares) || 0}
+                  onChange={handleCultivarChange}
+                  onRemove={handleRemoveCultivar}
+                />
+              );
+            })}
           </div>
 
           <div className={`mt-2 text-sm font-medium ${getTotalCultivar() === 100 ? "text-green-600" : "text-red-600"}`}>
