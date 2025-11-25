@@ -29,6 +29,15 @@ export const ListDefensivos = () => {
     return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
 
+  const groupStats = useMemo(() => {
+    const groups: Record<string, number> = {};
+    filtered.forEach((d: any) => {
+      const grupo = d.grupo || 'Sem grupo';
+      groups[grupo] = (groups[grupo] || 0) + 1;
+    });
+    return groups;
+  }, [filtered]);
+
   return (
     <Card>
       <CardHeader>
@@ -99,6 +108,23 @@ export const ListDefensivos = () => {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</Button>
             <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Próxima</Button>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="bg-primary/5 rounded-lg p-3">
+              <div className="text-xs text-muted-foreground mb-1">Total de Itens</div>
+              <div className="text-2xl font-bold text-primary">{filtered.length}</div>
+            </div>
+            {Object.entries(groupStats)
+              .sort(([, a], [, b]) => b - a)
+              .map(([grupo, count]) => (
+                <div key={grupo} className="bg-secondary/5 rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground mb-1 truncate" title={grupo}>{grupo}</div>
+                  <div className="text-2xl font-bold">{count}</div>
+                </div>
+              ))}
           </div>
         </div>
       </CardContent>
