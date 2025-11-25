@@ -95,21 +95,26 @@ Deno.serve(async (req) => {
       console.log(`✅ [CLEANUP] ${deletedRecords} registros removidos com sucesso`);
     }
 
-    // Chamada à API externa
-    const EXTERNAL_API_URL = Deno.env.get('EXTERNAL_API_URL') ?? 'http://192.168.0.230:8000/v1/itens';
+    // Buscar URL da API da tabela system_config
+    console.log('📖 [CONFIG] Buscando URL da API');
+    const { data: configData } = await supabaseAdmin
+      .from('system_config')
+      .select('config_value')
+      .eq('config_key', 'api_defensivos_url')
+      .single();
+    
+    const EXTERNAL_API_URL = configData?.config_value ?? Deno.env.get('EXTERNAL_API_URL') ?? 'http://200.195.154.187:8001/v1/itens';
     const EXTERNAL_API_SECRET = Deno.env.get('EXTERNAL_API_SECRET') ?? 'Co0p@gr!#0la';
-    const payload = { client_id: 'admin', exp: 1893456000 };
 
     console.log('🌐 [API] Consultando API externa:', EXTERNAL_API_URL);
     const apiStartTime = Date.now();
 
+    // API externa usa GET, não POST
     const extResp = await fetch(EXTERNAL_API_URL, {
-      method: 'POST',
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${EXTERNAL_API_SECRET}`,
       },
-      body: JSON.stringify(payload),
     });
 
     const apiDuration = Date.now() - apiStartTime;
