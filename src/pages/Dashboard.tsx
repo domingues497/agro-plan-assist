@@ -16,21 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
 
 const Dashboard = () => {
   const {
@@ -95,10 +80,7 @@ const Dashboard = () => {
     preencherConsultor();
   }, [profile, queryClient]);
 
-  const [openAreaModal, setOpenAreaModal] = useState(false);
-  const [modalDismissed, setModalDismissed] = useState(false);
-  const [areasEdicao, setAreasEdicao] = useState<Record<string, string>>({});
-  const areaKey = (numerocm: string, idfazenda: string) => `${String(numerocm)}:${String(idfazenda)}`;
+  // Estados do modal de área removidos - agora gerenciado via talhões
 
   const produtoresDoConsultor = useMemo(() => {
     if (!profile?.numerocm_consultor) return [];
@@ -115,106 +97,7 @@ const Dashboard = () => {
     return grouped;
   }, [produtoresDoConsultor, allFazendas]);
 
-  const hasFazendasSemArea = useMemo(() => {
-    return Object.values(fazendasPorProdutor).some((fazendas) =>
-      fazendas.some((f) => !f.area_cultivavel || f.area_cultivavel === 0)
-    );
-  }, [fazendasPorProdutor]);
-
-  const pendentesCount = useMemo(() => {
-    let count = 0;
-    Object.values(fazendasPorProdutor).forEach((fazendas) => {
-      fazendas.forEach((f) => {
-        const key = areaKey(f.numerocm, f.idfazenda);
-        if (Number(areasEdicao[key] ?? 0) <= 0) count++;
-      });
-    });
-    return count;
-  }, [fazendasPorProdutor, areasEdicao]);
-
-  useEffect(() => {
-    if (!modalDismissed && produtoresDoConsultor.length > 0 && hasFazendasSemArea) {
-      // Pré-preenche todas as fazendas: as que têm área usam o valor; pendentes ficam vazias
-      const initial: Record<string, string> = {};
-      Object.values(fazendasPorProdutor).forEach((fazendas) => {
-        fazendas.forEach((f) => {
-          // Traz exatamente o valor do banco, incluindo 0, por produtor+fazenda
-          const key = areaKey(f.numerocm, f.idfazenda);
-          initial[key] = f.area_cultivavel !== null && f.area_cultivavel !== undefined
-            ? String(f.area_cultivavel)
-            : "";
-        });
-      });
-      setAreasEdicao(initial);
-      setOpenAreaModal(true);
-    } else {
-      setOpenAreaModal(false);
-    }
-  }, [produtoresDoConsultor, hasFazendasSemArea, fazendasPorProdutor, modalDismissed]);
-
-  const handleAreaChange = (key: string, value: string) => {
-    setAreasEdicao((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const salvarAreas = async () => {
-    // Identifica apenas as fazendas que realmente mudaram
-    const mudancas: Array<{ numerocm: string; idfazenda: string; valor: number }> = [];
-
-    for (const f of allFazendas) {
-      const key = areaKey(f.numerocm, f.idfazenda);
-      const val = areasEdicao[key];
-      if (val === undefined) continue;
-      const novoValor = Number(val);
-      const valorAtual = Number(f.area_cultivavel || 0);
-      if (novoValor >= 0 && novoValor !== valorAtual) {
-        mudancas.push({ numerocm: f.numerocm, idfazenda: f.idfazenda, valor: novoValor });
-      }
-    }
-
-    // Se não houver mudanças, apenas fecha o modal
-    if (mudancas.length === 0) {
-      setOpenAreaModal(false);
-      setModalDismissed(true);
-      return;
-    }
-
-    try {
-      let sucesso = 0;
-      let falha = 0;
-      for (const item of mudancas) {
-        const { data, error } = await supabase
-          .from("fazendas")
-          .update({ area_cultivavel: item.valor })
-          .eq("idfazenda", item.idfazenda)
-          .eq("numerocm", item.numerocm)
-          .select("id");
-        if (error) throw error;
-        if (data && data.length > 0) {
-          sucesso += 1;
-        } else {
-          falha += 1;
-        }
-      }
-      await queryClient.invalidateQueries({ queryKey: ["fazendas"] });
-      if (sucesso > 0) {
-        toast({
-          title: "Áreas atualizadas",
-          description: `${sucesso} fazenda${sucesso > 1 ? 's' : ''} atualizada${sucesso > 1 ? 's' : ''} com sucesso.`
-        });
-        setOpenAreaModal(false);
-        setModalDismissed(true);
-      }
-      if (falha > 0) {
-        toast({
-          title: "Algumas áreas não foram atualizadas",
-          description: `${falha} atualização${falha > 1 ? 's' : ''} sem permissão ou sem correspondência. Caso esteja logado como consultor, atualize via Admin.`,
-          variant: "destructive"
-        });
-      }
-    } catch (err: any) {
-      toast({ title: "Erro ao salvar áreas", description: err.message, variant: "destructive" });
-    }
-  };
+  // Área agora é calculada pelos talhões - modal de edição removido
 
   const loadingCounter = (isLoading: boolean, value: number) => {
     if (isLoading) {
@@ -267,78 +150,7 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Modal obrigatório de preenchimento da área cultivável */}
-        <AlertDialog open={openAreaModal}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Preencha a área cultivável das fazendas</AlertDialogTitle>
-              <AlertDialogDescription>
-                Antes de iniciar as programações, é necessário informar a área (hectares)
-                das fazendas abaixo vinculadas ao seu consultor.
-              </AlertDialogDescription>
-              <div className="text-sm mb-4">Fazendas pendentes: <span className="font-semibold">{pendentesCount}</span></div>
-            </AlertDialogHeader>
-            <div className="max-h-[400px] overflow-y-auto pr-2">
-              <Accordion type="multiple" className="w-full">
-                {produtoresDoConsultor.map((produtor) => {
-                  const fazendas = fazendasPorProdutor[produtor.numerocm] || [];
-                  const fazendasPendentes = fazendas.filter(
-                    (f) => Number(areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? 0) <= 0
-                  ).length;
-
-                  return (
-                    <AccordionItem key={produtor.numerocm} value={produtor.numerocm}>
-                      <AccordionTrigger className="hover:no-underline">
-                        <div className="flex items-center gap-2 flex-1">
-                          <span className="font-medium">{produtor.numerocm} - {produtor.nome}</span>
-                          {fazendasPendentes > 0 && (
-                            <Badge variant="destructive" className="ml-2">
-                              {fazendasPendentes} pendente{fazendasPendentes > 1 ? 's' : ''}
-                            </Badge>
-                          )}
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-3 pt-2">
-                          {fazendas.map((f) => (
-                            <div key={f.idfazenda} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end pl-4">
-                              <div className="space-y-1">
-                                <Label>Fazenda</Label>
-                                <div className="flex items-center gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <div className="text-sm font-medium">{f.nomefazenda}</div>
-                                    {Number(areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? (f.area_cultivavel ?? 0)) > 0 ? (
-                                      <span className="text-xs text-muted-foreground">({Number(areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? (f.area_cultivavel ?? 0))} ha)</span>
-                                    ) : (
-                                      <Badge variant="destructive">sem área(há)</Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <Label>Área (hectares)</Label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={areasEdicao[areaKey(f.numerocm, f.idfazenda)] ?? (f.area_cultivavel != null ? String(f.area_cultivavel) : "")}
-                                  onChange={(e) => handleAreaChange(areaKey(f.numerocm, f.idfazenda), e.target.value)}
-                                  placeholder="0.00"
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogAction onClick={salvarAreas}>Salvar e continuar</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {/* Modal de área cultivável removido - agora gerenciado via talhões */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-foreground mb-2">Dashboard</h2>
           <p className="text-muted-foreground">Gerencie programacoes agricolas e cultivos</p>

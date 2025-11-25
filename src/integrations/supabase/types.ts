@@ -214,7 +214,6 @@ export type Database = {
       }
       fazendas: {
         Row: {
-          area_cultivavel: number | null
           created_at: string | null
           id: string
           idfazenda: string
@@ -224,7 +223,6 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          area_cultivavel?: number | null
           created_at?: string | null
           id?: string
           idfazenda: string
@@ -234,7 +232,6 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          area_cultivavel?: number | null
           created_at?: string | null
           id?: string
           idfazenda?: string
@@ -719,6 +716,42 @@ export type Database = {
           },
         ]
       }
+      programacao_talhoes: {
+        Row: {
+          created_at: string
+          id: string
+          programacao_id: string
+          talhao_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          programacao_id: string
+          talhao_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          programacao_id?: string
+          talhao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_programacao"
+            columns: ["programacao_id"]
+            isOneToOne: false
+            referencedRelation: "programacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_talhao"
+            columns: ["talhao_id"]
+            isOneToOne: false
+            referencedRelation: "talhoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programacoes: {
         Row: {
           area: string
@@ -815,6 +848,41 @@ export type Database = {
         }
         Relationships: []
       }
+      talhoes: {
+        Row: {
+          area: number
+          created_at: string
+          fazenda_id: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          area: number
+          created_at?: string
+          fazenda_id: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          area?: number
+          created_at?: string
+          fazenda_id?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_fazenda"
+            columns: ["fazenda_id"]
+            isOneToOne: false
+            referencedRelation: "fazendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tratamentos_sementes: {
         Row: {
           ativo: boolean
@@ -868,6 +936,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_fazenda_area_cultivavel: {
+        Args: { fazenda_uuid: string }
+        Returns: number
+      }
+      get_programacao_area_total: {
+        Args: { programacao_uuid: string }
+        Returns: number
+      }
       get_user_consultor: { Args: never; Returns: string }
       has_role: {
         Args: {

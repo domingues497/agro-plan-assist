@@ -811,52 +811,20 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <div className="mt-2 space-y-2">
                   <Badge variant="destructive">Fazenda sem área (ha).</Badge>
                   {isConsultor && (
-                    <div className="flex items-end gap-2">
-                      <div className="flex-1">
-                        <Label>Área cultivável da fazenda (ha)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="Informe a área em hectares"
-                          value={areaHectares || ""}
-                          onChange={(e) => setAreaHectares(e.target.value)}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={async () => {
-                          try {
-                            const valor = Number(areaHectares);
-                            if (!fazendaIdfazenda) {
-                              toast({ title: "Seleção obrigatória", description: "Selecione a fazenda.", variant: "destructive" });
-                              return;
-                            }
-                            if (!valor || Number.isNaN(valor) || valor <= 0) {
-                              toast({ title: "Valor inválido", description: "Informe um número maior que zero.", variant: "destructive" });
-                              return;
-                            }
-                            const { data, error } = await supabase
-                              .from("fazendas")
-                              .update({ area_cultivavel: valor })
-                              .eq("idfazenda", fazendaIdfazenda)
-                              .select("id");
-                            if (error) throw error;
-                            if (!data || data.length === 0) {
-                              toast({ title: "Atualização não aplicada", description: "Sem permissão ou fazenda não encontrada.", variant: "destructive" });
-                              return;
-                            }
-                            // Atualiza cache e estado local
-                            queryClient.invalidateQueries({ queryKey: ["fazendas"] });
-                            setFazendaFiltrada((prev) => prev.map((f) => f.idfazenda === fazendaIdfazenda ? { ...f, area_cultivavel: valor } : f));
-                            toast({ title: "Área atualizada", description: "A área da fazenda foi salva.", variant: "default" });
-                          } catch (err: any) {
-                            toast({ title: "Erro ao salvar área", description: err?.message || "Verifique suas permissões.", variant: "destructive" });
-                          }
-                        }}
-                      >
-                        Salvar na fazenda
-                      </Button>
+                    <div className="space-y-2">
+                      <Label>Área cultivável da fazenda (ha)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Informe a área em hectares"
+                        value={areaHectares || ""}
+                        onChange={(e) => setAreaHectares(e.target.value)}
+                        disabled
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        A área da fazenda agora é calculada automaticamente pela soma dos talhões. 
+                        Para modificar, cadastre ou edite os talhões da fazenda na página Admin.
+                      </p>
                     </div>
                   )}
                 </div>
