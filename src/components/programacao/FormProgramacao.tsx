@@ -178,7 +178,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
-              {cultivaresDistinct.map((c) => (
+              {cultivaresDistinct.filter(c => c.cultivar).map((c) => (
                 <SelectItem key={`cult-${c.cultivar ?? 'null'}`} value={c.cultivar || ""}>
                   {c.cultivar}
                 </SelectItem>
@@ -478,7 +478,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     return (fertilizantes || [])
       .filter((f) => {
         const nome = String(f.item || "").trim();
-        if (!nome || seen.has(nome)) return false;
+        if (!nome || nome === "null" || nome === "undefined" || seen.has(nome)) return false;
         seen.add(nome);
         return true;
       });
@@ -489,7 +489,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     return (cultivares || [])
       .filter((c) => {
         const nome = String(c.cultivar || "").trim();
-        if (!nome || seen.has(nome)) return false;
+        if (!nome || nome === "null" || nome === "undefined" || seen.has(nome)) return false;
         seen.add(nome);
         return true;
       });
@@ -1256,7 +1256,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         {item.formulacao && !fertilizantesDistinct.some((f) => (f.item || "") === item.formulacao) && (
                           <SelectItem value={item.formulacao}>{item.formulacao}</SelectItem>
                         )}
-                        {fertilizantesDistinct.map((f) => (
+                        {fertilizantesDistinct.filter(f => f.item).map((f) => (
                           <SelectItem key={f.cod_item ?? f.item} value={f.item || ""}>
                             {f.item}
                           </SelectItem>
