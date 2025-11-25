@@ -601,6 +601,10 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
   console.log('📦 Total items in catalog:', defensivosCatalog?.length);
   console.log('🎯 Selected class:', selectedClasse);
   
+  // Debug: quantos INSETICIDA existem no catálogo original?
+  const inseticidasCount = defensivosCatalog?.filter((d: any) => d.grupo === 'INSETICIDA').length || 0;
+  console.log('🔢 Items com grupo="INSETICIDA" no catálogo original:', inseticidasCount);
+  
   const filteredCatalog = (defensivosCatalog || []).filter((d: any) => {
     const cls = String(selectedClasse || "").trim();
     if (!cls) return true;
