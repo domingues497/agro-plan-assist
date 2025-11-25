@@ -33,7 +33,7 @@ interface FormProgramacaoProps {
   onCancel: () => void;
   title?: string;
   submitLabel?: string;
-  initialData?: Partial<CreateProgramacao>;
+  initialData?: Partial<CreateProgramacao> & { talhoes_ids?: string[] };
 }
 
 // Tipo para defensivo dentro da cultivar
@@ -556,6 +556,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (typeof initialData.area === "string") setArea(initialData.area);
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
+    if (Array.isArray(initialData.talhoes_ids)) setTalhoesSelecionados(initialData.talhoes_ids);
     if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => {
       const tipo = normalizeTipoTratamento((c as any).tipo_tratamento);
       const base: ItemCultivar & { uiId: string } = { ...(c as ItemCultivar), tipo_tratamento: tipo, uiId: makeUiId() };
@@ -589,24 +590,30 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   }, [naoFazerAdubacao]);
 
   useEffect(() => {
-    if (produtorNumerocm) {
+    if (produtorNumerocm && !initialData) {
       const filtered = fazendas.filter(f => f.numerocm === produtorNumerocm);
       setFazendaFiltrada(filtered);
       setFazendaIdfazenda("");
       setArea("");
       setAreaHectares("");
       setTalhoesSelecionados([]);
+    } else if (produtorNumerocm) {
+      const filtered = fazendas.filter(f => f.numerocm === produtorNumerocm);
+      setFazendaFiltrada(filtered);
     }
-  }, [produtorNumerocm, fazendas]);
+  }, [produtorNumerocm, fazendas, initialData]);
 
-  // Resetar talhões ao trocar de fazenda
+  // Resetar talhões ao trocar de fazenda (somente quando não está editando)
   useEffect(() => {
-    if (fazendaIdfazenda) {
+    if (fazendaIdfazenda && !initialData) {
       setTalhoesSelecionados([]);
       const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
       setArea(fazendaSelecionada?.nomefazenda || "");
+    } else if (fazendaIdfazenda) {
+      const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
+      setArea(fazendaSelecionada?.nomefazenda || "");
     }
-  }, [fazendaIdfazenda, fazendaFiltrada]);
+  }, [fazendaIdfazenda, fazendaFiltrada, initialData]);
 
   const handleAddCultivar = () => {
     setItensCultivar([...itensCultivar, {
