@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ArrowLeft, Trash2, Pencil, Copy, Check, ChevronsUpDown } from "lucide-react";
+import { Calendar, ArrowLeft, Trash2, Pencil, Copy, Check, ChevronsUpDown, Settings } from "lucide-react";
 import { useProgramacoes } from "@/hooks/useProgramacoes";
 import { FormProgramacao } from "@/components/programacao/FormProgramacao";
 import { useFazendas } from "@/hooks/useFazendas";
@@ -17,6 +17,7 @@ import { cn, safeRandomUUID } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 
 export default function Programacao() {
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +39,10 @@ export default function Programacao() {
   const [selectedAreaPairs, setSelectedAreaPairs] = useState<Array<{ produtor_numerocm: string; fazenda_idfazenda: string; nomefazenda: string; area_hectares: number }>>([]);
   const [replicateTargets, setReplicateTargets] = useState<Array<{ produtor_numerocm: string; fazenda_idfazenda: string; area_hectares: number }>>([]);
   const { data: fazendasReplicate = [] } = useFazendas(replicateProdutorNumerocm);
+
+  // Gerenciar talhões
+  const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
+  const [fazendaParaTalhoes, setFazendaParaTalhoes] = useState<{ id: string; nome: string } | null>(null);
 
   const temAreasCadastradas = fazendas.length > 0;
 
@@ -171,13 +176,20 @@ export default function Programacao() {
                           <p className="flex items-center gap-2">
                             <span className="font-medium">Fazenda:</span>
                             <span>{fazenda?.nomefazenda || "—"}</span>
-                            {Number(fazenda?.area_cultivavel || 0) > 0 ? (
-                              <span className="text-xs text-muted-foreground">({Number(fazenda!.area_cultivavel || 0)} ha)</span>
-                            ) : Number(prog.area_hectares || 0) > 0 ? (
-                              <span className="text-xs text-muted-foreground">({Number(prog.area_hectares || 0)} ha)</span>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">sem área(há)</Badge>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                if (fazenda) {
+                                  setFazendaParaTalhoes({ id: fazenda.id, nome: fazenda.nomefazenda });
+                                  setGerenciarTalhoesOpen(true);
+                                }
+                              }}
+                              title="Gerenciar talhões"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
                           </p>
                         </div>
                         
@@ -464,6 +476,16 @@ export default function Programacao() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Dialog de Gerenciar Talhões */}
+    {fazendaParaTalhoes && (
+      <GerenciarTalhoes
+        fazendaId={fazendaParaTalhoes.id}
+        fazendaNome={fazendaParaTalhoes.nome}
+        open={gerenciarTalhoesOpen}
+        onOpenChange={setGerenciarTalhoesOpen}
+      />
+    )}
     </div>
   );
 }
