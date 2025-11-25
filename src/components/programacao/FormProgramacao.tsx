@@ -832,35 +832,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 })}
               </SelectContent>
             </Select>
-            {(() => {
-              // Exibe o aviso somente quando há fazenda selecionada
-              if (!fazendaIdfazenda) return null;
-              const fSel = fazendaFiltrada.find((f) => String(f.idfazenda) === String(fazendaIdfazenda));
-              if (!fSel) return null;
-              const invalid = fSel.area_cultivavel == null || Number(fSel.area_cultivavel) <= 0;
-              return invalid ? (
-                <div className="mt-2 space-y-2">
-                  <Badge variant="destructive">Fazenda sem área (ha).</Badge>
-                  {isConsultor && (
-                    <div className="space-y-2">
-                      <Label>Área cultivável da fazenda (ha)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="Informe a área em hectares"
-                        value={areaHectares || ""}
-                        onChange={(e) => setAreaHectares(e.target.value)}
-                        disabled
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        A área da fazenda agora é calculada automaticamente pela soma dos talhões. 
-                        Para modificar, cadastre ou edite os talhões da fazenda na página Admin.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : null;
-            })()}
             
           </div>
 
@@ -967,13 +938,40 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
         {fazendaIdfazenda && talhoesDaFazenda.length === 0 && (
           <div className="border-t pt-6">
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-              <p className="text-sm text-yellow-800 font-medium">
-                ⚠️ Esta fazenda não possui talhões cadastrados
-              </p>
-              <p className="text-sm text-yellow-700 mt-1">
-                Para utilizar o sistema de talhões, acesse a página Admin e cadastre os talhões desta fazenda.
-              </p>
+            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <p className="text-base font-semibold text-amber-900">
+                    ⚠️ Talhões não cadastrados
+                  </p>
+                  <p className="text-sm text-amber-800">
+                    Para continuar com a programação, você precisa cadastrar os talhões desta fazenda (nome e área em hectares).
+                  </p>
+                  <p className="text-sm text-amber-700 font-medium mt-3">
+                    Após cadastrar os talhões:
+                  </p>
+                  <ol className="list-decimal list-inside text-sm text-amber-800 space-y-1 ml-2">
+                    <li>A soma das áreas dos talhões aparecerá automaticamente</li>
+                    <li>Selecione os talhões desejados para a programação</li>
+                    <li>A área total será calculada automaticamente</li>
+                  </ol>
+                  <div className="pt-3">
+                    <Button
+                      type="button"
+                      variant="default"
+                      onClick={() => window.location.href = '/admin?tab=talhoes'}
+                      className="bg-amber-600 hover:bg-amber-700"
+                    >
+                      Ir para Admin → Talhões
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
