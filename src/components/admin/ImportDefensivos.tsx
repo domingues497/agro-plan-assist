@@ -28,6 +28,7 @@ export const ImportDefensivos = () => {
   const [limparAntes, setLimparAntes] = useState(false);
   const [deletedRows, setDeletedRows] = useState(0);
   const [file, setFile] = useState<File | null>(null);
+  const [isSyncingApi, setIsSyncingApi] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -143,6 +144,52 @@ export const ImportDefensivos = () => {
     }
   };
 
+  const handleSyncApi = async () => {
+    setIsSyncingApi(true);
+    setIsImporting(true);
+    setShowSummary(false);
+    setImportedRows(0);
+    setDeletedRows(0);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const { data, error } = await supabase.functions.invoke('defensivos-sync', {
+        body: { limparAntes }
+      });
+
+      if (error) {
+        console.error('Erro na função defensivos-sync:', error);
+        toast.error('Erro ao sincronizar via API');
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(String(data.error));
+        return;
+      }
+
+      const imported = Number(data?.imported || 0);
+      const deleted = Number(data?.deleted || 0);
+      setImportedRows(imported);
+      setDeletedRows(deleted);
+      setTotalRows(imported); // não temos total da API, usamos importados como proxy
+
+      // Registrar no histórico já é feito na função Edge; aqui apenas feedback
+      toast.success(`Sincronização concluída! ${imported} registros importados${deleted ? `, ${deleted} removidos` : ''}`);
+      setShowSummary(true);
+      setFile(null);
+      setLimparAntes(false);
+    } catch (err) {
+      console.error('Erro ao sincronizar API:', err);
+      toast.error('Erro ao sincronizar API');
+    } finally {
+      setIsSyncingApi(false);
+      setIsImporting(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -161,7 +208,7 @@ export const ImportDefensivos = () => {
               type="file"
               accept=".xlsx,.xls"
               onChange={handleFileUpload}
-              disabled={isImporting}
+              disabled={isImporting || isSyncingApi}
             />
           </div>
         </div>
@@ -178,9 +225,14 @@ export const ImportDefensivos = () => {
           </Label>
         </div>
 
-        <Button onClick={handleImport} disabled={isImporting || !file}>
-          {isImporting ? "Importando..." : "Importar"}
-        </Button>
+        <div className="flex gap-3">
+          <Button onClick={handleImport} disabled={isImporting || isSyncingApi || !file}>
+            {isImporting && !isSyncingApi ? "Importando..." : "Importar"}
+          </Button>
+          <Button variant="secondary" onClick={handleSyncApi} disabled={isImporting || isSyncingApi}>
+            {isSyncingApi ? "Sincronizando..." : "Sincronizar via API"}
+          </Button>
+        </div>
         {isImporting && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
