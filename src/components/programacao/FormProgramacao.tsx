@@ -275,7 +275,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                 <CommandList>
                   <CommandEmpty>Nenhum tratamento encontrado.</CommandEmpty>
                   <CommandGroup>
-                    {tratamentosDisponiveis.map((t) => {
+                    {Array.isArray(tratamentosDisponiveis) && tratamentosDisponiveis.filter(t => t && t.id).map((t) => {
                       const selected = Array.isArray((item as any).tratamento_ids)
                         ? (item as any).tratamento_ids.includes(t.id)
                         : false;
@@ -315,7 +315,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
             </Button>
           </div>
 
-          {defensivosFazenda.map((defensivo, defIndex) => (
+          {Array.isArray(defensivosFazenda) && defensivosFazenda.map((defensivo, defIndex) => (
             <div key={defensivo.tempId} className="space-y-3 p-3 border rounded-md bg-muted/30">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -342,7 +342,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                         <CommandList>
                           <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
                           <CommandGroup>
-                            {defensivosCatalog.map((d) => (
+                            {Array.isArray(defensivosCatalog) && defensivosCatalog.filter(d => d && d.item && d.cod_item).map((d) => (
                               <CommandItem
                                 key={d.cod_item}
                                 value={`${d.item}`}
@@ -937,7 +937,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {talhoesDaFazenda.map((talhao) => (
+                {Array.isArray(talhoesDaFazenda) && talhoesDaFazenda.filter(t => t && t.id).map((talhao) => (
                   <div
                     key={talhao.id}
                     className={cn(
@@ -978,12 +978,12 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Área total da fazenda</p>
                       <p className="text-sm font-medium text-muted-foreground">
-                        {talhoesDaFazenda.reduce((sum, t) => sum + Number(t.area || 0), 0).toFixed(2)} ha
+                        {(Array.isArray(talhoesDaFazenda) ? talhoesDaFazenda : []).reduce((sum, t) => sum + Number(t?.area || 0), 0).toFixed(2)} ha
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground">Total de talhões</p>
-                      <p className="text-lg font-semibold">{talhoesDaFazenda.length}</p>
+                      <p className="text-lg font-semibold">{(Array.isArray(talhoesDaFazenda) ? talhoesDaFazenda : []).length}</p>
                     </div>
                   </div>
                 </div>
@@ -993,7 +993,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Talhões selecionados</p>
                       <p className="text-sm font-medium">
-                        {talhoesSelecionados.length} de {talhoesDaFazenda.length}
+                        {(Array.isArray(talhoesSelecionados) ? talhoesSelecionados : []).length} de {(Array.isArray(talhoesDaFazenda) ? talhoesDaFazenda : []).length}
                       </p>
                     </div>
                     <div className="text-right">
@@ -1163,13 +1163,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           <div className="space-y-4">
-            {itensCultivar.map((item, index) => (
+            {Array.isArray(itensCultivar) && itensCultivar.map((item, index) => (
               <CultivarRow
                 key={item.uiId}
                 item={item}
                 index={index}
                 cultivaresDistinct={cultivaresDistinct}
-                cultivaresCatalog={cultivares}
+                cultivaresCatalog={cultivares || []}
           canRemove={itensCultivar.length > 1}
           areaHectares={Number(areaHectares) || 0}
           onChange={handleCultivarChange}
@@ -1240,7 +1240,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             </div>
           ) : (
             <div className="space-y-4">
-              {itensAdubacao.map((item, index) => (
+              {Array.isArray(itensAdubacao) && itensAdubacao.map((item, index) => (
                 <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border rounded-lg">
                   <div className="space-y-2">
                     <Label>Formulação</Label>
