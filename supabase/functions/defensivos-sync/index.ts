@@ -157,11 +157,13 @@ serve(async (req) => {
     
     console.log(`📦 [API] ${items.length} itens recebidos da API externa`);
 
-    // Processar e importar
+    // Processar e importar em lotes
     console.log('🔄 [IMPORT] Iniciando processamento dos itens');
     let imported = 0;
     let skipped = 0;
     let errors = 0;
+    
+    const processedItems = [];
     
     for (const row of items as any[]) {
       const cod_item = row["CODITEM"] ?? row["COD.ITEM"] ?? row["COD. ITEM"] ?? row["cod_item"] ?? row["codigo"] ?? null;
@@ -183,27 +185,31 @@ serve(async (req) => {
         saldoNumerico = isNaN(saldoParsed) ? 0 : saldoParsed;
       }
 
-      const defensivoData = {
+      processedItems.push({
         cod_item: cod_item ?? null,
         item: normalizeProductName(item),
         grupo: grupo ? String(grupo).toUpperCase().trim() : null,
         marca: marca ? String(marca).toUpperCase().trim() : null,
         principio_ativo: principio_ativo ? String(principio_ativo).toUpperCase().trim() : null,
         saldo: saldoNumerico,
-      };
+      });
+    }
 
+    // Importar em lotes de 500
+    const batchSize = 500;
+    for (let i = 0; i < processedItems.length; i += batchSize) {
+      const batch = processedItems.slice(i, i + batchSize);
+      
       const { error } = await supabaseAdmin
         .from('defensivos_catalog')
-        .upsert(defensivoData, { onConflict: 'cod_item', ignoreDuplicates: false });
+        .upsert(batch, { onConflict: 'cod_item', ignoreDuplicates: false });
 
       if (!error) {
-        imported++;
-        if (imported % 100 === 0) {
-          console.log(`📊 [IMPORT] Progresso: ${imported} itens importados`);
-        }
+        imported += batch.length;
+        console.log(`📊 [IMPORT] Progresso: ${imported} itens importados`);
       } else {
-        errors++;
-        console.error(`❌ [IMPORT] Erro ao importar item ${cod_item}:`, error.message);
+        errors += batch.length;
+        console.error(`❌ [IMPORT] Erro ao importar lote:`, error.message);
       }
     }
     
