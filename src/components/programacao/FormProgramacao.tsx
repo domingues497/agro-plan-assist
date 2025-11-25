@@ -178,11 +178,14 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
-              {Array.isArray(cultivaresDistinct) && cultivaresDistinct.filter(c => c && c.cultivar).map((c) => (
-                <SelectItem key={`cult-${c.cultivar ?? 'null'}`} value={c.cultivar || ""}>
-                  {c.cultivar || 'Sem nome'}
-                </SelectItem>
-              ))}
+              {Array.isArray(cultivaresDistinct) && cultivaresDistinct.filter(c => c && c.cultivar).map((c) => {
+                if (!c || !c.cultivar) return null;
+                return (
+                  <SelectItem key={`cult-${c.cultivar}`} value={c.cultivar}>
+                    {c.cultivar}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -276,13 +279,14 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                   <CommandEmpty>Nenhum tratamento encontrado.</CommandEmpty>
                   <CommandGroup>
                     {Array.isArray(tratamentosDisponiveis) && tratamentosDisponiveis.filter(t => t && t.id && t.nome).map((t) => {
+                      if (!t || !t.id || !t.nome) return null;
                       const selected = Array.isArray((item as any).tratamento_ids)
                         ? (item as any).tratamento_ids.includes(t.id)
                         : false;
                       return (
                         <CommandItem
                           key={t.id}
-                          value={`${t.nome || ''}`}
+                          value={t.nome}
                           onSelect={() => {
                             const current = Array.isArray((item as any).tratamento_ids)
                               ? [...(item as any).tratamento_ids]
@@ -293,7 +297,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                           }}
                         >
                           <Check className={cn("mr-2 h-4 w-4", selected ? "opacity-100" : "opacity-0")} />
-                          {t.nome || 'Sem nome'}
+                          {t.nome}
                         </CommandItem>
                       );
                     })}
@@ -315,7 +319,9 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
             </Button>
           </div>
 
-          {Array.isArray(defensivosFazenda) && defensivosFazenda.filter(d => d && d.tempId).map((defensivo, defIndex) => (
+          {Array.isArray(defensivosFazenda) && defensivosFazenda.filter(d => d && d.tempId).map((defensivo, defIndex) => {
+            if (!defensivo || !defensivo.tempId) return null;
+            return (
             <div key={defensivo.tempId} className="space-y-3 p-3 border rounded-md bg-muted/30">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -434,7 +440,8 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
       <div className="flex items-center gap-2">
@@ -532,17 +539,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   // Buscar talhões da fazenda selecionada
   const fazendaSelecionadaObj = fazendas.find((f) => f.idfazenda === fazendaIdfazenda);
   const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaObj?.id);
-
-  // Log para debug
-  useEffect(() => {
-    console.log("Debug talhões:", {
-      fazendaIdfazenda,
-      fazendaSelecionadaObj,
-      talhoesDaFazenda,
-      isArray: Array.isArray(talhoesDaFazenda),
-      validTalhoes: talhoesDaFazenda?.filter(t => t && t.id && t.nome && t.area)
-    });
-  }, [fazendaIdfazenda, fazendaSelecionadaObj, talhoesDaFazenda]);
 
   // Calcular área automaticamente com base nos talhões selecionados
   useEffect(() => {
@@ -949,63 +945,49 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {(() => {
-                  console.log("Renderizando talhões:", {
-                    talhoesDaFazenda,
-                    isArray: Array.isArray(talhoesDaFazenda),
-                    length: talhoesDaFazenda?.length,
-                    filtered: talhoesDaFazenda?.filter(t => t && t.id && t.nome != null && t.area != null)
-                  });
-                  
                   if (!Array.isArray(talhoesDaFazenda) || talhoesDaFazenda.length === 0) {
                     return null;
                   }
                   
-                  const talhoesValidos = talhoesDaFazenda.filter(t => {
-                    const valido = t && t.id && t.nome != null && t.area != null;
-                    if (!valido) console.log("Talhão inválido:", t);
-                    return valido;
-                  });
+                  const talhoesValidos = talhoesDaFazenda.filter(t => t && t.id && t.nome != null && t.area != null);
                   
                   if (talhoesValidos.length === 0) {
                     return null;
                   }
                   
-                  return talhoesValidos.map((talhao) => {
-                    console.log("Renderizando talhão individual:", talhao);
-                    return (
-                      <div
-                        key={talhao.id}
-                        className={cn(
-                          "flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors",
-                          talhoesSelecionados.includes(talhao.id)
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        )}
-                        onClick={() => {
+                  return talhoesValidos.map((talhao) => (
+                    <div
+                      key={talhao.id}
+                      className={cn(
+                        "flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-colors",
+                        talhoesSelecionados.includes(talhao.id)
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      )}
+                      onClick={() => {
+                        setTalhoesSelecionados((prev) =>
+                          prev.includes(talhao.id)
+                            ? prev.filter((id) => id !== talhao.id)
+                            : [...prev, talhao.id]
+                        );
+                      }}
+                    >
+                      <Checkbox
+                        checked={talhoesSelecionados.includes(talhao.id)}
+                        onCheckedChange={(checked) => {
                           setTalhoesSelecionados((prev) =>
-                            prev.includes(talhao.id)
-                              ? prev.filter((id) => id !== talhao.id)
-                              : [...prev, talhao.id]
+                            checked
+                              ? [...prev, talhao.id]
+                              : prev.filter((id) => id !== talhao.id)
                           );
                         }}
-                      >
-                        <Checkbox
-                          checked={talhoesSelecionados.includes(talhao.id)}
-                          onCheckedChange={(checked) => {
-                            setTalhoesSelecionados((prev) =>
-                              checked
-                                ? [...prev, talhao.id]
-                                : prev.filter((id) => id !== talhao.id)
-                            );
-                          }}
-                        />
-                        <div className="flex-1 space-y-1">
-                          <Label className="font-medium cursor-pointer">{String(talhao.nome)}</Label>
-                          <p className="text-sm text-muted-foreground">{String(talhao.area)} ha</p>
-                        </div>
+                      />
+                      <div className="flex-1 space-y-1">
+                        <Label className="font-medium cursor-pointer">{String(talhao.nome)}</Label>
+                        <p className="text-sm text-muted-foreground">{String(talhao.area)} ha</p>
                       </div>
-                    );
-                  });
+                    </div>
+                  ));
                 })()}
               </div>
 
