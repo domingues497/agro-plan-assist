@@ -28,6 +28,8 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { ListConsultores } from "@/components/admin/ListConsultores";
 import { ListProdutores } from "@/components/admin/ListProdutores";
 import { ListFazendas } from "@/components/admin/ListFazendas";
+import { ListTalhoes } from "@/components/admin/ListTalhoes";
+import { ImportTalhoes } from "@/components/admin/ImportTalhoes";
 import { ListCalendario } from "@/components/admin/ListCalendario";
 import { ImportCultivaresTratamentos } from "@/components/admin/ImportCultivaresTratamentos";
 
@@ -208,6 +210,14 @@ export default function Admin() {
                     Fazendas
                   </Button>
                   <Button
+                    variant={selected === "talhoes" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("talhoes")}
+                  >
+                    Talhões
+                  </Button>
+                  <Button
                     variant={selected === "consultores" ? "secondary" : "ghost"}
                     className="w-full justify-start"
                     size="sm"
@@ -335,6 +345,12 @@ export default function Admin() {
             <>
               <ImportFazendas />
               <ListFazendas />
+            </>
+          )}
+          {selected === "talhoes" && (
+            <>
+              <ImportTalhoes />
+              <ListTalhoes />
             </>
           )}
           {selected === "safras" && <ImportSafras />}
