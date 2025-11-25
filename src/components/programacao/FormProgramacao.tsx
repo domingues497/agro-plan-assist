@@ -348,16 +348,19 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                         <CommandList>
                           <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
                           <CommandGroup>
-                            {Array.isArray(defensivosCatalog) && defensivosCatalog.filter(d => d && d.item && d.cod_item).map((d) => (
-                              <CommandItem
-                                key={d.cod_item}
-                                value={`${d.item || ''}`}
-                                onSelect={() => handleDefensivoChange(defensivo.tempId, "defensivo", d.item)}
-                              >
-                                <Check className={cn("mr-2 h-4 w-4", defensivo.defensivo === d.item ? "opacity-100" : "opacity-0")} />
-                                {d.item || 'Sem nome'}
-                              </CommandItem>
-                            ))}
+                            {Array.isArray(defensivosCatalog) && defensivosCatalog.filter(d => d && d.item && d.cod_item).map((d) => {
+                              if (!d || !d.item || !d.cod_item) return null;
+                              return (
+                                <CommandItem
+                                  key={d.cod_item}
+                                  value={`${d.item || ''}`}
+                                  onSelect={() => handleDefensivoChange(defensivo.tempId, "defensivo", d.item)}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", defensivo.defensivo === d.item ? "opacity-100" : "opacity-0")} />
+                                  {d.item || 'Sem nome'}
+                                </CommandItem>
+                              );
+                            })}
                           </CommandGroup>
                         </CommandList>
                       </Command>
@@ -882,11 +885,14 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione o produtor" />
               </SelectTrigger>
               <SelectContent>
-                {Array.isArray(produtores) && produtores.filter(p => p && p.numerocm && p.nome).map((p) => (
-                  <SelectItem key={p.numerocm} value={p.numerocm}>
-                    {p.nome}
-                  </SelectItem>
-                ))}
+                {Array.isArray(produtores) && produtores.filter(p => p && p.numerocm && p.nome).map((p) => {
+                  if (!p || !p.numerocm || !p.nome) return null;
+                  return (
+                    <SelectItem key={p.numerocm} value={p.numerocm}>
+                      {p.nome}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -922,11 +928,14 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione a safra" className="truncate" />
               </SelectTrigger>
               <SelectContent>
-                {Array.isArray(safras) && safras.filter(s => s && s.ativa && s.id && s.nome).map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.nome}{s.is_default ? " (Padrão)" : ""}
-                  </SelectItem>
-                ))}
+                {Array.isArray(safras) && safras.filter(s => s && s.ativa && s.id && s.nome).map((s) => {
+                  if (!s || !s.id || !s.nome) return null;
+                  return (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nome}{s.is_default ? " (Padrão)" : ""}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -1071,8 +1080,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         </DialogHeader>
                         
                         <div className="space-y-4">
-                          {Array.isArray(novosTalhoes) && novosTalhoes.map((talhao, index) => (
-                            <div key={index} className="flex gap-3 items-end">
+                          {Array.isArray(novosTalhoes) && novosTalhoes.map((talhao, index) => {
+                            if (!talhao) return null;
+                            return (
+                              <div key={index} className="flex gap-3 items-end">
                               <div className="flex-1 space-y-2">
                                 <Label>Nome do Talhão</Label>
                                 <Input
@@ -1111,7 +1122,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                                 </Button>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
                           
                           <Button
                             type="button"
@@ -1249,18 +1261,23 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   <SelectValue placeholder="Selecione a justificativa" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.isArray(justificativas) && justificativas.filter(j => j && j.id && j.descricao).map((j) => (
-                    <SelectItem key={j.id} value={j.id}>
-                      {j.descricao}
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(justificativas) && justificativas.filter(j => j && j.id && j.descricao).map((j) => {
+                    if (!j || !j.id || !j.descricao) return null;
+                    return (
+                      <SelectItem key={j.id} value={j.id}>
+                        {j.descricao}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
           ) : (
             <div className="space-y-4">
-              {Array.isArray(itensAdubacao) && itensAdubacao.map((item, index) => (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border rounded-lg">
+              {Array.isArray(itensAdubacao) && itensAdubacao.map((item, index) => {
+                if (!item) return null;
+                return (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border rounded-lg">
                   <div className="space-y-2">
                     <Label>Formulação</Label>
                     <Select
@@ -1275,11 +1292,14 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         {item.formulacao && !fertilizantesDistinct.some((f) => (f.item || "") === item.formulacao) && (
                           <SelectItem value={item.formulacao}>{item.formulacao}</SelectItem>
                         )}
-                        {Array.isArray(fertilizantesDistinct) && fertilizantesDistinct.filter(f => f && f.item && f.cod_item).map((f) => (
-                          <SelectItem key={f.cod_item ?? f.item} value={f.item || ""}>
-                            {f.item || 'Sem nome'}
-                          </SelectItem>
-                        ))}
+                        {Array.isArray(fertilizantesDistinct) && fertilizantesDistinct.filter(f => f && f.item && f.cod_item).map((f) => {
+                          if (!f || !f.item || !f.cod_item) return null;
+                          return (
+                            <SelectItem key={f.cod_item ?? f.item} value={f.item || ""}>
+                              {f.item || 'Sem nome'}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1341,7 +1361,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   <Label htmlFor={`adubacao-salvo-${index}`}>Fertilizante salvo de safra anterior (RN012)</Label>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
