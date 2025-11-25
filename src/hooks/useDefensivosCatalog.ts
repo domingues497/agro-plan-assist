@@ -10,7 +10,8 @@ export const useDefensivosCatalog = () => {
       const { data, error, count } = await supabase
         .from("defensivos_catalog")
         .select("item, cod_item, marca, principio_ativo, grupo, saldo", { count: 'exact' })
-        .order("item");
+        .order("item")
+        .range(0, 9999);
 
       if (error) {
         console.error("Erro ao buscar defensivos:", error);
