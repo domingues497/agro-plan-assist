@@ -96,25 +96,31 @@ Deno.serve(async (req) => {
       console.log(`✅ [CLEANUP] ${deletedRecords} registros removidos com sucesso`);
     }
 
-    // Buscar URL da API da tabela system_config
-    console.log('📖 [CONFIG] Buscando URL da API');
+    // Buscar configurações da API da tabela system_config
+    console.log('📖 [CONFIG] Buscando configurações da API');
     const { data: configData } = await supabaseAdmin
       .from('system_config')
-      .select('config_value')
-      .eq('config_key', 'api_defensivos_url')
-      .single();
+      .select('config_key, config_value')
+      .in('config_key', ['api_defensivos_url', 'api_defensivos_secret', 'api_defensivos_client_id', 'api_defensivos_exp']);
     
-    const EXTERNAL_API_URL = configData?.config_value ?? Deno.env.get('EXTERNAL_API_URL') ?? 'http://200.195.154.187:8001/v1/itens';
-    const EXTERNAL_API_SECRET = Deno.env.get('EXTERNAL_API_SECRET') ?? 'Co0p@gr!#0la';
+    const configs = Object.fromEntries(
+      (configData || []).map(c => [c.config_key, c.config_value])
+    );
+    
+    const EXTERNAL_API_URL = configs.api_defensivos_url ?? Deno.env.get('EXTERNAL_API_URL') ?? 'http://200.195.154.187:8001/v1/itens';
+    const EXTERNAL_API_SECRET = configs.api_defensivos_secret ?? Deno.env.get('EXTERNAL_API_SECRET') ?? 'Co0p@gr!#0la';
+    const CLIENT_ID = configs.api_defensivos_client_id ?? 'admin';
+    const JWT_EXP = configs.api_defensivos_exp ?? '1893456000';
 
     console.log('🌐 [API] Consultando API externa:', EXTERNAL_API_URL);
     const apiStartTime = Date.now();
 
     // Gerar JWT válido para autenticação na API externa
     const secret = new TextEncoder().encode(EXTERNAL_API_SECRET);
-    const jwt = await new jose.SignJWT({ client_id: 'admin' })
+    const jwt = await new jose.SignJWT({ client_id: CLIENT_ID })
       .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('2030-01-01')
+      .setIssuedAt()
+      .setExpirationTime(parseInt(JWT_EXP))
       .sign(secret);
 
     console.log('🔐 [AUTH] Token JWT gerado para API externa');
