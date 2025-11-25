@@ -5,13 +5,21 @@ export const useDefensivosCatalog = () => {
   return useQuery({
     queryKey: ["defensivos-catalog"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      console.log("Buscando defensivos do catálogo...");
+      
+      const { data, error, count } = await supabase
         .from("defensivos_catalog")
-        .select("item, cod_item, marca, principio_ativo, grupo, saldo")
-        .order("item")
-        .range(0, 99999);
+        .select("item, cod_item, marca, principio_ativo, grupo, saldo", { count: 'exact' })
+        .order("item");
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro ao buscar defensivos:", error);
+        throw error;
+      }
+      
+      console.log(`Total de registros no banco: ${count}`);
+      console.log(`Total de registros retornados: ${data?.length || 0}`);
+      
       return data;
     },
   });
