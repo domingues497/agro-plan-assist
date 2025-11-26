@@ -16,6 +16,7 @@ export interface DefensivoFazenda {
 
 export interface ItemCultivar {
   cultivar: string;
+  cultura?: string;
   percentual_cobertura: number;
   tipo_embalagem: "BAG 5000K" | "SACAS 200K";
   tipo_tratamento: "NÃO" | "NA FAZENDA" | "INDUSTRIAL";
