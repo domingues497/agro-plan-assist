@@ -19,7 +19,8 @@ import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useTalhoes } from "@/hooks/useTalhoes";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Settings } from "lucide-react";
+import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/hooks/useProfile";
@@ -523,6 +524,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   );
 
   const [fazendaFiltrada, setFazendaFiltrada] = useState<any[]>([]);
+  const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
   
   // Busca os talhões da fazenda selecionada
   const fazendaSelecionadaId = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda)?.id;
@@ -808,7 +810,21 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           <div className="space-y-2">
-            <Label>Fazenda</Label>
+            <div className="flex items-center justify-between">
+              <Label>Fazenda</Label>
+              {fazendaIdfazenda && fazendaSelecionadaId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setGerenciarTalhoesOpen(true)}
+                  className="h-8 gap-1"
+                >
+                  <Settings className="h-4 w-4" />
+                  Gerenciar Talhões
+                </Button>
+              )}
+            </div>
             <Select value={fazendaIdfazenda} onValueChange={setFazendaIdfazenda} disabled={!produtorNumerocm}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a fazenda" />
@@ -1078,6 +1094,15 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </Button>
         </div>
       </form>
+      
+      {fazendaSelecionadaId && (
+        <GerenciarTalhoes
+          fazendaId={fazendaSelecionadaId}
+          fazendaNome={fazendaFiltrada.find(f => f.id === fazendaSelecionadaId)?.nomefazenda || ""}
+          open={gerenciarTalhoesOpen}
+          onOpenChange={setGerenciarTalhoesOpen}
+        />
+      )}
     </Card>
   );
 };
