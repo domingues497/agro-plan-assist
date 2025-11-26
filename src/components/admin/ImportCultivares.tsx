@@ -152,7 +152,7 @@ export const ImportCultivares = () => {
           continue;
         }
         
-        // Normalizar cultura para obedecer à constraint do banco (MILHO/SOJA)
+        // Normalizar cultura (aceitar qualquer cultura, apenas normalizar o texto)
         const culturaRaw = (
           row["CULTURA"] || 
           row["Cultura"] || 
@@ -164,15 +164,18 @@ export const ImportCultivares = () => {
 
         let cultura: string | null = null;
         if (culturaRaw) {
-          const c = culturaRaw.replace(/\s+/g, " ").trim();
-          if (["MILHO", "ZEA MAYS", "MILHO HÍBRIDO", "MILHO HIDRIDO"].includes(c)) {
+          // Remover espaços extras e normalizar
+          cultura = culturaRaw.replace(/\s+/g, " ").trim();
+          
+          // Normalizar variações conhecidas para nomes padrão
+          if (["ZEA MAYS", "MILHO HÍBRIDO", "MILHO HIDRIDO"].includes(cultura)) {
             cultura = "MILHO";
-          } else if (["SOJA", "GLYCINE MAX", "SOJA RR", "SOJA CONVENCIONAL"].includes(c)) {
+          } else if (["GLYCINE MAX", "SOJA RR", "SOJA CONVENCIONAL"].includes(cultura)) {
             cultura = "SOJA";
-          } else {
-            // Valores não suportados pela constraint: deixar nulo para não violar CHECK
-            cultura = null;
+          } else if (["AVEIA BRANCA", "AVEIA PRETA"].includes(cultura)) {
+            cultura = "AVEIA";
           }
+          // Outras culturas mantêm o nome original normalizado
         }
 
         const nomeCientifico = (
