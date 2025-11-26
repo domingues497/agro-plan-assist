@@ -17,7 +17,7 @@ export const ListCultivares = () => {
     const base = data || [];
     if (!q) return base;
     const result = base.filter((c: any) => {
-      const hay = `${c.cod_item ?? ""} ${c.item ?? ""} ${c.grupo ?? ""} ${c.marca ?? ""} ${c.cultivar ?? ""} ${c.cultura ?? ""}`.toLowerCase();
+      const hay = `${c.cultivar ?? ""} ${c.cultura ?? ""} ${c.nome_cientifico ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
     return result;
@@ -37,7 +37,7 @@ export const ListCultivares = () => {
       <CardContent>
         <div className="flex items-center gap-2 mb-3">
           <Input
-            placeholder="Buscar por nome, grupo, marca..."
+            placeholder="Buscar por cultivar, cultura ou nome científico..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -63,24 +63,22 @@ export const ListCultivares = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[120px]">Código</TableHead>
                 <TableHead>Cultivar</TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead>Marca</TableHead>
+                <TableHead>Cultura</TableHead>
+                <TableHead>Nome científico</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paged.map((c: any, idx: number) => (
                 <TableRow key={`${c.cod_item}-${idx}`}>
-                  <TableCell>{c.cod_item}</TableCell>
                   <TableCell>{c.cultivar}</TableCell>
-                  <TableCell>{c.item}</TableCell>
-                  <TableCell>{c.marca}</TableCell>
+                  <TableCell>{c.cultura}</TableCell>
+                  <TableCell>{c.nome_cientifico}</TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
+                  <TableCell colSpan={3} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>

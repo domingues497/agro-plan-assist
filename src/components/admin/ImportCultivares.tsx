@@ -117,14 +117,28 @@ export const ImportCultivares = () => {
           continue;
         }
         
-        const cultura = (
+        // Normalizar cultura para obedecer à constraint do banco (MILHO/SOJA)
+        const culturaRaw = (
           row["CULTURA"] || 
           row["Cultura"] || 
           row["cultura"] ||
           row["CULTURA "] ||
           row[" CULTURA"] ||
           ""
-        )?.toString().toUpperCase().trim() || null;
+        )?.toString().toUpperCase().trim();
+
+        let cultura: string | null = null;
+        if (culturaRaw) {
+          const c = culturaRaw.replace(/\s+/g, " ").trim();
+          if (["MILHO", "ZEA MAYS", "MILHO HÍBRIDO", "MILHO HIDRIDO"].includes(c)) {
+            cultura = "MILHO";
+          } else if (["SOJA", "GLYCINE MAX", "SOJA RR", "SOJA CONVENCIONAL"].includes(c)) {
+            cultura = "SOJA";
+          } else {
+            // Valores não suportados pela constraint: deixar nulo para não violar CHECK
+            cultura = null;
+          }
+        }
 
         const nomeCientifico = (
           row["NOME_CIENTIFICO"] || 
@@ -152,6 +166,7 @@ export const ImportCultivares = () => {
       const batchSize = 500;
       const dataArray = Array.from(processedData.values());
       let imported = 0;
+      let failedBatches = 0;
       
       for (let i = 0; i < dataArray.length; i += batchSize) {
         const batch = dataArray.slice(i, i + batchSize);
@@ -165,6 +180,7 @@ export const ImportCultivares = () => {
 
         if (error) {
           console.error("Erro ao importar lote:", error);
+          failedBatches++;
         } else {
           imported += batch.length;
           setImportedRows(imported);
@@ -182,10 +198,10 @@ export const ImportCultivares = () => {
       });
 
       const skippedCount = totalRows - dataArray.length;
-      console.log(`Importação concluída: ${imported} importados, ${skippedCount} ignorados`);
+      console.log(`Importação concluída: ${imported} importados, ${skippedCount} ignorados, ${failedBatches} lotes com erro`);
       
       if (imported > 0) {
-        toast.success(`Importação concluída! ${imported} registros únicos importados${skippedCount > 0 ? ` (${skippedCount} linhas ignoradas)` : ''}`);
+        toast.success(`Importação concluída! ${imported} registros únicos importados${skippedCount > 0 ? ` (${skippedCount} linhas ignoradas)` : ''}${failedBatches > 0 ? `, ${failedBatches} lotes com erro` : ''}`);
       } else {
         toast.error(`Nenhum registro foi importado. Verifique o formato do arquivo e as colunas: CULTIVAR, CULTURA, NOME_CIENTIFICO`);
       }
