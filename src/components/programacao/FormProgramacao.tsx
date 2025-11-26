@@ -1137,12 +1137,19 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label>Responsável</Label>
-                      <Input
-                        value={item.responsavel || ""}
-                        onChange={(e) => handleAdubacaoChange(index, "responsavel", e.target.value)}
-                        placeholder="Nome do responsável"
-                      />
+                      <Label>Embalagem</Label>
+                      <Select
+                        value={item.embalagem || ""}
+                        onValueChange={(value) => handleAdubacaoChange(index, "embalagem", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Big Bag">Big Bag</SelectItem>
+                          <SelectItem value="Saca">Saca</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="flex items-end">
