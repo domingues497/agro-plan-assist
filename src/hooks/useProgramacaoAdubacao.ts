@@ -12,7 +12,7 @@ export type ProgramacaoAdubacao = {
   dose: number;
   percentual_cobertura: number;
   data_aplicacao: string | null;
-  responsavel: string | null;
+  embalagem: string | null;
   justificativa_nao_adubacao_id?: string | null;
   fertilizante_salvo: boolean;
   deve_faturar: boolean;

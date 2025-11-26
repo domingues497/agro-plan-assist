@@ -95,7 +95,7 @@ const Adubacao = () => {
               dose: editing.dose,
               total: editing.total,
               data_aplicacao: editing.data_aplicacao,
-              responsavel: editing.responsavel,
+              embalagem: editing.embalagem,
               fertilizante_salvo: editing.fertilizante_salvo,
               deve_faturar: editing.deve_faturar,
               porcentagem_salva: editing.porcentagem_salva,
@@ -151,9 +151,9 @@ const Adubacao = () => {
                             {new Date(item.data_aplicacao).toLocaleDateString("pt-BR")}
                           </p>
                         )}
-                        {item.responsavel && (
+                        {item.embalagem && (
                           <p>
-                            <span className="font-medium">Responsável:</span> {item.responsavel}
+                            <span className="font-medium">Embalagem:</span> {item.embalagem}
                           </p>
                         )}
                         {item.fertilizante_salvo && item.porcentagem_salva > 0 && (
