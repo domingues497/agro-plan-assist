@@ -17,7 +17,6 @@ import type { DefensivoItem } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useSafras } from "@/hooks/useSafras";
 import { supabase } from "@/integrations/supabase/client";
-import { useProgramacoes } from "@/hooks/useProgramacoes";
 
 type FormAplicacaoDefensivoProps = {
   onSubmit: (data: { produtor_numerocm: string; area: string; defensivos: Omit<DefensivoItem, "id">[] }) => void;
@@ -226,25 +225,7 @@ export const FormAplicacaoDefensivo = ({
 
   const selectedProdutor = produtores?.find((p) => p.numerocm === produtorNumerocm);
   const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
-  const { programacoes: programacoesMain = [] } = useProgramacoes();
-  
-  // Busca a programação principal correspondente ao produtor/fazenda/safra selecionados
-  const programacaoMain = useMemo(() => {
-    if (!produtorNumerocm || !area || !safraId) return null;
-    
-    // Busca a fazenda pelo nome para pegar o idfazenda
-    const fazenda = (fazendas || []).find(f => f.nomefazenda === area);
-    if (!fazenda) return null;
-    
-    return (programacoesMain || []).find(
-      (p) =>
-        p.produtor_numerocm === produtorNumerocm &&
-        p.fazenda_idfazenda === fazenda.idfazenda &&
-        (p.safra_id ? String(p.safra_id) === String(safraId) : true)
-    ) || null;
-  }, [programacoesMain, produtorNumerocm, area, safraId, fazendas]);
 
-  // Verifica se existe programação de cultivar
   const hasCultivarProgram = useMemo(() => {
     if (!produtorNumerocm || !area || !safraId) return false;
     const a = String(area || "").trim();
@@ -258,20 +239,43 @@ export const FormAplicacaoDefensivo = ({
     );
   }, [cultProgramacoes, produtorNumerocm, area, safraId]);
 
-  // Busca a área programada (soma dos talhões da programação)
+  // Busca a área programada (soma dos talhões) quando fazenda é selecionada
   useEffect(() => {
-    if (!programacaoMain?.id) {
+    if (!produtorNumerocm || !area || !safraId) {
       return;
     }
 
     const fetchAreaProgramada = async () => {
       try {
-        const { data: areaTotalData, error } = await supabase.rpc('get_programacao_area_total', {
-          programacao_uuid: programacaoMain.id
+        // Busca a fazenda
+        const fazenda = (fazendas || []).find(f => f.nomefazenda === area);
+        if (!fazenda) return;
+
+        // Busca a programação principal
+        const { data: programacoesData, error: progError } = await supabase
+          .from("programacoes")
+          .select("id")
+          .eq("produtor_numerocm", produtorNumerocm)
+          .eq("fazenda_idfazenda", fazenda.idfazenda)
+          .eq("safra_id", safraId)
+          .maybeSingle();
+
+        if (progError) {
+          console.error("Erro ao buscar programação:", progError);
+          return;
+        }
+
+        if (!programacoesData?.id) {
+          return;
+        }
+
+        // Busca a área total dos talhões programados
+        const { data: areaTotalData, error: areaError } = await supabase.rpc('get_programacao_area_total', {
+          programacao_uuid: programacoesData.id
         });
         
-        if (error) {
-          console.error("Erro RPC ao buscar área programada:", error);
+        if (areaError) {
+          console.error("Erro ao buscar área programada:", areaError);
           return;
         }
         
@@ -284,7 +288,7 @@ export const FormAplicacaoDefensivo = ({
     };
 
     fetchAreaProgramada();
-  }, [programacaoMain]);
+  }, [produtorNumerocm, area, safraId, fazendas]);
 
   const allowedProdutoresNumerocm = useMemo(() => {
     if (!safraId) return [] as string[];
