@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sprout, Droplet, Shield, FileText, Plus, Settings, Calendar } from "lucide-react";
+import { Sprout, Droplet, Shield, FileText, Plus, Settings, Calendar, MapPin } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 
 const Dashboard = () => {
   const {
@@ -81,6 +83,8 @@ const Dashboard = () => {
   }, [profile, queryClient]);
 
   // Estados do modal de área removidos - agora gerenciado via talhões
+  const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
+  const [fazendaSelecionada, setFazendaSelecionada] = useState<{ id: string; nome: string } | null>(null);
 
   const produtoresDoConsultor = useMemo(() => {
     if (!profile?.numerocm_consultor) return [];
@@ -228,6 +232,65 @@ const Dashboard = () => {
           </Link>
         </div>
 
+        {/* Card de Gerenciamento de Talhões */}
+        <Card className="mt-6 p-6 bg-card">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <MapPin className="h-6 w-6 text-primary" />
+              <div>
+                <h3 className="font-semibold text-lg">Gerenciar Talhões</h3>
+                <p className="text-sm text-muted-foreground">Cadastre e edite os talhões das suas fazendas</p>
+              </div>
+            </div>
+          </div>
+
+          {produtoresDoConsultor.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground">
+              <p>Nenhum produtor vinculado ao seu perfil.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {produtoresDoConsultor.map((produtor) => {
+                const fazendas = fazendasPorProdutor[produtor.numerocm] || [];
+                if (fazendas.length === 0) return null;
+
+                return (
+                  <div key={produtor.numerocm} className="border rounded-lg p-4 space-y-3">
+                    <div className="font-medium text-sm text-muted-foreground">
+                      {produtor.nome}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {fazendas.map((fazenda) => (
+                        <div
+                          key={fazenda.id}
+                          className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{fazenda.nomefazenda}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {Number(fazenda.area_cultivavel || 0).toFixed(2)} ha
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setFazendaSelecionada({ id: fazenda.id, nome: fazenda.nomefazenda });
+                              setGerenciarTalhoesOpen(true);
+                            }}
+                          >
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
         <Card className="mt-8 p-6 bg-secondary">
           <div className="flex items-center justify-between">
             <div>
@@ -242,6 +305,15 @@ const Dashboard = () => {
           </div>
         </Card>
       </main>
+
+      {fazendaSelecionada && (
+        <GerenciarTalhoes
+          fazendaId={fazendaSelecionada.id}
+          fazendaNome={fazendaSelecionada.nome}
+          open={gerenciarTalhoesOpen}
+          onOpenChange={setGerenciarTalhoesOpen}
+        />
+      )}
     </div>
   );
 };
