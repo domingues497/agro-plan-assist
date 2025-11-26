@@ -39,8 +39,6 @@ export const FormAplicacaoDefensivo = ({
   title = "Nova Aplicação de Defensivos",
   submitLabel = "Salvar aplicação",
 }: FormAplicacaoDefensivoProps) => {
-  console.log("FormAplicacaoDefensivo: Rendering");
-  
   const { data: produtores } = useProdutores();
   const { data: defensivosCatalog } = useDefensivosCatalog();
   const { data: calendario } = useCalendarioAplicacoes();
@@ -247,20 +245,11 @@ export const FormAplicacaoDefensivo = ({
       return;
     }
 
-    console.log("Buscando área programada para:", { produtorNumerocm, area, safraId });
-
     const fetchAreaProgramada = async () => {
       try {
-        // Busca a fazenda
         const fazenda = (fazendas || []).find(f => f.nomefazenda === area);
-        if (!fazenda) {
-          console.log("Fazenda não encontrada");
-          return;
-        }
+        if (!fazenda) return;
 
-        console.log("Fazenda encontrada:", fazenda);
-
-        // Busca a programação principal
         const { data: programacoesData, error: progError } = await supabase
           .from("programacoes")
           .select("id")
@@ -269,31 +258,13 @@ export const FormAplicacaoDefensivo = ({
           .eq("safra_id", safraId)
           .maybeSingle();
 
-        if (progError) {
-          console.error("Erro ao buscar programação:", progError);
-          return;
-        }
+        if (progError || !programacoesData?.id) return;
 
-        console.log("Programação encontrada:", programacoesData);
-
-        if (!programacoesData?.id) {
-          console.log("Nenhuma programação encontrada");
-          return;
-        }
-
-        // Busca a área total dos talhões programados
         const { data: areaTotalData, error: areaError } = await supabase.rpc('get_programacao_area_total', {
           programacao_uuid: programacoesData.id
         });
         
-        if (areaError) {
-          console.error("Erro ao buscar área programada:", areaError);
-          return;
-        }
-        
-        console.log("Área total dos talhões:", areaTotalData);
-        
-        if (areaTotalData !== null && areaTotalData !== undefined) {
+        if (!areaError && areaTotalData !== null && areaTotalData !== undefined) {
           setSelectedAreaHa(Number(areaTotalData));
         }
       } catch (error) {
