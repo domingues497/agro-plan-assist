@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { X, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFertilizantesCatalog } from "@/hooks/useFertilizantesCatalog";
@@ -44,7 +45,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
     dose: initialData?.dose ?? 0,
     total: initialData?.total ?? null,
     data_aplicacao: initialData?.data_aplicacao ?? null,
-    responsavel: initialData?.responsavel ?? null,
+    embalagem: initialData?.embalagem ?? null,
     fertilizante_salvo: initialData?.fertilizante_salvo ?? false,
     deve_faturar: initialData?.deve_faturar ?? true,
     porcentagem_salva: initialData?.porcentagem_salva ?? 0,
@@ -323,12 +324,20 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="responsavel">Responsável</Label>
-            <Input
-              id="responsavel"
-              value={formData.responsavel || ""}
-              onChange={(e) => setFormData({ ...formData, responsavel: e.target.value || null })}
-            />
+            <Label>Embalagem</Label>
+            <RadioGroup
+              value={formData.embalagem || ""}
+              onValueChange={(value) => setFormData({ ...formData, embalagem: value || null })}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="Big Bag" id="big-bag" />
+                <Label htmlFor="big-bag" className="font-normal cursor-pointer">Big Bag</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="Saca" id="saca" />
+                <Label htmlFor="saca" className="font-normal cursor-pointer">Saca</Label>
+              </div>
+            </RadioGroup>
           </div>
         </div>
 
