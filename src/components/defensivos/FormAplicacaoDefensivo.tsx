@@ -16,6 +16,8 @@ import { useFazendas } from "@/hooks/useFazendas";
 import type { DefensivoItem } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useSafras } from "@/hooks/useSafras";
+import { supabase } from "@/integrations/supabase/client";
+import { useProgramacoes } from "@/hooks/useProgramacoes";
 
 type FormAplicacaoDefensivoProps = {
   onSubmit: (data: { produtor_numerocm: string; area: string; defensivos: Omit<DefensivoItem, "id">[] }) => void;
@@ -224,6 +226,25 @@ export const FormAplicacaoDefensivo = ({
 
   const selectedProdutor = produtores.find((p) => p.numerocm === produtorNumerocm);
   const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
+  const { programacoes: programacoesMain = [] } = useProgramacoes();
+  
+  // Busca a programação principal correspondente ao produtor/fazenda/safra selecionados
+  const programacaoMain = useMemo(() => {
+    if (!produtorNumerocm || !area || !safraId) return null;
+    
+    // Busca a fazenda pelo nome para pegar o idfazenda
+    const fazenda = (fazendas || []).find(f => f.nomefazenda === area);
+    if (!fazenda) return null;
+    
+    return (programacoesMain || []).find(
+      (p) =>
+        p.produtor_numerocm === produtorNumerocm &&
+        p.fazenda_idfazenda === fazenda.idfazenda &&
+        (p.safra_id ? String(p.safra_id) === String(safraId) : true)
+    ) || null;
+  }, [programacoesMain, produtorNumerocm, area, safraId, fazendas]);
+
+  // Verifica se existe programação de cultivar
   const hasCultivarProgram = useMemo(() => {
     if (!produtorNumerocm || !area || !safraId) return false;
     const a = String(area || "").trim();
@@ -236,6 +257,29 @@ export const FormAplicacaoDefensivo = ({
         String(p.safra || "").trim() === s
     );
   }, [cultProgramacoes, produtorNumerocm, area, safraId]);
+
+  // Busca a área programada (soma dos talhões da programação)
+  useEffect(() => {
+    if (!programacaoMain?.id) {
+      return;
+    }
+
+    const fetchAreaProgramada = async () => {
+      try {
+        const { data: areaTotalData } = await supabase.rpc('get_programacao_area_total', {
+          programacao_uuid: programacaoMain.id
+        });
+        
+        if (areaTotalData) {
+          setSelectedAreaHa(Number(areaTotalData));
+        }
+      } catch (error) {
+        console.error("Erro ao buscar área programada:", error);
+      }
+    };
+
+    fetchAreaProgramada();
+  }, [programacaoMain]);
 
   const allowedProdutoresNumerocm = useMemo(() => {
     if (!safraId) return [] as string[];
@@ -407,7 +451,7 @@ export const FormAplicacaoDefensivo = ({
                           value={f.nomefazenda}
                           onSelect={() => {
                             setArea(f.nomefazenda);
-                            setSelectedAreaHa(Number(f.area_cultivavel || 0));
+                            // A área será calculada via useEffect quando programacaoAtual mudar
                             setOpenFazenda(false);
                           }}
                         >
