@@ -53,7 +53,7 @@ type DefensivoNaFazenda = {
 
 // Linha separada: subcomponente para uma linha de cultivar
 type CultivarRowProps = {
-  item: ItemCultivar & { uiId?: string; defensivos_fazenda?: DefensivoNaFazenda[] };
+  item: ItemCultivar & { uiId?: string; cultura?: string; defensivos_fazenda?: DefensivoNaFazenda[] };
   index: number;
   cultivaresDistinct: Array<{ cultivar: string | null }>;
   cultivaresCatalog: Array<{ cultivar: string | null; cultura: string | null; nome_cientifico: string | null }>;
@@ -65,10 +65,29 @@ type CultivarRowProps = {
 
 function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRemove, areaHectares, onChange, onRemove }: CultivarRowProps) {
   const { toast } = useToast();
+  const [culturaSelecionada, setCulturaSelecionada] = useState<string>(item.cultura || "");
+  
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
   const cultivarNome = cultivarSelecionado?.cultivar;
   const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(cultivarNome);
   const { data: defensivosCatalog = [] } = useDefensivosCatalog();
+  
+  // Obter culturas únicas do catálogo
+  const culturasUnicas = useMemo(() => {
+    const culturas = cultivaresCatalog
+      .map(c => c.cultura)
+      .filter((c, i, arr) => c && arr.indexOf(c) === i);
+    return culturas.sort();
+  }, [cultivaresCatalog]);
+  
+  // Filtrar cultivares pela cultura selecionada
+  const cultivaresFiltradas = useMemo(() => {
+    if (!culturaSelecionada) return cultivaresDistinct;
+    return cultivaresDistinct.filter(c => {
+      const cultivarData = cultivaresCatalog.find(cc => cc.cultivar === c.cultivar);
+      return cultivarData?.cultura === culturaSelecionada;
+    });
+  }, [culturaSelecionada, cultivaresDistinct, cultivaresCatalog]);
   
   const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoNaFazenda[]>(
     item.defensivos_fazenda || [
@@ -171,15 +190,43 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
   return (
     <div className="space-y-3 p-3 md:p-4 border rounded-lg">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-        <div className="space-y-2 lg:col-span-2">
-          <Label>Cultivar</Label>
-          <Select value={item.cultivar} onValueChange={(value) => onChange(index, "cultivar", value)}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+        <div className="space-y-2">
+          <Label>Cultura</Label>
+          <Select 
+            value={culturaSelecionada} 
+            onValueChange={(value) => {
+              setCulturaSelecionada(value);
+              onChange(index, "cultura" as any, value);
+              // Limpar cultivar quando trocar cultura
+              onChange(index, "cultivar", "");
+            }}
+          >
             <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
+              <SelectValue placeholder="Selecione cultura" />
             </SelectTrigger>
             <SelectContent>
-              {cultivaresDistinct.map((c) => (
+              {culturasUnicas.map((cultura) => (
+                <SelectItem key={cultura} value={cultura || ""}>
+                  {cultura}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2 lg:col-span-2">
+          <Label>Cultivar</Label>
+          <Select 
+            value={item.cultivar} 
+            onValueChange={(value) => onChange(index, "cultivar", value)}
+            disabled={!culturaSelecionada}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={culturaSelecionada ? "Selecione" : "Selecione cultura primeiro"} />
+            </SelectTrigger>
+            <SelectContent>
+              {cultivaresFiltradas.map((c) => (
                 <SelectItem key={`cult-${c.cultivar ?? 'null'}`} value={c.cultivar || ""}>
                   {c.cultivar}
                 </SelectItem>
