@@ -36,7 +36,7 @@ export interface ItemAdubacao {
   dose: number;
   percentual_cobertura: number;
   data_aplicacao?: string;
-  responsavel?: string;
+  embalagem?: string;
   justificativa_nao_adubacao_id?: string;
   // Flags RN012/RN013 na programação
   fertilizante_salvo?: boolean;
@@ -224,7 +224,7 @@ export const useProgramacoes = () => {
           dose: item.dose,
           percentual_cobertura: item.percentual_cobertura,
           data_aplicacao: item.data_aplicacao || null,
-          responsavel: item.responsavel || null,
+          embalagem: item.embalagem || null,
           justificativa_nao_adubacao_id: item.justificativa_nao_adubacao_id || null,
           fertilizante_salvo: !!item.fertilizante_salvo,
           deve_faturar: typeof item.deve_faturar === 'boolean' ? item.deve_faturar : true,
@@ -460,7 +460,7 @@ export const useProgramacoes = () => {
           dose: item.dose,
           percentual_cobertura: item.percentual_cobertura,
           data_aplicacao: item.data_aplicacao || null,
-          responsavel: item.responsavel || null,
+          embalagem: item.embalagem || null,
           justificativa_nao_adubacao_id: item.justificativa_nao_adubacao_id || null,
           fertilizante_salvo: !!item.fertilizante_salvo,
           deve_faturar: typeof item.deve_faturar === 'boolean' ? item.deve_faturar : true,
