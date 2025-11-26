@@ -157,7 +157,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     if (filtroGrupo) return; // evita sobrescrever escolhas do usuário
     const target = (formData.cultivar || "").trim().toLowerCase();
     const match = (cultivares || []).find(
-      (c) => (c.item || "").trim().toLowerCase() === target
+      (c) => (c.cultivar || "").trim().toLowerCase() === target
     );
     if (match?.cultivar) {
       setFiltroGrupo(match.cultivar);
@@ -250,11 +250,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     // Filtro por busca de texto
     if (searchCultivar) {
       const searchTerm = searchCultivar.toLowerCase();
-      const itemMatch = (c.item || "").toLowerCase().includes(searchTerm);
       const cultivarMatch = (c.cultivar || "").toLowerCase().includes(searchTerm);
-      const marcaMatch = (c.marca || "").toLowerCase().includes(searchTerm);
-      const codItemMatch = (c.cod_item || "").toLowerCase().includes(searchTerm);
-      return itemMatch || cultivarMatch || marcaMatch || codItemMatch;
+      const culturaMatch = (c.cultura || "").toLowerCase().includes(searchTerm);
+      return cultivarMatch || culturaMatch;
     }
     
     return true;
@@ -618,10 +616,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                     <CommandGroup>
                       {cultivaresFiltrados?.map((cultivar) => (
                         <CommandItem
-                          key={cultivar.cod_item}
-                          value={cultivar.item || ""}
+                          key={cultivar.cultivar}
+                          value={cultivar.cultivar || ""}
                           onSelect={() => {
-                            setFormData({ ...formData, cultivar: cultivar.item || "" });
+                            setFormData({ ...formData, cultivar: cultivar.cultivar || "" });
                             setSearchCultivar("");
                             setOpen(false);
                           }}
@@ -629,13 +627,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              formData.cultivar === cultivar.item ? "opacity-100" : "opacity-0"
+                              formData.cultivar === cultivar.cultivar ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          {cultivar.item}
-                          {cultivar.marca && (
+                          {cultivar.cultivar}
+                          {cultivar.cultura && (
                             <span className="ml-2 text-xs text-muted-foreground">
-                              ({cultivar.marca})
+                              ({cultivar.cultura})
                             </span>
                           )}
                         </CommandItem>
@@ -706,22 +704,22 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                       <CommandGroup>
                         {cultivares?.map((cultivar) => (
                           <CommandItem
-                            key={cultivar.cod_item}
-                            value={cultivar.item || ""}
+                            key={cultivar.cultivar}
+                            value={cultivar.cultivar || ""}
                             onSelect={() => {
-                              setFormData({ ...formData, referencia_rnc_mapa: cultivar.item || null });
+                              setFormData({ ...formData, referencia_rnc_mapa: cultivar.cultivar || null });
                             }}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                formData.referencia_rnc_mapa === cultivar.item ? "opacity-100" : "opacity-0"
+                                formData.referencia_rnc_mapa === cultivar.cultivar ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            {cultivar.item}
-                            {cultivar.marca && (
+                            {cultivar.cultivar}
+                            {cultivar.cultura && (
                               <span className="ml-2 text-xs text-muted-foreground">
-                                ({cultivar.marca})
+                                ({cultivar.cultura})
                               </span>
                             )}
                           </CommandItem>

@@ -56,7 +56,7 @@ type CultivarRowProps = {
   item: ItemCultivar & { uiId?: string; defensivos_fazenda?: DefensivoNaFazenda[] };
   index: number;
   cultivaresDistinct: Array<{ cultivar: string | null }>;
-  cultivaresCatalog: Array<{ cultivar: string | null; cultura: string | null; cod_item: string }>;
+  cultivaresCatalog: Array<{ cultivar: string | null; cultura: string | null; nome_cientifico: string | null }>;
   canRemove: boolean;
   areaHectares: number;
   onChange: (index: number, field: keyof ItemCultivar, value: any) => void;
@@ -66,8 +66,8 @@ type CultivarRowProps = {
 function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRemove, areaHectares, onChange, onRemove }: CultivarRowProps) {
   const { toast } = useToast();
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
-  const codItem = cultivarSelecionado?.cod_item;
-  const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(codItem);
+  const cultivarNome = cultivarSelecionado?.cultivar;
+  const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(cultivarNome);
   const { data: defensivosCatalog = [] } = useDefensivosCatalog();
   
   const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoNaFazenda[]>(

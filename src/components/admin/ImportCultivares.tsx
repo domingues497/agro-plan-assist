@@ -85,23 +85,24 @@ export const ImportCultivares = () => {
       const processedData = new Map<string, any>();
       
       for (const row of jsonData as any[]) {
-        const item = row["ITEM"] || null;
-        const normalizedItem = normalizeProductName(item);
+        const cultivar = row["CULTIVAR"]?.toString().toUpperCase().trim() || null;
         
-        // Se já existe um item com o mesmo nome normalizado, pular
-        if (processedData.has(normalizedItem)) {
+        if (!cultivar) {
+          continue; // Pular linhas sem cultivar
+        }
+        
+        // Se já existe um cultivar com o mesmo nome, pular
+        if (processedData.has(cultivar)) {
           continue;
         }
         
         const cultivarData = {
-          cod_item: row["COD.ITEM"] || row["COD. ITEM"] || null,
-          item: normalizedItem || item,
-          grupo: row["GRUPO"]?.toString().toUpperCase().trim() || null,
-          marca: row["MARCA"]?.toString().toUpperCase().trim() || null,
-          cultivar: row["CULTIVAR"]?.toString().toUpperCase().trim() || null,
+          cultivar: cultivar,
+          cultura: row["CULTURA"]?.toString().toUpperCase().trim() || null,
+          nome_cientifico: row["NOME_CIENTIFICO"]?.toString().trim() || null,
         };
         
-        processedData.set(normalizedItem, cultivarData);
+        processedData.set(cultivar, cultivarData);
       }
 
       // Importar dados únicos
@@ -110,7 +111,7 @@ export const ImportCultivares = () => {
         const { error } = await supabase
           .from("cultivares_catalog")
           .upsert(cultivarData, { 
-            onConflict: "cod_item",
+            onConflict: "cultivar",
             ignoreDuplicates: false 
           });
 
@@ -150,7 +151,7 @@ export const ImportCultivares = () => {
       <CardHeader>
         <CardTitle>Importar Cultivares</CardTitle>
         <CardDescription>
-          Faça upload de uma planilha Excel (.xlsx ou .xls) com as colunas: COD. ITEM, ITEM, GRUPO, MARCA, CULTIVAR
+          Faça upload de uma planilha Excel (.xlsx ou .xls) com as colunas: CULTIVAR, CULTURA, NOME_CIENTIFICO (opcional)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
