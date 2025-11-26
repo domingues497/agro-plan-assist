@@ -122,17 +122,7 @@ export default function Programacao() {
                   defensivos_fazenda: editingDefensivos[c.id] || []
                 }));
               })(),
-              adubacao: (() => {
-                const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
-                return adubs.map((a: any) => ({
-                  formulacao: a.formulacao,
-                  dose: Number(a.dose) || 0,
-                  percentual_cobertura: Number(a.percentual_cobertura) || 0,
-                  data_aplicacao: a.data_aplicacao || undefined,
-                  responsavel: a.responsavel || undefined,
-                  justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
-                }));
-              })()
+              adubacao: []
             }}
             onSubmit={(data) => {
               update({ id: editing.id, ...data }).then(() => {

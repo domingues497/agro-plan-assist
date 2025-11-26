@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, ArrowLeft, Download } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
-import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 
 const parseNumber = (value: unknown): number => {
@@ -14,11 +13,9 @@ const parseNumber = (value: unknown): number => {
 
 const Relatorios = () => {
   const { programacoes: cultivares } = useProgramacaoCultivares();
-  const { programacoes: adubacoes } = useProgramacaoAdubacao();
   const { aplicacoes: defensivos } = useAplicacoesDefensivos();
 
   const cultivaresList = cultivares ?? [];
-  const adubacoesList = adubacoes ?? [];
   const defensivosList = defensivos ?? [];
 
   const resumo = useMemo(() => {
@@ -35,11 +32,6 @@ const Relatorios = () => {
       }
       return acc;
     }, 0);
-
-    const totalAdubacao = adubacoesList.reduce(
-      (acc, item) => acc + parseNumber(item.total),
-      0
-    );
 
     const totalDefensivo = defensivosList.reduce((acc, aplicacao) => {
       const somaAplicacao = aplicacao.defensivos.reduce(
@@ -61,13 +53,11 @@ const Relatorios = () => {
       cultivares: cultivaresList.length,
       quantidadeSementes: totalQuantidade,
       hectares: totalHectares,
-      adubacoes: adubacoesList.length,
-      volumeAdubacao: totalAdubacao,
       defensivos: defensivosList.length,
       volumeDefensivo: totalDefensivo,
       safras: Array.from(safras),
     };
-  }, [cultivaresList, adubacoesList, defensivosList]);
+  }, [cultivaresList, defensivosList]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,24 +103,6 @@ const Relatorios = () => {
             <Button className="w-full" variant="outline">
               <Download className="mr-2 h-4 w-4" />
               Exportar CSV
-            </Button>
-          </Card>
-
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Resumo de adubacoes</h3>
-            <div className="space-y-3 mb-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Programacoes</span>
-                <span className="font-semibold">{resumo.adubacoes}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Volume total</span>
-                <span className="font-semibold">{resumo.volumeAdubacao.toFixed(2)}</span>
-              </div>
-            </div>
-            <Button className="w-full" variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Exportar PDF
             </Button>
           </Card>
 
