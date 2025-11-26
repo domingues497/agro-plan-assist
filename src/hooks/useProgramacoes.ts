@@ -61,6 +61,7 @@ export interface CreateProgramacao {
   area: string;
   area_hectares: number;
   safra_id?: string;
+  talhao_ids?: string[];
   cultivares: ItemCultivar[];
   adubacao: ItemAdubacao[];
 }
@@ -235,7 +236,21 @@ export const useProgramacoes = () => {
           .from("programacao_adubacao")
           .insert(adubacaoData);
 
-        if (adubResponse.error) throw adubResponse.error;
+      if (adubResponse.error) throw adubResponse.error;
+      }
+
+      // Salvar talhões selecionados na tabela programacao_talhoes
+      if (newProgramacao.talhao_ids && newProgramacao.talhao_ids.length > 0) {
+        const talhoesData = newProgramacao.talhao_ids.map(talhao_id => ({
+          programacao_id: progResponse.data.id,
+          talhao_id: talhao_id
+        }));
+
+        const talhoesResponse = await (supabase as any)
+          .from("programacao_talhoes")
+          .insert(talhoesData);
+
+        if (talhoesResponse.error) throw talhoesResponse.error;
       }
 
       return progResponse.data;
@@ -400,6 +415,25 @@ export const useProgramacoes = () => {
             .insert(defensivosData);
           if (defResponse.error) throw defResponse.error;
         }
+      }
+
+      // Substitui talhões vinculados
+      const delTalhoes = await (supabase as any)
+        .from("programacao_talhoes")
+        .delete()
+        .eq("programacao_id", id);
+      if (delTalhoes.error) throw delTalhoes.error;
+
+      if (data.talhao_ids && data.talhao_ids.length > 0) {
+        const talhoesData = data.talhao_ids.map(talhao_id => ({
+          programacao_id: id,
+          talhao_id: talhao_id
+        }));
+
+        const talhoesInsert = await (supabase as any)
+          .from("programacao_talhoes")
+          .insert(talhoesData);
+        if (talhoesInsert.error) throw talhoesInsert.error;
       }
 
       // Substitui adubações vinculadas
