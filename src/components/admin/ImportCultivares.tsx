@@ -5,10 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
-import { normalizeProductName } from "@/lib/importUtils";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -19,6 +18,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 export const ImportCultivares = () => {
   const [isImporting, setIsImporting] = useState(false);
@@ -105,36 +105,40 @@ export const ImportCultivares = () => {
         processedData.set(cultivar, cultivarData);
       }
 
-      // Importar dados únicos
+      // Importar dados únicos em lotes de 500
+      const batchSize = 500;
+      const dataArray = Array.from(processedData.values());
       let imported = 0;
-      for (const cultivarData of processedData.values()) {
+      
+      for (let i = 0; i < dataArray.length; i += batchSize) {
+        const batch = dataArray.slice(i, i + batchSize);
+        
         const { error } = await supabase
           .from("cultivares_catalog")
-          .upsert(cultivarData, { 
+          .upsert(batch, { 
             onConflict: "cultivar",
             ignoreDuplicates: false 
           });
 
         if (error) {
-          console.error("Erro ao importar cultivar:", error);
+          console.error("Erro ao importar lote:", error);
         } else {
-          imported++;
+          imported += batch.length;
           setImportedRows(imported);
         }
       }
 
       // Registrar no histórico
-      const finalImported = importedRows;
       await supabase.from("import_history").insert({
         user_id: user.id,
         tabela_nome: "cultivares_catalog",
-        registros_importados: finalImported,
+        registros_importados: imported,
         registros_deletados: deletedRecords,
         arquivo_nome: file.name,
         limpar_antes: limparAntes,
       });
 
-      toast.success(`Importação concluída! ${finalImported} registros únicos de ${totalRows} linhas processadas`);
+      toast.success(`Importação concluída! ${imported} registros únicos de ${totalRows} linhas processadas`);
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);
@@ -184,11 +188,21 @@ export const ImportCultivares = () => {
           {isImporting ? "Importando..." : "Importar"}
         </Button>
         {isImporting && (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Importando {importedRows} de {totalRows} linhas...
-            </p>
-            <Progress value={totalRows ? Math.round((importedRows / totalRows) * 100) : 0} />
+          <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <p className="text-sm font-medium">
+                Importando arquivo...
+              </p>
+            </div>
+            {totalRows > 0 && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {importedRows} de {totalRows} linhas processadas
+                </p>
+                <Progress value={Math.round((importedRows / totalRows) * 100)} />
+              </>
+            )}
           </div>
         )}
       </CardContent>
@@ -196,17 +210,32 @@ export const ImportCultivares = () => {
       <AlertDialog open={showSummary} onOpenChange={setShowSummary}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Resumo da Importação</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deletedRows > 0 && (
-                <>
-                  Registros removidos: {deletedRows}
-                  <br />
-                </>
-              )}
-              Total na planilha: {totalRows}
-              <br />
-              Linhas importadas: {importedRows}
+            <AlertDialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">✅</span>
+              Importação Concluída
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-2">
+                <div className="grid gap-2">
+                  {deletedRows > 0 && (
+                    <div className="flex justify-between items-center p-2 bg-destructive/10 rounded">
+                      <span className="text-sm font-medium">Registros removidos:</span>
+                      <Badge variant="destructive">{deletedRows}</Badge>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center p-2 bg-muted rounded">
+                    <span className="text-sm font-medium">Total processado:</span>
+                    <Badge variant="outline">{totalRows}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-primary/10 rounded">
+                    <span className="text-sm font-medium">Registros importados:</span>
+                    <Badge variant="default">{importedRows}</Badge>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground pt-2">
+                  A importação foi registrada no histórico de importações.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
