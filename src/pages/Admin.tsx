@@ -32,6 +32,8 @@ import { ListTalhoes } from "@/components/admin/ListTalhoes";
 import { ImportTalhoes } from "@/components/admin/ImportTalhoes";
 import { ListCalendario } from "@/components/admin/ListCalendario";
 import { ImportCultivaresTratamentos } from "@/components/admin/ImportCultivaresTratamentos";
+import { ImportEpocas } from "@/components/admin/ImportEpocas";
+import { ListEpocas } from "@/components/admin/ListEpocas";
 
 const ADMIN_PASSWORD = "Co0p@gr!#0la";
 
@@ -282,6 +284,14 @@ export default function Admin() {
                     Calendário
                   </Button>
                   <Button
+                    variant={selected === "epocas" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("epocas")}
+                  >
+                    Épocas
+                  </Button>
+                  <Button
                     variant={selected === "replicar" ? "secondary" : "ghost"}
                     className="w-full justify-start"
                     size="sm"
@@ -357,6 +367,12 @@ export default function Admin() {
           {selected === "tratamentos" && <ImportTratamentos />}
           {selected === "cultivares-tratamentos" && <ImportCultivaresTratamentos />}
           {selected === "justificativas" && <ImportJustificativas />}
+          {selected === "epocas" && (
+            <>
+              <ImportEpocas />
+              <ListEpocas />
+            </>
+          )}
           {selected === "replicar" && <ReplicarSafras />}
           {selected === "historico" && <HistoricoImportacoes />}
         </main>

@@ -61,6 +61,7 @@ export interface CreateProgramacao {
   area: string;
   area_hectares: number;
   safra_id?: string;
+  epoca_id?: string;
   talhao_ids?: string[];
   cultivares: ItemCultivar[];
   adubacao: ItemAdubacao[];
@@ -139,6 +140,8 @@ export const useProgramacoes = () => {
           sementes_por_saca: item.sementes_por_saca || 0,
           // Grava o id da safra na linha de cultivar para facilitar o filtro
           safra: newProgramacao.safra_id || null,
+          // Grava o id da época na linha de cultivar
+          epoca_id: newProgramacao.epoca_id || null,
           porcentagem_salva: 0
         });
         });
@@ -312,7 +315,8 @@ export const useProgramacoes = () => {
           fazenda_idfazenda: data.fazenda_idfazenda,
           area: data.area,
           area_hectares: data.area_hectares,
-          safra_id: data.safra_id || null
+          safra_id: data.safra_id || null,
+          epoca_id: data.epoca_id || null
         })
         .eq("id", id);
       if (progUpdate.error) throw progUpdate.error;
@@ -348,6 +352,8 @@ export const useProgramacoes = () => {
           sementes_por_saca: item.sementes_por_saca || 0,
           // Grava o id da safra na linha de cultivar para facilitar o filtro
           safra: data.safra_id || null,
+          // Grava o id da época na linha de cultivar
+          epoca_id: data.epoca_id || null,
           porcentagem_salva: 0
         });
         });
