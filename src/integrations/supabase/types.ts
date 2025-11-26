@@ -414,6 +414,7 @@ export type Database = {
           data_aplicacao: string | null
           deve_faturar: boolean | null
           dose: number
+          embalagem: string | null
           fertilizante_salvo: boolean | null
           formulacao: string
           id: string
@@ -422,7 +423,6 @@ export type Database = {
           porcentagem_salva: number | null
           produtor_numerocm: string | null
           programacao_id: string | null
-          responsavel: string | null
           safra_id: string | null
           total: number | null
           updated_at: string | null
@@ -434,6 +434,7 @@ export type Database = {
           data_aplicacao?: string | null
           deve_faturar?: boolean | null
           dose: number
+          embalagem?: string | null
           fertilizante_salvo?: boolean | null
           formulacao: string
           id?: string
@@ -442,7 +443,6 @@ export type Database = {
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
           programacao_id?: string | null
-          responsavel?: string | null
           safra_id?: string | null
           total?: number | null
           updated_at?: string | null
@@ -454,6 +454,7 @@ export type Database = {
           data_aplicacao?: string | null
           deve_faturar?: boolean | null
           dose?: number
+          embalagem?: string | null
           fertilizante_salvo?: boolean | null
           formulacao?: string
           id?: string
@@ -462,7 +463,6 @@ export type Database = {
           porcentagem_salva?: number | null
           produtor_numerocm?: string | null
           programacao_id?: string | null
-          responsavel?: string | null
           safra_id?: string | null
           total?: number | null
           updated_at?: string | null
