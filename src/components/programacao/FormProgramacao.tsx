@@ -169,9 +169,9 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
   };
 
   return (
-    <div className="space-y-3 p-4 border rounded-lg">
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-        <div className="space-y-2">
+    <div className="space-y-3 p-3 md:p-4 border rounded-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="space-y-2 lg:col-span-2">
           <Label>Cultivar</Label>
           <Select value={item.cultivar} onValueChange={(value) => onChange(index, "cultivar", value)}>
             <SelectTrigger>
@@ -251,7 +251,14 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
         </div>
 
         <div className="flex items-end">
-          <Button type="button" variant="destructive" size="icon" onClick={() => onRemove(index)} disabled={!canRemove}>
+          <Button 
+            type="button" 
+            variant="destructive" 
+            size="icon" 
+            onClick={() => onRemove(index)} 
+            disabled={!canRemove}
+            className="w-full sm:w-auto"
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -307,9 +314,9 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
       {item.cultivar && item.tipo_tratamento === "NA FAZENDA" && (
         <div className="space-y-3 pt-3 border-t">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <Label className="text-sm font-semibold">Defensivos aplicados</Label>
-            <Button type="button" variant="outline" size="sm" onClick={handleAddDefensivo}>
+            <Button type="button" variant="outline" size="sm" onClick={handleAddDefensivo} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-1" />
               Adicionar defensivo
             </Button>
@@ -317,7 +324,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
           {defensivosFazenda.map((defensivo, defIndex) => (
             <div key={defensivo.tempId} className="space-y-3 p-3 border rounded-md bg-muted/30">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Aplicação</Label>
                   <Input
@@ -360,7 +367,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="space-y-2">
                   <Label>Dose *</Label>
                   <Input
@@ -410,28 +417,30 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                   />
                 </div>
 
-                <div className="flex items-end justify-between gap-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`produto-salvo-${defensivo.tempId}`}
-                      checked={defensivo.produto_salvo}
-                      onCheckedChange={(checked) => handleDefensivoChange(defensivo.tempId, "produto_salvo", !!checked)}
-                    />
-                    <Label htmlFor={`produto-salvo-${defensivo.tempId}`} className="text-sm">
-                      Produto salvo (RN012)
-                    </Label>
-                  </div>
+                <div className="flex items-end">
                   {defensivosFazenda.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => handleRemoveDefensivo(defensivo.tempId)}
+                      className="w-full sm:w-auto"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-2 border-t">
+                <Checkbox
+                  id={`produto-salvo-${defensivo.tempId}`}
+                  checked={defensivo.produto_salvo}
+                  onCheckedChange={(checked) => handleDefensivoChange(defensivo.tempId, "produto_salvo", !!checked)}
+                />
+                <Label htmlFor={`produto-salvo-${defensivo.tempId}`} className="text-sm">
+                  Produto salvo (RN012)
+                </Label>
               </div>
             </div>
           ))}
@@ -785,15 +794,17 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   };
 
   return (
-    <Card className="p-6 mb-6">
+    <Card className="p-4 md:p-6 mb-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         {title && (
           <div className="mb-2">
             <h3 className="text-lg font-semibold">{title}</h3>
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2 md:col-span-2">
+        
+        {/* Seção Produtor/Fazenda/Safra */}
+        <div className="space-y-4">
+          <div className="space-y-2">
             <Label>Produtor</Label>
             <Select value={produtorNumerocm} onValueChange={setProdutorNumerocm}>
               <SelectTrigger>
@@ -810,7 +821,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <Label>Fazenda</Label>
               {fazendaIdfazenda && fazendaSelecionadaId && (
                 <Button
@@ -818,10 +829,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   variant="ghost"
                   size="sm"
                   onClick={() => setGerenciarTalhoesOpen(true)}
-                  className="h-8 gap-1"
+                  className="h-8 gap-1 w-full sm:w-auto"
                 >
                   <Settings className="h-4 w-4" />
-                  Gerenciar Talhões
+                  <span className="sm:inline">Gerenciar Talhões</span>
                 </Button>
               )}
             </div>
@@ -834,9 +845,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   const invalid = !f.area_cultivavel || Number(f.area_cultivavel) <= 0;
                   return (
                     <SelectItem key={f.idfazenda} value={f.idfazenda}>
-                      {f.nomefazenda}
-                      <span className="ml-3 text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
-                      {invalid && <Badge variant="destructive" className="ml-2">sem área (ha)</Badge>}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                        <span>{f.nomefazenda}</span>
+                        <span className="text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
+                        {invalid && <Badge variant="destructive" className="text-xs">sem área</Badge>}
+                      </div>
                     </SelectItem>
                   );
                 })}
@@ -845,11 +858,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           {fazendaIdfazenda && talhoesDaFazenda.length > 0 && (
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <Label>Talhões da Fazenda *</Label>
-              <div className="border rounded-lg p-4 space-y-3 max-h-64 overflow-y-auto">
+              <div className="border rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
                 {talhoesDaFazenda.map((talhao) => (
-                  <div key={talhao.id} className="flex items-center space-x-2">
+                  <div key={talhao.id} className="flex items-center space-x-2 py-1">
                     <Checkbox
                       id={`talhao-${talhao.id}`}
                       checked={talhaoIds.includes(talhao.id)}
@@ -863,7 +876,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     />
                     <Label 
                       htmlFor={`talhao-${talhao.id}`}
-                      className="flex-1 cursor-pointer font-normal"
+                      className="flex-1 cursor-pointer font-normal text-sm"
                     >
                       {talhao.nome} - {Number(talhao.area).toFixed(2)} ha
                     </Label>
@@ -871,29 +884,27 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 ))}
               </div>
               {talhaoIds.length > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  {talhaoIds.length} talhão(ões) selecionado(s) - Total: {areaHectares} ha
+                <div className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">
+                  {talhaoIds.length} talhão(ões) selecionado(s) • Total: {areaHectares} ha
                 </div>
               )}
             </div>
           )}
 
           {fazendaIdfazenda && talhoesDaFazenda.length === 0 && (
-            <div className="space-y-2 md:col-span-2">
-              <Badge variant="destructive">Esta fazenda não possui talhões cadastrados.</Badge>
+            <div className="space-y-2 p-3 border border-destructive/50 rounded-lg bg-destructive/5">
+              <Badge variant="destructive" className="mb-1">Fazenda sem talhões</Badge>
               <p className="text-xs text-muted-foreground">
-                Cadastre os talhões desta fazenda na página Admin ou clique no ícone de configurações ao lado do nome da fazenda na listagem de programações.
+                Cadastre os talhões usando o botão "Gerenciar Talhões" acima.
               </p>
             </div>
           )}
 
-          
-
           <div className="space-y-2">
             <Label>Safra</Label>
             <Select value={safraId} onValueChange={setSafraId}>
-              <SelectTrigger className="mt-2 space-y-2 w-[20ch]">
-                <SelectValue placeholder="Selecione a safra" className="truncate" />
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a safra" />
               </SelectTrigger>
               <SelectContent>
                 {(safras || []).filter((s) => s.ativa).map((s) => (
@@ -907,10 +918,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
         </div>
 
         {/* Seção Cultivares */}
-        <div className="border-t pt-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="border-t pt-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h3 className="text-lg font-semibold">Cultivares / Sementes</h3>
-            <Button type="button" onClick={handleAddCultivar} variant="outline" size="sm">
+            <Button type="button" onClick={handleAddCultivar} variant="outline" size="sm" className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-1" />
               Adicionar
             </Button>
@@ -932,16 +943,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             ))}
           </div>
 
-          <div className={`mt-2 text-sm font-medium ${getTotalCultivar() === 100 ? "text-green-600" : "text-red-600"}`}>
+          <div className={`text-sm font-medium ${getTotalCultivar() === 100 ? "text-green-600" : "text-red-600"}`}>
             Total: {getTotalCultivar().toFixed(2)}% {getTotalCultivar() !== 100 && "(deve ser 100%)"}
           </div>
         </div>
 
         {/* Seção Adubação */}
-        <div className="border-t pt-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="border-t pt-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h3 className="text-lg font-semibold">Adubação</h3>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -952,7 +963,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 Não fazer adubação
               </label>
               {!naoFazerAdubacao && (
-                <Button type="button" onClick={handleAddAdubacao} variant="outline" size="sm">
+                <Button type="button" onClick={handleAddAdubacao} variant="outline" size="sm" className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-1" />
                   Adicionar
                 </Button>
@@ -995,12 +1006,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           ) : (
             <div className="space-y-4">
               {itensAdubacao.map((item, index) => (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border rounded-lg">
-                  <div className="space-y-2">
-                    <Label>Formulação</Label>
-                    <Select
-                      value={item.formulacao}
-                      onValueChange={(value) => handleAdubacaoChange(index, "formulacao", value)}
+                <div key={index} className="p-3 md:p-4 border rounded-lg space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="space-y-2">
+                      <Label>Formulação</Label>
+                      <Select
+                        value={item.formulacao}
+                        onValueChange={(value) => handleAdubacaoChange(index, "formulacao", value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
@@ -1053,43 +1065,58 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                       onChange={(e) => handleAdubacaoChange(index, "data_aplicacao", e.target.value)}
                     />
                   </div>
-
-                  <div className="flex items-end">
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => handleRemoveAdubacao(index)}
-                      disabled={false}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
 
-                  {/* RN012: checkbox de fertilizante salvo dentro do grid */}
-                  <div className="flex items-center gap-2 mt-2 md:col-span-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Responsável</Label>
+                      <Input
+                        value={item.responsavel || ""}
+                        onChange={(e) => handleAdubacaoChange(index, "responsavel", e.target.value)}
+                        placeholder="Nome do responsável"
+                      />
+                    </div>
+
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleRemoveAdubacao(index)}
+                        disabled={false}
+                        className="w-full sm:w-auto"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t">
                     <Checkbox
                       id={`adubacao-salvo-${index}`}
                       checked={!!item.fertilizante_salvo}
                       onCheckedChange={(checked) => handleAdubacaoChange(index, "fertilizante_salvo", !!checked)}
                     />
-                  <Label htmlFor={`adubacao-salvo-${index}`}>Fertilizante salvo de safra anterior (RN012)</Label>
+                    <Label htmlFor={`adubacao-salvo-${index}`} className="text-sm">
+                      Fertilizante salvo de safra anterior (RN012)
+                    </Label>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="mt-2 text-sm font-medium text-muted-foreground">
-            {!naoFazerAdubacao}
+          <div className="text-sm font-medium text-muted-foreground">
+            {!naoFazerAdubacao && `Total cobertura: ${getTotalAdubacao().toFixed(2)}%`}
           </div>
         </div>
 
-        <div className="flex gap-3 justify-end">
-          <Button type="button" variant="outline" onClick={onCancel}>
+        {/* Botões de ação */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-6">
+          <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
             Cancelar
           </Button>
-          <Button type="submit">
+          <Button type="submit" className="w-full sm:w-auto">
             {submitLabel || "Salvar Programação"}
           </Button>
         </div>
