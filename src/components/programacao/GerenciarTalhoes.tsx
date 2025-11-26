@@ -8,6 +8,7 @@ import { useTalhoes } from "@/hooks/useTalhoes";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface GerenciarTalhoesProps {
   fazendaId: string;
@@ -19,6 +20,7 @@ interface GerenciarTalhoesProps {
 export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }: GerenciarTalhoesProps) {
   const { data: talhoes = [], refetch } = useTalhoes(fazendaId);
   const [editando, setEditando] = useState<{ id?: string; nome: string; area: string } | null>(null);
+  const queryClient = useQueryClient();
 
   const handleSalvar = async () => {
     if (!editando) return;
@@ -51,6 +53,9 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
       
       setEditando(null);
       refetch();
+      // Invalida queries de fazendas para recalcular área cultivável
+      queryClient.invalidateQueries({ queryKey: ["fazendas"] });
+      queryClient.invalidateQueries({ queryKey: ["fazendas-multi"] });
     } catch (error: any) {
       toast.error(error.message || "Erro ao salvar talhão");
     }
@@ -68,6 +73,9 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
       if (error) throw error;
       toast.success("Talhão excluído");
       refetch();
+      // Invalida queries de fazendas para recalcular área cultivável
+      queryClient.invalidateQueries({ queryKey: ["fazendas"] });
+      queryClient.invalidateQueries({ queryKey: ["fazendas-multi"] });
     } catch (error: any) {
       toast.error(error.message || "Erro ao excluir talhão");
     }

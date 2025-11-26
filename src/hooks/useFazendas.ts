@@ -60,19 +60,26 @@ export const useFazendas = (produtorNumerocm?: string) => {
 
       const { data, error } = await query;
       if (error) throw error;
-      // Normaliza tipos vindos do banco para evitar inconsistências na UI
-      const normalized = (data || []).map((f: any) => ({
-        ...f,
-        id: String(f.id ?? f.idfazenda ?? ""),
-        idfazenda: String(f.idfazenda ?? f.id ?? ""),
-        numerocm: String(f.numerocm ?? ""),
-        numerocm_consultor: String(f.numerocm_consultor ?? ""),
-        area_cultivavel:
-          f.area_cultivavel === null || f.area_cultivavel === undefined
-            ? null
-            : Number(f.area_cultivavel),
-      })) as Fazenda[];
-      return normalized;
+      
+      // Para cada fazenda, busca a área cultivável (soma dos talhões) usando a função do banco
+      const fazendasComArea = await Promise.all(
+        (data || []).map(async (f: any) => {
+          const { data: areaData } = await supabase.rpc('get_fazenda_area_cultivavel', {
+            fazenda_uuid: f.id
+          });
+          
+          return {
+            ...f,
+            id: String(f.id ?? f.idfazenda ?? ""),
+            idfazenda: String(f.idfazenda ?? f.id ?? ""),
+            numerocm: String(f.numerocm ?? ""),
+            numerocm_consultor: String(f.numerocm_consultor ?? ""),
+            area_cultivavel: areaData ? Number(areaData) : 0,
+          };
+        })
+      );
+      
+      return fazendasComArea as Fazenda[];
     },
   });
 
@@ -96,7 +103,22 @@ export const useFazendasMulti = (produtoresNumerocm: string[] = []) => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as Fazenda[];
+      
+      // Para cada fazenda, busca a área cultivável (soma dos talhões)
+      const fazendasComArea = await Promise.all(
+        (data || []).map(async (f: any) => {
+          const { data: areaData } = await supabase.rpc('get_fazenda_area_cultivavel', {
+            fazenda_uuid: f.id
+          });
+          
+          return {
+            ...f,
+            area_cultivavel: areaData ? Number(areaData) : 0,
+          };
+        })
+      );
+      
+      return fazendasComArea as Fazenda[];
     },
   });
 
