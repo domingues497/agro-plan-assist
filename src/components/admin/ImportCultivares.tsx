@@ -27,6 +27,7 @@ export const ImportCultivares = () => {
   const [showSummary, setShowSummary] = useState(false);
   const [limparAntes, setLimparAntes] = useState(false);
   const [deletedRows, setDeletedRows] = useState(0);
+  const [skippedRows, setSkippedRows] = useState(0);
   const [file, setFile] = useState<File | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,6 +46,7 @@ export const ImportCultivares = () => {
     setIsImporting(true);
     setImportedRows(0);
     setDeletedRows(0);
+    setSkippedRows(0);
     setShowSummary(false);
 
     try {
@@ -79,31 +81,72 @@ export const ImportCultivares = () => {
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      console.log("Total de linhas no Excel:", jsonData.length);
+      console.log("Primeira linha:", jsonData[0]);
+      console.log("Colunas detectadas:", jsonData[0] ? Object.keys(jsonData[0]) : []);
+      
       setTotalRows(jsonData.length);
 
       // Processar e normalizar dados
       const processedData = new Map<string, any>();
+      let skippedEmpty = 0;
+      let skippedDuplicate = 0;
       
       for (const row of jsonData as any[]) {
-        const cultivar = row["CULTIVAR"]?.toString().toUpperCase().trim() || null;
+        // Tentar múltiplas variações do nome da coluna
+        const cultivar = (
+          row["CULTIVAR"] || 
+          row["Cultivar"] || 
+          row["cultivar"] || 
+          row["CULTIVAR "] || // com espaço no final
+          row[" CULTIVAR"] || // com espaço no início
+          ""
+        )?.toString().toUpperCase().trim() || null;
         
         if (!cultivar) {
-          continue; // Pular linhas sem cultivar
+          skippedEmpty++;
+          console.log("Linha sem cultivar ignorada:", row);
+          continue;
         }
         
         // Se já existe um cultivar com o mesmo nome, pular
         if (processedData.has(cultivar)) {
+          skippedDuplicate++;
+          console.log("Cultivar duplicado ignorado:", cultivar);
           continue;
         }
         
+        const cultura = (
+          row["CULTURA"] || 
+          row["Cultura"] || 
+          row["cultura"] ||
+          row["CULTURA "] ||
+          row[" CULTURA"] ||
+          ""
+        )?.toString().toUpperCase().trim() || null;
+
+        const nomeCientifico = (
+          row["NOME_CIENTIFICO"] || 
+          row["Nome_Cientifico"] || 
+          row["nome_cientifico"] ||
+          row["NOME CIENTIFICO"] ||
+          row["NOME_CIENTIFICO "] ||
+          row[" NOME_CIENTIFICO"] ||
+          ""
+        )?.toString().trim() || null;
+        
         const cultivarData = {
           cultivar: cultivar,
-          cultura: row["CULTURA"]?.toString().toUpperCase().trim() || null,
-          nome_cientifico: row["NOME_CIENTIFICO"]?.toString().trim() || null,
+          cultura: cultura,
+          nome_cientifico: nomeCientifico,
         };
         
         processedData.set(cultivar, cultivarData);
       }
+
+      console.log(`Processamento: ${jsonData.length} linhas lidas, ${processedData.size} válidas, ${skippedEmpty} vazias, ${skippedDuplicate} duplicadas`);
+      setSkippedRows(skippedEmpty + skippedDuplicate);
 
       // Importar dados únicos em lotes de 500
       const batchSize = 500;
@@ -138,7 +181,14 @@ export const ImportCultivares = () => {
         limpar_antes: limparAntes,
       });
 
-      toast.success(`Importação concluída! ${imported} registros únicos de ${totalRows} linhas processadas`);
+      const skippedCount = totalRows - dataArray.length;
+      console.log(`Importação concluída: ${imported} importados, ${skippedCount} ignorados`);
+      
+      if (imported > 0) {
+        toast.success(`Importação concluída! ${imported} registros únicos importados${skippedCount > 0 ? ` (${skippedCount} linhas ignoradas)` : ''}`);
+      } else {
+        toast.error(`Nenhum registro foi importado. Verifique o formato do arquivo e as colunas: CULTIVAR, CULTURA, NOME_CIENTIFICO`);
+      }
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);
@@ -227,6 +277,12 @@ export const ImportCultivares = () => {
                     <span className="text-sm font-medium">Total processado:</span>
                     <Badge variant="outline">{totalRows}</Badge>
                   </div>
+                  {skippedRows > 0 && (
+                    <div className="flex justify-between items-center p-2 bg-warning/10 rounded">
+                      <span className="text-sm font-medium">Linhas ignoradas:</span>
+                      <Badge variant="outline">{skippedRows}</Badge>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center p-2 bg-primary/10 rounded">
                     <span className="text-sm font-medium">Registros importados:</span>
                     <Badge variant="default">{importedRows}</Badge>
