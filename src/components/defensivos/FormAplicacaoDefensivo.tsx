@@ -39,6 +39,8 @@ export const FormAplicacaoDefensivo = ({
   title = "Nova Aplicação de Defensivos",
   submitLabel = "Salvar aplicação",
 }: FormAplicacaoDefensivoProps) => {
+  console.log("FormAplicacaoDefensivo: Rendering");
+  
   const { data: produtores } = useProdutores();
   const { data: defensivosCatalog } = useDefensivosCatalog();
   const { data: calendario } = useCalendarioAplicacoes();
@@ -245,11 +247,18 @@ export const FormAplicacaoDefensivo = ({
       return;
     }
 
+    console.log("Buscando área programada para:", { produtorNumerocm, area, safraId });
+
     const fetchAreaProgramada = async () => {
       try {
         // Busca a fazenda
         const fazenda = (fazendas || []).find(f => f.nomefazenda === area);
-        if (!fazenda) return;
+        if (!fazenda) {
+          console.log("Fazenda não encontrada");
+          return;
+        }
+
+        console.log("Fazenda encontrada:", fazenda);
 
         // Busca a programação principal
         const { data: programacoesData, error: progError } = await supabase
@@ -265,7 +274,10 @@ export const FormAplicacaoDefensivo = ({
           return;
         }
 
+        console.log("Programação encontrada:", programacoesData);
+
         if (!programacoesData?.id) {
+          console.log("Nenhuma programação encontrada");
           return;
         }
 
@@ -278,6 +290,8 @@ export const FormAplicacaoDefensivo = ({
           console.error("Erro ao buscar área programada:", areaError);
           return;
         }
+        
+        console.log("Área total dos talhões:", areaTotalData);
         
         if (areaTotalData !== null && areaTotalData !== undefined) {
           setSelectedAreaHa(Number(areaTotalData));
