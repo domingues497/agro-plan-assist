@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sprout, Droplet, Shield, FileText, Plus, Settings, Calendar, MapPin } from "lucide-react";
+import { Sprout, Droplet, Shield, FileText, Settings, Calendar, MapPin } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
@@ -291,19 +291,7 @@ const Dashboard = () => {
           )}
         </Card>
 
-        <Card className="mt-8 p-6 bg-secondary">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-lg mb-1">Safra atual</h3>
-            </div>
-            <Link to="/programacao">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova programacao
-              </Button>
-            </Link>
-          </div>
-        </Card>
+        {/* Bloco 'Safra atual' removido conforme solicitado */}
       </main>
 
       {fazendaSelecionada && (
