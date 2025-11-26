@@ -224,7 +224,7 @@ export const FormAplicacaoDefensivo = ({
     onSubmit({ produtor_numerocm: produtorNumerocm, area, defensivos: defensivosToSubmit });
   };
 
-  const selectedProdutor = produtores.find((p) => p.numerocm === produtorNumerocm);
+  const selectedProdutor = produtores?.find((p) => p.numerocm === produtorNumerocm);
   const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
   const { programacoes: programacoesMain = [] } = useProgramacoes();
   
@@ -266,11 +266,16 @@ export const FormAplicacaoDefensivo = ({
 
     const fetchAreaProgramada = async () => {
       try {
-        const { data: areaTotalData } = await supabase.rpc('get_programacao_area_total', {
+        const { data: areaTotalData, error } = await supabase.rpc('get_programacao_area_total', {
           programacao_uuid: programacaoMain.id
         });
         
-        if (areaTotalData) {
+        if (error) {
+          console.error("Erro RPC ao buscar área programada:", error);
+          return;
+        }
+        
+        if (areaTotalData !== null && areaTotalData !== undefined) {
           setSelectedAreaHa(Number(areaTotalData));
         }
       } catch (error) {
