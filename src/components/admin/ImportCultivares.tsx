@@ -30,32 +30,40 @@ export const ImportCultivares = () => {
   const [skippedRows, setSkippedRows] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [catalogTotal, setCatalogTotal] = useState<number>(0);
-  const [catalogMilho, setCatalogMilho] = useState<number>(0);
-  const [catalogSoja, setCatalogSoja] = useState<number>(0);
+  const [cultureCounts, setCultureCounts] = useState<Record<string, number>>({});
   const [catalogSemCultura, setCatalogSemCultura] = useState<number>(0);
 
   const fetchCounts = async () => {
     try {
+      // Total (contagem exata sem carregar dados)
       const total = await supabase
         .from("cultivares_catalog")
         .select("*", { count: "exact", head: true });
-      const milho = await supabase
-        .from("cultivares_catalog")
-        .select("*", { count: "exact", head: true })
-        .eq("cultura", "MILHO");
-      const soja = await supabase
-        .from("cultivares_catalog")
-        .select("*", { count: "exact", head: true })
-        .eq("cultura", "SOJA");
-      const sem = await supabase
-        .from("cultivares_catalog")
-        .select("*", { count: "exact", head: true })
-        .is("cultura", null);
 
-      setCatalogTotal(total.count || 0);
-      setCatalogMilho(milho.count || 0);
-      setCatalogSoja(soja.count || 0);
-      setCatalogSemCultura(sem.count || 0);
+      // Buscar apenas a coluna cultura para agrupar no cliente
+      const { data: culturas, error } = await supabase
+        .from("cultivares_catalog")
+        .select("cultura");
+
+      if (error) throw error;
+
+      const countsMap = new Map<string, number>();
+      let nullCount = 0;
+      for (const row of culturas || []) {
+        const c = (row as any).cultura as string | null;
+        if (!c) {
+          nullCount++;
+          continue;
+        }
+        const key = c.toString().toUpperCase().trim();
+        countsMap.set(key, (countsMap.get(key) || 0) + 1);
+      }
+
+      // Ordenar alfabeticamente por cultura para consistência visual
+      const sortedEntries = Array.from(countsMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+      setCultureCounts(Object.fromEntries(sortedEntries));
+      setCatalogSemCultura(nullCount);
+      setCatalogTotal(total.count || (culturas?.length ?? 0));
     } catch (e) {
       console.error("Erro ao carregar contagens de cultivares:", e);
     }
@@ -293,23 +301,23 @@ export const ImportCultivares = () => {
         <Button onClick={handleImport} disabled={isImporting || !file}>
           {isImporting ? "Importando..." : "Importar"}
         </Button>
-        {/* Resumo abaixo da importação: total e por cultura */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {/* Resumo abaixo da importação: total e todas as culturas */}
+        <div className="space-y-2">
           <div className="flex justify-between items-center p-2 bg-muted rounded">
             <span className="text-sm font-medium">Total no catálogo:</span>
             <Badge variant="outline">{catalogTotal}</Badge>
           </div>
-          <div className="flex justify-between items-center p-2 bg-primary/10 rounded">
-            <span className="text-sm font-medium">Milho:</span>
-            <Badge variant="default">{catalogMilho}</Badge>
-          </div>
-          <div className="flex justify-between items-center p-2 bg-primary/10 rounded">
-            <span className="text-sm font-medium">Soja:</span>
-            <Badge variant="default">{catalogSoja}</Badge>
-          </div>
-          <div className="flex justify-between items-center p-2 bg-warning/10 rounded">
-            <span className="text-sm font-medium">Sem cultura:</span>
-            <Badge variant="outline">{catalogSemCultura}</Badge>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(cultureCounts).map(([cultura, count]) => (
+              <div key={cultura} className="flex justify-between items-center p-2 bg-primary/10 rounded">
+                <span className="text-sm font-medium">{cultura}:</span>
+                <Badge variant="default">{count}</Badge>
+              </div>
+            ))}
+            <div className="flex justify-between items-center p-2 bg-warning/10 rounded">
+              <span className="text-sm font-medium">Sem cultura:</span>
+              <Badge variant="outline">{catalogSemCultura}</Badge>
+            </div>
           </div>
         </div>
         {isImporting && (
