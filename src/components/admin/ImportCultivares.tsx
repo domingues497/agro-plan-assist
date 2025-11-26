@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,41 @@ export const ImportCultivares = () => {
   const [deletedRows, setDeletedRows] = useState(0);
   const [skippedRows, setSkippedRows] = useState(0);
   const [file, setFile] = useState<File | null>(null);
+  const [catalogTotal, setCatalogTotal] = useState<number>(0);
+  const [catalogMilho, setCatalogMilho] = useState<number>(0);
+  const [catalogSoja, setCatalogSoja] = useState<number>(0);
+  const [catalogSemCultura, setCatalogSemCultura] = useState<number>(0);
+
+  const fetchCounts = async () => {
+    try {
+      const total = await supabase
+        .from("cultivares_catalog")
+        .select("*", { count: "exact", head: true });
+      const milho = await supabase
+        .from("cultivares_catalog")
+        .select("*", { count: "exact", head: true })
+        .eq("cultura", "MILHO");
+      const soja = await supabase
+        .from("cultivares_catalog")
+        .select("*", { count: "exact", head: true })
+        .eq("cultura", "SOJA");
+      const sem = await supabase
+        .from("cultivares_catalog")
+        .select("*", { count: "exact", head: true })
+        .is("cultura", null);
+
+      setCatalogTotal(total.count || 0);
+      setCatalogMilho(milho.count || 0);
+      setCatalogSoja(soja.count || 0);
+      setCatalogSemCultura(sem.count || 0);
+    } catch (e) {
+      console.error("Erro ao carregar contagens de cultivares:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchCounts();
+  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -208,6 +243,8 @@ export const ImportCultivares = () => {
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);
+      // Atualizar contagens após importação
+      await fetchCounts();
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar arquivo. Verifique o formato.");
@@ -253,6 +290,25 @@ export const ImportCultivares = () => {
         <Button onClick={handleImport} disabled={isImporting || !file}>
           {isImporting ? "Importando..." : "Importar"}
         </Button>
+        {/* Resumo abaixo da importação: total e por cultura */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div className="flex justify-between items-center p-2 bg-muted rounded">
+            <span className="text-sm font-medium">Total no catálogo:</span>
+            <Badge variant="outline">{catalogTotal}</Badge>
+          </div>
+          <div className="flex justify-between items-center p-2 bg-primary/10 rounded">
+            <span className="text-sm font-medium">Milho:</span>
+            <Badge variant="default">{catalogMilho}</Badge>
+          </div>
+          <div className="flex justify-between items-center p-2 bg-primary/10 rounded">
+            <span className="text-sm font-medium">Soja:</span>
+            <Badge variant="default">{catalogSoja}</Badge>
+          </div>
+          <div className="flex justify-between items-center p-2 bg-warning/10 rounded">
+            <span className="text-sm font-medium">Sem cultura:</span>
+            <Badge variant="outline">{catalogSemCultura}</Badge>
+          </div>
+        </div>
         {isImporting && (
           <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
             <div className="flex items-center gap-2">
