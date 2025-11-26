@@ -212,6 +212,33 @@ export type Database = {
         }
         Relationships: []
       }
+      epocas: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fazendas: {
         Row: {
           created_at: string | null
@@ -481,6 +508,7 @@ export type Database = {
           created_at: string | null
           cultivar: string
           data_plantio: string | null
+          epoca_id: string | null
           id: string
           percentual_cobertura: number | null
           populacao_recomendada: number | null
@@ -505,6 +533,7 @@ export type Database = {
           created_at?: string | null
           cultivar: string
           data_plantio?: string | null
+          epoca_id?: string | null
           id?: string
           percentual_cobertura?: number | null
           populacao_recomendada?: number | null
@@ -529,6 +558,7 @@ export type Database = {
           created_at?: string | null
           cultivar?: string
           data_plantio?: string | null
+          epoca_id?: string | null
           id?: string
           percentual_cobertura?: number | null
           populacao_recomendada?: number | null
@@ -548,6 +578,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "programacao_cultivares_epoca_id_fkey"
+            columns: ["epoca_id"]
+            isOneToOne: false
+            referencedRelation: "epocas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "programacao_cultivares_programacao_id_fkey"
             columns: ["programacao_id"]

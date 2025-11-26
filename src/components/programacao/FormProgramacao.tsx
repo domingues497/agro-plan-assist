@@ -19,6 +19,7 @@ import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useTalhoes } from "@/hooks/useTalhoes";
+import { useEpocas } from "@/hooks/useEpocas";
 import { Plus, Trash2, Settings } from "lucide-react";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 import { Badge } from "@/components/ui/badge";
@@ -471,6 +472,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const { data: fertilizantes = [] } = useFertilizantesCatalog();
   const { safras = [], defaultSafra } = useSafras();
   const { data: justificativas = [] } = useJustificativasAdubacao();
+  const { data: epocas = [] } = useEpocas();
 
   // Normaliza valores vindos do banco para o enum do select
   const normalizeTipoTratamento = (s?: string): ItemCultivar["tipo_tratamento"] => {
@@ -509,6 +511,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const [area, setArea] = useState(initialData?.area || "");
   const [areaHectares, setAreaHectares] = useState(String(initialData?.area_hectares || ""));
   const [safraId, setSafraId] = useState(initialData?.safra_id || "");
+  const [epocaId, setEpocaId] = useState((initialData as any)?.epoca_id || "");
   const [talhaoIds, setTalhaoIds] = useState<string[]>([]);
   const [naoFazerAdubacao, setNaoFazerAdubacao] = useState(false);
 
@@ -554,6 +557,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (typeof initialData.area === "string") setArea(initialData.area);
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
+    if (typeof (initialData as any).epoca_id === "string") setEpocaId((initialData as any).epoca_id);
     if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => {
       const tipo = normalizeTipoTratamento((c as any).tipo_tratamento);
       const base: ItemCultivar & { uiId: string } = { ...(c as ItemCultivar), tipo_tratamento: tipo, uiId: makeUiId() };
@@ -745,6 +749,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       area: areaNome,
       area_hectares: areaHectaresFinal,
       safra_id: safraId || undefined,
+      epoca_id: epocaId || undefined,
       talhao_ids: talhaoIds,
       // Remove uiId antes de enviar
       cultivares: itensCultivar
@@ -910,6 +915,22 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 {(safras || []).filter((s) => s.ativa).map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.nome}{s.is_default ? " (Padrão)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Época</Label>
+            <Select value={epocaId} onValueChange={setEpocaId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a época" />
+              </SelectTrigger>
+              <SelectContent>
+                {(epocas || []).map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
