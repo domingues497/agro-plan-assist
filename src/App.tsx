@@ -10,8 +10,6 @@ import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
-import Cultivares from "./pages/Cultivares";
-import Adubacao from "./pages/Adubacao";
 import Defensivos from "./pages/Defensivos";
 import Relatorios from "./pages/Relatorios";
 import Programacao from "./pages/Programacao";
@@ -68,8 +66,6 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-          <Route path="/cultivares" element={<ProtectedRoute><Cultivares /></ProtectedRoute>} />
-          <Route path="/adubacao" element={<ProtectedRoute><Adubacao /></ProtectedRoute>} />
           <Route path="/defensivos" element={<ProtectedRoute><Defensivos /></ProtectedRoute>} />
           <Route path="/programacao" element={<ProtectedRoute><Programacao /></ProtectedRoute>} />
           <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />

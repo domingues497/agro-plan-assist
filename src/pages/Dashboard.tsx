@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sprout, Droplet, Shield, FileText, Settings, Calendar, MapPin } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
-import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { useProfile } from "@/hooks/useProfile";
 import { useFazendas } from "@/hooks/useFazendas";
@@ -27,19 +26,12 @@ const Dashboard = () => {
   } = useProgramacaoCultivares();
 
   const {
-    programacoes: adubacoesProgramacoes,
-    isLoading: adubacoesLoading,
-    error: adubacoesError,
-  } = useProgramacaoAdubacao();
-
-  const {
     aplicacoes: defensivosProgramacoes,
     isLoading: defensivosLoading,
     error: defensivosError,
   } = useAplicacoesDefensivos();
 
   const cultivaresList = cultivaresProgramacoes ?? [];
-  const adubacoesList = adubacoesProgramacoes ?? [];
   const defensivosList = defensivosProgramacoes ?? [];
 
   const lastSync = useMemo(() => new Date().toLocaleString(), []);
@@ -172,18 +164,6 @@ const Dashboard = () => {
               <h3 className="font-semibold text-lg mb-1">Cultivares ativos</h3>
               <p className="text-sm text-muted-foreground">Programacoes de plantio cadastradas</p>
               {renderError(cultivaresError)}
-            </Card>
-
-            <Card className="p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <Droplet className="h-10 w-10 text-primary" />
-                <span className="text-2xl font-bold text-primary">
-                  {loadingCounter(adubacoesLoading, adubacoesList.length)}
-                </span>
-              </div>
-              <h3 className="font-semibold text-lg mb-1">Adubacoes</h3>
-              <p className="text-sm text-muted-foreground">Programacoes de fertilizacao</p>
-              {renderError(adubacoesError)}
             </Card>
 
             <Card className="p-6 hover:shadow-lg transition-shadow">

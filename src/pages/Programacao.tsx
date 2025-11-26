@@ -9,7 +9,6 @@ import { FormProgramacao } from "@/components/programacao/FormProgramacao";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
-import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -28,7 +27,6 @@ export default function Programacao() {
   const { data: fazendas = [] } = useFazendas();
   const { data: produtores = [] } = useProdutores();
   const { programacoes: cultivaresList = [] } = useProgramacaoCultivares();
-  const { programacoes: adubacaoList = [] } = useProgramacaoAdubacao();
 
   // Replicação
   const [replicateOpen, setReplicateOpen] = useState(false);
