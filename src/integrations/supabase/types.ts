@@ -106,36 +106,27 @@ export type Database = {
       }
       cultivares_catalog: {
         Row: {
-          cod_item: string
           created_at: string | null
           cultivar: string | null
           cultura: string | null
-          grupo: string | null
           id: string
-          item: string | null
-          marca: string | null
+          nome_cientifico: string | null
           updated_at: string | null
         }
         Insert: {
-          cod_item: string
           created_at?: string | null
           cultivar?: string | null
           cultura?: string | null
-          grupo?: string | null
           id?: string
-          item?: string | null
-          marca?: string | null
+          nome_cientifico?: string | null
           updated_at?: string | null
         }
         Update: {
-          cod_item?: string
           created_at?: string | null
           cultivar?: string | null
           cultura?: string | null
-          grupo?: string | null
           id?: string
-          item?: string | null
-          marca?: string | null
+          nome_cientifico?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -143,29 +134,29 @@ export type Database = {
       cultivares_tratamentos: {
         Row: {
           created_at: string | null
-          cultivar_cod_item: string
+          cultivar: string
           id: string
           tratamento_id: string
         }
         Insert: {
           created_at?: string | null
-          cultivar_cod_item: string
+          cultivar: string
           id?: string
           tratamento_id: string
         }
         Update: {
           created_at?: string | null
-          cultivar_cod_item?: string
+          cultivar?: string
           id?: string
           tratamento_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "cultivares_tratamentos_cultivar_cod_item_fkey"
-            columns: ["cultivar_cod_item"]
+            foreignKeyName: "cultivares_tratamentos_cultivar_fkey"
+            columns: ["cultivar"]
             isOneToOne: false
             referencedRelation: "cultivares_catalog"
-            referencedColumns: ["cod_item"]
+            referencedColumns: ["cultivar"]
           },
           {
             foreignKeyName: "cultivares_tratamentos_tratamento_id_fkey"

@@ -16,11 +16,11 @@ export const ImportCultivaresTratamentos = () => {
   const [selectedCultivares, setSelectedCultivares] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleToggleCultivar = (cultivarCodItem: string) => {
+  const handleToggleCultivar = (cultivar: string) => {
     setSelectedCultivares(prev => 
-      prev.includes(cultivarCodItem)
-        ? prev.filter(id => id !== cultivarCodItem)
-        : [...prev, cultivarCodItem]
+      prev.includes(cultivar)
+        ? prev.filter(c => c !== cultivar)
+        : [...prev, cultivar]
     );
   };
 
@@ -44,8 +44,8 @@ export const ImportCultivaresTratamentos = () => {
         .eq("tratamento_id", selectedTratamento);
 
       // Insere novos vínculos
-      const inserts = selectedCultivares.map(cultivarCodItem => ({
-        cultivar_cod_item: cultivarCodItem,
+      const inserts = selectedCultivares.map(cultivar => ({
+        cultivar: cultivar,
         tratamento_id: selectedTratamento,
       }));
 
@@ -93,13 +93,13 @@ export const ImportCultivaresTratamentos = () => {
             <Label>Cultivares Disponíveis</Label>
             <div className="border rounded-md p-4 space-y-2 max-h-64 overflow-y-auto">
               {cultivares?.map((c) => (
-                <div key={c.cod_item} className="flex items-center space-x-2">
+                <div key={c.cultivar} className="flex items-center space-x-2">
                   <Checkbox
-                    id={c.cod_item}
-                    checked={selectedCultivares.includes(c.cod_item)}
-                    onCheckedChange={() => handleToggleCultivar(c.cod_item)}
+                    id={c.cultivar}
+                    checked={selectedCultivares.includes(c.cultivar)}
+                    onCheckedChange={() => handleToggleCultivar(c.cultivar)}
                   />
-                  <Label htmlFor={c.cod_item} className="cursor-pointer">
+                  <Label htmlFor={c.cultivar} className="cursor-pointer">
                     {c.cultivar} - {c.cultura}
                   </Label>
                 </div>

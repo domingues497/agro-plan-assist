@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export const useTratamentosPorCultivar = (codItem: string | undefined) => {
+export const useTratamentosPorCultivar = (cultivar: string | undefined) => {
   return useQuery({
-    queryKey: ["tratamentos-por-cultivar", codItem],
+    queryKey: ["tratamentos-por-cultivar", cultivar],
     queryFn: async () => {
-      if (!codItem) return [];
+      if (!cultivar) return [];
 
       const { data: vinculos, error } = await supabase
         .from("cultivares_tratamentos")
@@ -18,7 +18,7 @@ export const useTratamentosPorCultivar = (codItem: string | undefined) => {
             ativo
           )
         `)
-        .eq("cultivar_cod_item", codItem);
+        .eq("cultivar", cultivar);
 
       if (error) throw error;
 
@@ -26,6 +26,6 @@ export const useTratamentosPorCultivar = (codItem: string | undefined) => {
         ?.map(v => v.tratamentos_sementes)
         .filter(t => t && t.ativo) || [];
     },
-    enabled: !!codItem,
+    enabled: !!cultivar,
   });
 };
