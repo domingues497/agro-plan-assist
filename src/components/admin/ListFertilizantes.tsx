@@ -103,6 +103,7 @@ export const ListFertilizantes = () => {
                 <TableHead>Item</TableHead>
                 <TableHead>Marca</TableHead>
                 <TableHead>Princípio ativo</TableHead>
+                <TableHead>Saldo</TableHead>
                 <TableHead className="w-[140px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -113,6 +114,7 @@ export const ListFertilizantes = () => {
                   <TableCell>{f.item}</TableCell>
                   <TableCell>{f.marca}</TableCell>
                   <TableCell>{f.principio_ativo}</TableCell>
+                  <TableCell>{typeof f.saldo === "number" ? f.saldo : "—"}</TableCell>
                   <TableCell>
                     <Button
                       variant="outline"

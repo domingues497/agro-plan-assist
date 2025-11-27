@@ -185,6 +185,9 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
                               ({fertilizante.marca})
                             </span>
                           )}
+                          {typeof fertilizante.saldo === "number" && (
+                            <span className="ml-2 text-xs text-muted-foreground">saldo: {fertilizante.saldo}</span>
+                          )}
                         </CommandItem>
                       ))}
                     </CommandGroup>

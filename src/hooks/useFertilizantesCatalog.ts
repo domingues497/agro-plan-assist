@@ -7,7 +7,7 @@ export const useFertilizantesCatalog = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fertilizantes_catalog")
-        .select("item, cod_item, marca, principio_ativo")
+        .select("item, cod_item, marca, principio_ativo, saldo")
         .order("item");
 
       if (error) throw error;
