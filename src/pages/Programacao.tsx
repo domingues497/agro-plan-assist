@@ -106,10 +106,13 @@ export default function Programacao() {
               area: editing.area,
               area_hectares: editing.area_hectares,
               safra_id: editing.safra_id || undefined,
+              epoca_id: editing.epoca_id || undefined,
+              talhao_ids: editing.talhao_ids || [],
               cultivares: (() => {
                 const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
                 return cults.map((c: any) => ({
                   cultivar: c.cultivar,
+                  cultura: c.cultura || "",
                   percentual_cobertura: Number(c.percentual_cobertura) || 0,
                   tipo_embalagem: c.tipo_embalagem,
                   tipo_tratamento: c.tipo_tratamento,
@@ -131,7 +134,7 @@ export default function Programacao() {
                   dose: Number(a.dose) || 0,
                   percentual_cobertura: Number(a.percentual_cobertura) || 0,
                   data_aplicacao: a.data_aplicacao || undefined,
-                  responsavel: a.responsavel || undefined,
+                  embalagem: a.embalagem || undefined,
                   justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
                 }));
               })()
@@ -202,10 +205,19 @@ export default function Programacao() {
                       variant="outline"
                       size="icon"
                       onClick={async () => {
+                        // Buscar talhões da programacao
+                        const { data: talhoesData } = await (supabase as any)
+                          .from("programacao_talhoes")
+                          .select("talhao_id")
+                          .eq("programacao_id", prog.id);
+                        
                         // Buscar tratamentos e defensivos da tabela de junção antes de abrir edição
                         const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === prog.id);
                         const tratamentosMap: Record<string, string[]> = {};
                         const defensivosMap: Record<string, any[]> = {};
+                        
+                        // Pegar época do primeiro cultivar (assumindo que todos têm a mesma época)
+                        const epocaId = cults.length > 0 ? cults[0].epoca_id : undefined;
                         
                         for (const cult of cults) {
                           // Buscar tratamentos
@@ -239,7 +251,11 @@ export default function Programacao() {
                         
                         setEditingTratamentos(tratamentosMap);
                         setEditingDefensivos(defensivosMap);
-                        setEditing(prog);
+                        setEditing({
+                          ...prog,
+                          epoca_id: epocaId,
+                          talhao_ids: (talhoesData || []).map((t: any) => t.talhao_id)
+                        });
                       }}
                       title="Editar"
                     >

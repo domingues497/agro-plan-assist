@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +67,13 @@ type CultivarRowProps = {
 function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRemove, areaHectares, onChange, onRemove }: CultivarRowProps) {
   const { toast } = useToast();
   const [culturaSelecionada, setCulturaSelecionada] = useState<string>(item.cultura || "");
+  
+  // Sincroniza cultura quando item.cultura mudar (importante para edição)
+  useEffect(() => {
+    if (item.cultura && item.cultura !== culturaSelecionada) {
+      setCulturaSelecionada(item.cultura);
+    }
+  }, [item.cultura]);
   
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
   const cultivarNome = cultivarSelecionado?.cultivar;
@@ -593,6 +600,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const [fazendaFiltrada, setFazendaFiltrada] = useState<any[]>([]);
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
   
+  // Ref para rastrear se estamos carregando initialData
+  const isLoadingInitialData = useRef(false);
+  
   // Busca os talhões da fazenda selecionada
   const fazendaSelecionadaId = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda)?.id;
   const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaId);
@@ -607,12 +617,18 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   // Atualiza estados quando initialData mudar (quando abrimos edição)
   useEffect(() => {
     if (!initialData) return;
+    
+    // Marca que estamos carregando initialData
+    isLoadingInitialData.current = true;
+    
     if (typeof initialData.produtor_numerocm === "string") setProdutorNumerocm(initialData.produtor_numerocm);
     if (typeof initialData.fazenda_idfazenda === "string") setFazendaIdfazenda(initialData.fazenda_idfazenda);
     if (typeof initialData.area === "string") setArea(initialData.area);
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
     if (typeof (initialData as any).epoca_id === "string") setEpocaId((initialData as any).epoca_id);
+    // Carregar talhões selecionados
+    if (Array.isArray((initialData as any).talhao_ids)) setTalhaoIds((initialData as any).talhao_ids);
     if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => {
       const tipo = normalizeTipoTratamento((c as any).tipo_tratamento);
       const base: ItemCultivar & { uiId: string } = { ...(c as ItemCultivar), tipo_tratamento: tipo, uiId: makeUiId() };
@@ -629,6 +645,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       const temJustificativa = initialData.adubacao.some((a) => !!(a as ItemAdubacao).justificativa_nao_adubacao_id);
       setNaoFazerAdubacao(!!temJustificativa && !temFormulacao);
     }
+    
+    // Aguarda um frame para garantir que todos os estados foram setados
+    setTimeout(() => {
+      isLoadingInitialData.current = false;
+    }, 0);
   }, [initialData]);
 
   // Ajusta itens de adubação quando alterna entre os modos
@@ -646,6 +667,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   }, [naoFazerAdubacao]);
 
   useEffect(() => {
+    // Não limpar durante carregamento de initialData
+    if (isLoadingInitialData.current) return;
+    
     if (produtorNumerocm) {
       const filtered = fazendas.filter(f => f.numerocm === produtorNumerocm);
       setFazendaFiltrada(filtered);
@@ -659,6 +683,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
   // Limpa talhões ao trocar de fazenda e atualiza o nome da área
   useEffect(() => {
+    // Não limpar durante carregamento de initialData
+    if (isLoadingInitialData.current) return;
+    
     if (!fazendaIdfazenda) return;
     const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
     // Sincroniza o campo de "área" (nome da fazenda) com a fazenda selecionada
