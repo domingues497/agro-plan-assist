@@ -235,7 +235,7 @@ const Defensivos = () => {
                                   <Badge variant="secondary" className="text-xs">Produto Salvo</Badge>
                                 )}
                               </div>
-                              <div className="grid gap-1 text-sm">
+                              <div className="grid gap-5 text-sm">
                                 <p>
                                   <span className="text-muted-foreground">Dose:</span>{" "}
                                   {def.dose} {def.unidade}
