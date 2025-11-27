@@ -621,7 +621,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     // Marca que estamos carregando initialData
     isLoadingInitialData.current = true;
     
-    if (typeof initialData.produtor_numerocm === "string") setProdutorNumerocm(initialData.produtor_numerocm);
+    // Primeiro filtra as fazendas do produtor
+    if (typeof initialData.produtor_numerocm === "string") {
+      setProdutorNumerocm(initialData.produtor_numerocm);
+      const filtered = fazendas.filter(f => f.numerocm === initialData.produtor_numerocm);
+      setFazendaFiltrada(filtered);
+    }
+    
     if (typeof initialData.fazenda_idfazenda === "string") setFazendaIdfazenda(initialData.fazenda_idfazenda);
     if (typeof initialData.area === "string") setArea(initialData.area);
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
@@ -646,11 +652,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       setNaoFazerAdubacao(!!temJustificativa && !temFormulacao);
     }
     
-    // Aguarda um frame para garantir que todos os estados foram setados
+    // Aguarda um pouco mais para garantir que todos os efeitos colaterais foram processados
     setTimeout(() => {
       isLoadingInitialData.current = false;
-    }, 0);
-  }, [initialData]);
+    }, 100);
+  }, [initialData, fazendas]);
 
   // Ajusta itens de adubação quando alterna entre os modos
   useEffect(() => {
