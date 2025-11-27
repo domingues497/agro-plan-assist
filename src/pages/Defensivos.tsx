@@ -226,7 +226,7 @@ const Defensivos = () => {
                         <span className="text-sm font-medium">Ver defensivos aplicados</span>
                       </AccordionTrigger>
                       <AccordionContent className="px-6 pb-6">
-                        <div className="space-y-3 pt-2">
+                        <div className="grid gap-3 pt-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                           {aplicacao.defensivos.map((def, idx) => (
                             <div key={def.id || idx} className="bg-muted/50 p-4 rounded-md">
                               <div className="flex items-center gap-2 mb-2">

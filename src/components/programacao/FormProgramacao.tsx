@@ -299,31 +299,30 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
         <div className="space-y-2">
           <Label>% Cobertura</Label>
-          <Input
-            type="number"
-            step="0.1"
-            min="1"
-            max="100"
-            value={item.percentual_cobertura ?? 100}
-            onChange={(e) => {
-              const raw = Number(e.target.value);
-              const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
-              onChange(index, "percentual_cobertura", val);
-            }}
-          />
-        </div>
-
-        <div className="flex items-end">
-          <Button 
-            type="button" 
-            variant="destructive" 
-            size="icon" 
-            onClick={() => onRemove(index)} 
-            disabled={!canRemove}
-            className="w-full sm:w-auto"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Input
+              type="number"
+              step="0.1"
+              min="1"
+              max="100"
+              value={item.percentual_cobertura ?? 100}
+              onChange={(e) => {
+                const raw = Number(e.target.value);
+                const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
+                onChange(index, "percentual_cobertura", val);
+              }}
+              className="flex-1"
+            />
+            <Button 
+              type="button" 
+              variant="destructive" 
+              size="icon" 
+              onClick={() => onRemove(index)} 
+              disabled={!canRemove}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -433,29 +432,39 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="space-y-2">
                   <Label>Dose *</Label>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={String(defensivo.dose || "")}
-                    onChange={(e) => {
-                      let value = e.target.value.replace(',', '.');
-                      // Permitir apenas números e um ponto decimal
-                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                        // Manter como string durante a digitação para preservar "0.0" e "0.01"
-                        handleDefensivoChange(defensivo.tempId, "dose", value as any);
-                      }
-                    }}
-                    onBlur={(e) => {
-                      // No blur, converter para número
-                      let value = e.target.value.replace(',', '.');
-                      const numValue = value === '' ? 0 : parseFloat(value);
-                      if (!isNaN(numValue)) {
-                        handleDefensivoChange(defensivo.tempId, "dose", numValue);
-                      } else {
-                        handleDefensivoChange(defensivo.tempId, "dose", 0);
-                      }
-                    }}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={String(defensivo.dose || "")}
+                      onChange={(e) => {
+                        let value = e.target.value.replace(',', '.');
+                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                          handleDefensivoChange(defensivo.tempId, "dose", value as any);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        let value = e.target.value.replace(',', '.');
+                        const numValue = value === '' ? 0 : parseFloat(value);
+                        if (!isNaN(numValue)) {
+                          handleDefensivoChange(defensivo.tempId, "dose", numValue);
+                        } else {
+                          handleDefensivoChange(defensivo.tempId, "dose", 0);
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    {defensivosFazenda.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveDefensivo(defensivo.tempId)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -480,19 +489,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                   />
                 </div>
 
-                <div className="flex items-end">
-                  {defensivosFazenda.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveDefensivo(defensivo.tempId)}
-                      className="w-full sm:w-auto"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
+                <div className="hidden" />
               </div>
 
               <div className="flex items-center space-x-2 pt-2 border-t">
