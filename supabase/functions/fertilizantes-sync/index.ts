@@ -79,16 +79,26 @@ serve(async (req) => {
     }
 
     // Buscar configurações específicas de fertilizantes na system_config
-    const { data: configRows } = await supabaseAdmin
+    console.log('Buscando configurações da system_config...');
+    const { data: configRows, error: configError } = await supabaseAdmin
       .from('system_config')
       .select('config_key, config_value')
       .in('config_key', ['api_fertilizantes_url', 'api_fertilizantes_secret', 'api_fertilizantes_cliente_id', 'api_fertilizantes_exp']);
 
+    if (configError) {
+      console.error('Erro ao buscar configurações:', configError);
+    }
+
+    console.log('Configurações encontradas:', configRows);
+
     const configs = Object.fromEntries((configRows || []).map((c: any) => [c.config_key, c.config_value]));
-    const EXTERNAL_API_URL = configs.api_fertilizantes_url ?? Deno.env.get('EXTERNAL_API_URL') ?? 'http://200.195.154.187:8001/v1/fertilizantes';
-    const EXTERNAL_API_SECRET = configs.api_fertilizantes_secret ?? Deno.env.get('EXTERNAL_API_SECRET') ?? 'Co0p@gr!#0la';
+    const EXTERNAL_API_URL = configs.api_fertilizantes_url ?? 'http://200.195.154.187:8001/v1/fertilizantes';
+    const EXTERNAL_API_SECRET = configs.api_fertilizantes_secret ?? 'Co0p@gr!#0la';
     const CLIENT_ID = configs.api_fertilizantes_cliente_id ?? 'admin';
     const JWT_EXP = configs.api_fertilizantes_exp ?? '1893456000';
+
+    console.log('Usando URL:', EXTERNAL_API_URL);
+    console.log('Usando CLIENT_ID:', CLIENT_ID);
 
     const secret = new TextEncoder().encode(EXTERNAL_API_SECRET);
     const jwt = await new jose.SignJWT({ client_id: CLIENT_ID })
