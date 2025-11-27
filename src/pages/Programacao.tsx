@@ -10,6 +10,7 @@ import { useFazendas } from "@/hooks/useFazendas";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
+import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -29,6 +30,7 @@ export default function Programacao() {
   const { data: produtores = [] } = useProdutores();
   const { programacoes: cultivaresList = [] } = useProgramacaoCultivares();
   const { programacoes: adubacaoList = [] } = useProgramacaoAdubacao();
+  const { data: cultivaresCatalog = [] } = useCultivaresCatalog();
 
   // Replicação
   const [replicateOpen, setReplicateOpen] = useState(false);
@@ -110,22 +112,26 @@ export default function Programacao() {
               talhao_ids: editing.talhao_ids || [],
               cultivares: (() => {
                 const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
-                return cults.map((c: any) => ({
-                  cultivar: c.cultivar,
-                  cultura: c.cultura || "",
-                  percentual_cobertura: Number(c.percentual_cobertura) || 0,
-                  tipo_embalagem: c.tipo_embalagem,
-                  tipo_tratamento: c.tipo_tratamento,
-                  tratamento_ids: (editingTratamentos as Record<string, string[]>)[c.id]
-                    ?? (Array.isArray(c.tratamento_ids) ? c.tratamento_ids : (c.tratamento_id ? [c.tratamento_id] : [])),
-                  tratamento_id: c.tratamento_id || undefined,
-                  data_plantio: c.data_plantio || undefined,
-                  populacao_recomendada: Number(c.populacao_recomendada) || 0,
-                  semente_propria: Boolean(c.semente_propria),
-                  referencia_rnc_mapa: c.referencia_rnc_mapa || undefined,
-                  sementes_por_saca: Number(c.sementes_por_saca) || 0,
-                  defensivos_fazenda: editingDefensivos[c.id] || []
-                }));
+                return cults.map((c: any) => {
+                  // Buscar a cultura do catálogo baseado no cultivar
+                  const cultivarInfo = cultivaresCatalog.find(cat => cat.cultivar === c.cultivar);
+                  return {
+                    cultivar: c.cultivar,
+                    cultura: cultivarInfo?.cultura || "",
+                    percentual_cobertura: Number(c.percentual_cobertura) || 0,
+                    tipo_embalagem: c.tipo_embalagem,
+                    tipo_tratamento: c.tipo_tratamento,
+                    tratamento_ids: (editingTratamentos as Record<string, string[]>)[c.id]
+                      ?? (Array.isArray(c.tratamento_ids) ? c.tratamento_ids : (c.tratamento_id ? [c.tratamento_id] : [])),
+                    tratamento_id: c.tratamento_id || undefined,
+                    data_plantio: c.data_plantio || undefined,
+                    populacao_recomendada: Number(c.populacao_recomendada) || 0,
+                    semente_propria: Boolean(c.semente_propria),
+                    referencia_rnc_mapa: c.referencia_rnc_mapa || undefined,
+                    sementes_por_saca: Number(c.sementes_por_saca) || 0,
+                    defensivos_fazenda: editingDefensivos[c.id] || []
+                  };
+                });
               })(),
               adubacao: (() => {
                 const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
