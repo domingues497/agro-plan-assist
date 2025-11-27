@@ -14,21 +14,21 @@ export const useTalhoes = (fazendaId?: string) => {
   return useQuery({
     queryKey: ["talhoes", fazendaId],
     queryFn: async () => {
-      let query = supabase
-        .from("talhoes")
-        .select("*")
-        .order("nome");
-      
-      if (fazendaId) {
-        query = query.eq("fazenda_id", fazendaId);
+      // Se não houver fazendaId, retornar array vazio ao invés de buscar todos
+      if (!fazendaId) {
+        return [] as Talhao[];
       }
 
-      const { data, error } = await query;
+      const { data, error } = await supabase
+        .from("talhoes")
+        .select("*")
+        .eq("fazenda_id", fazendaId)
+        .order("nome");
 
       if (error) throw error;
       return data as Talhao[];
     },
-    enabled: !!fazendaId || fazendaId === undefined,
+    enabled: !!fazendaId,
   });
 };
 
