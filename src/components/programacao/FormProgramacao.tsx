@@ -252,15 +252,26 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
         <div className="space-y-2">
           <Label>Tipo Embalagem</Label>
-          <Select value={item.tipo_embalagem} onValueChange={(value) => onChange(index, "tipo_embalagem", value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="BAG 5000K">BAG 5000K</SelectItem>
-              <SelectItem value="SACAS 200K">SACAS 200K</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={item.tipo_embalagem} onValueChange={(value) => onChange(index, "tipo_embalagem", value)}>
+              <SelectTrigger className="flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BAG 5000K">BAG 5000K</SelectItem>
+                <SelectItem value="SACAS 200K">SACAS 200K</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              type="button" 
+              variant="destructive" 
+              size="icon" 
+              onClick={() => onRemove(index)} 
+              disabled={!canRemove}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -299,30 +310,18 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
         <div className="space-y-2">
           <Label>% Cobertura</Label>
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              step="0.1"
-              min="1"
-              max="100"
-              value={item.percentual_cobertura ?? 100}
-              onChange={(e) => {
-                const raw = Number(e.target.value);
-                const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
-                onChange(index, "percentual_cobertura", val);
-              }}
-              className="flex-1"
-            />
-            <Button 
-              type="button" 
-              variant="destructive" 
-              size="icon" 
-              onClick={() => onRemove(index)} 
-              disabled={!canRemove}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          <Input
+            type="number"
+            step="0.1"
+            min="1"
+            max="100"
+            value={item.percentual_cobertura ?? 100}
+            onChange={(e) => {
+              const raw = Number(e.target.value);
+              const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
+              onChange(index, "percentual_cobertura", val);
+            }}
+          />
         </div>
       </div>
 
@@ -377,7 +376,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
       {item.cultivar && item.tipo_tratamento === "NA FAZENDA" && (
         <div className="space-y-3 pt-3 border-t">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <Label className="text-sm font-semibold">Defensivos aplicados</Label>
+            <Label className="text-sm font-semibold">Defensivos para o TS</Label>
             <Button type="button" variant="outline" size="sm" onClick={handleAddDefensivo} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-1" />
               Adicionar defensivo
@@ -386,7 +385,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
           {defensivosFazenda.map((defensivo, defIndex) => (
             <div key={defensivo.tempId} className="space-y-3 p-3 border rounded-md bg-muted/30">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-flow-col auto-cols-fr gap-3">
                 <div className="space-y-2">
                   <Label>Aplicação</Label>
                   <Input
@@ -427,44 +426,29 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                     </PopoverContent>
                   </Popover>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              
                 <div className="space-y-2">
                   <Label>Dose *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={String(defensivo.dose || "")}
-                      onChange={(e) => {
-                        let value = e.target.value.replace(',', '.');
-                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                          handleDefensivoChange(defensivo.tempId, "dose", value as any);
-                        }
-                      }}
-                      onBlur={(e) => {
-                        let value = e.target.value.replace(',', '.');
-                        const numValue = value === '' ? 0 : parseFloat(value);
-                        if (!isNaN(numValue)) {
-                          handleDefensivoChange(defensivo.tempId, "dose", numValue);
-                        } else {
-                          handleDefensivoChange(defensivo.tempId, "dose", 0);
-                        }
-                      }}
-                      className="flex-1"
-                    />
-                    {defensivosFazenda.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveDefensivo(defensivo.tempId)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={String(defensivo.dose || "")}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(',', '.');
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        handleDefensivoChange(defensivo.tempId, "dose", value as any);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      let value = e.target.value.replace(',', '.');
+                      const numValue = value === '' ? 0 : parseFloat(value);
+                      if (!isNaN(numValue)) {
+                        handleDefensivoChange(defensivo.tempId, "dose", numValue);
+                      } else {
+                        handleDefensivoChange(defensivo.tempId, "dose", 0);
+                      }
+                    }}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -489,19 +473,31 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                   />
                 </div>
 
-                <div className="hidden" />
+                <div className="flex items-center gap-2 justify-between h-10 self-center">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`produto-salvo-${defensivo.tempId}`}
+                      checked={defensivo.produto_salvo}
+                      onCheckedChange={(checked) => handleDefensivoChange(defensivo.tempId, "produto_salvo", !!checked)}
+                    />
+                    <Label htmlFor={`produto-salvo-${defensivo.tempId}`} className="text-sm">
+                      Produto proprio.
+                    </Label>
+                  </div>
+                  {defensivosFazenda.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveDefensivo(defensivo.tempId)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2 pt-2 border-t">
-                <Checkbox
-                  id={`produto-salvo-${defensivo.tempId}`}
-                  checked={defensivo.produto_salvo}
-                  onCheckedChange={(checked) => handleDefensivoChange(defensivo.tempId, "produto_salvo", !!checked)}
-                />
-                <Label htmlFor={`produto-salvo-${defensivo.tempId}`} className="text-sm">
-                  Produto proprio.
-                </Label>
-              </div>
+              
             </div>
           ))}
         </div>
