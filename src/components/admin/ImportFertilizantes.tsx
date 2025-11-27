@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload } from "lucide-react";
+import { Upload, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
 import { normalizeProductName } from "@/lib/importUtils";
@@ -19,6 +19,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 export const ImportFertilizantes = () => {
   const [isImporting, setIsImporting] = useState(false);
@@ -28,11 +29,36 @@ export const ImportFertilizantes = () => {
   const [limparAntes, setLimparAntes] = useState(false);
   const [deletedRows, setDeletedRows] = useState(0);
   const [file, setFile] = useState<File | null>(null);
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline' | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
     setFile(selectedFile);
+  };
+
+  const checkApiConnectivity = async () => {
+    setApiStatus('checking');
+    try {
+      const { data, error } = await supabase.functions.invoke('fertilizantes-sync', {
+        body: { checkOnly: true }
+      });
+
+      if (error) throw error;
+      
+      if (data.success) {
+        setApiStatus('online');
+        toast.success(`API conectada! ${data.itemCount} fertilizantes disponíveis`);
+      } else {
+        setApiStatus('offline');
+        toast.error('API não está respondendo');
+      }
+    } catch (error) {
+      console.error('Erro ao verificar API:', error);
+      setApiStatus('offline');
+      toast.error('Erro ao conectar com a API');
+    }
   };
 
   const handleImport = async () => {
@@ -143,48 +169,150 @@ export const ImportFertilizantes = () => {
     }
   };
 
+  const handleSyncApi = async () => {
+    setIsSyncing(true);
+    setShowSummary(false);
+    setImportedRows(0);
+    setDeletedRows(0);
+
+    try {
+      toast.info('Iniciando sincronização com API...');
+
+      const { data, error } = await supabase.functions.invoke('fertilizantes-sync', {
+        body: { limparAntes }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setImportedRows(data.imported);
+        setDeletedRows(data.deleted);
+        setTotalRows(data.imported);
+        toast.success(data.message);
+        setShowSummary(true);
+        setLimparAntes(false);
+      } else {
+        toast.error(data.error || 'Erro ao sincronizar');
+      }
+    } catch (error) {
+      console.error('Erro ao sincronizar:', error);
+      toast.error('Erro ao sincronizar com a API');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Importar Fertilizantes</CardTitle>
         <CardDescription>
-          Faça upload de uma planilha Excel (.xlsx ou .xls) com as colunas: 
-          COD. ITEM, ITEM, GRUPO, MARCA, PRINCIPIO_ATIVO
+          Importe fertilizantes via planilha Excel ou sincronize com a API externa
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="fertilizantes-file">Selecione o arquivo</Label>
-          <div className="flex items-center gap-4">
-            <Input
-              id="fertilizantes-file"
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              disabled={isImporting}
+      <CardContent className="space-y-6">
+        {/* Seção API */}
+        <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium">Sincronização via API</h3>
+              {apiStatus === 'online' && (
+                <Badge variant="default" className="gap-1">
+                  <Wifi className="h-3 w-3" />
+                  Online
+                </Badge>
+              )}
+              {apiStatus === 'offline' && (
+                <Badge variant="destructive" className="gap-1">
+                  <WifiOff className="h-3 w-3" />
+                  Offline
+                </Badge>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={checkApiConnectivity}
+              disabled={apiStatus === 'checking' || isSyncing}
+            >
+              {apiStatus === 'checking' ? 'Verificando...' : 'Testar Conexão'}
+            </Button>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="limpar-antes-api"
+              checked={limparAntes}
+              onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
+              disabled={isSyncing}
             />
+            <Label htmlFor="limpar-antes-api" className="cursor-pointer text-sm">
+              Limpar todos os registros antes de sincronizar
+            </Label>
+          </div>
+
+          <Button
+            onClick={handleSyncApi}
+            disabled={isSyncing || apiStatus === 'offline'}
+            className="w-full"
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Sincronizando...' : 'Sincronizar com API'}
+          </Button>
+        </div>
+
+        {/* Separador */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">ou</span>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="limpar-antes"
-            checked={limparAntes}
-            onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
-            disabled={isImporting}
-          />
-          <Label htmlFor="limpar-antes" className="cursor-pointer text-sm">
-            Limpar todos os registros antes de importar
-          </Label>
+        {/* Seção Upload de Arquivo */}
+        <div className="space-y-4">
+          <h3 className="font-medium">Upload de Planilha</h3>
+          <div className="space-y-2">
+            <Label htmlFor="fertilizantes-file">Selecione o arquivo Excel</Label>
+            <div className="flex items-center gap-4">
+              <Input
+                id="fertilizantes-file"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                disabled={isImporting}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Colunas necessárias: COD. ITEM, ITEM, GRUPO, MARCA, PRINCIPIO_ATIVO
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="limpar-antes-file"
+              checked={limparAntes}
+              onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
+              disabled={isImporting}
+            />
+            <Label htmlFor="limpar-antes-file" className="cursor-pointer text-sm">
+              Limpar todos os registros antes de importar
+            </Label>
+          </div>
+
+          <Button onClick={handleImport} disabled={isImporting || !file} className="w-full">
+            <Upload className="mr-2 h-4 w-4" />
+            {isImporting ? "Importando..." : "Importar Planilha"}
+          </Button>
         </div>
 
-        <Button onClick={handleImport} disabled={isImporting || !file}>
-          {isImporting ? "Importando..." : "Importar"}
-        </Button>
-        {isImporting && (
+        {(isImporting || isSyncing) && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Importando {importedRows} de {totalRows} linhas...
+              {isImporting && `Importando ${importedRows} de ${totalRows} linhas...`}
+              {isSyncing && `Sincronizando dados da API...`}
             </p>
             <Progress value={totalRows ? Math.round((importedRows / totalRows) * 100) : 0} />
           </div>
