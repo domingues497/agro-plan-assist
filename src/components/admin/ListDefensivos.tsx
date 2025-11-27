@@ -4,6 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Pencil } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 
 export const ListDefensivos = () => {
@@ -11,6 +16,15 @@ export const ListDefensivos = () => {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const queryClient = useQueryClient();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOriginal, setEditOriginal] = useState<{ cod_item: string } | null>(null);
+  const [editCodItem, setEditCodItem] = useState<string>("");
+  const [editItem, setEditItem] = useState<string>("");
+  const [editGrupo, setEditGrupo] = useState<string>("");
+  const [editMarca, setEditMarca] = useState<string>("");
+  const [editPrincipioAtivo, setEditPrincipioAtivo] = useState<string>("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -38,7 +52,30 @@ export const ListDefensivos = () => {
     return groups;
   }, [filtered]);
 
+  const handleSave = async () => {
+    if (!editOriginal) return;
+    const { cod_item } = editOriginal;
+    try {
+      const { error } = await supabase
+        .from("defensivos_catalog")
+        .update({ item: editItem || null, grupo: editGrupo || null, marca: editMarca || null, principio_ativo: editPrincipioAtivo || null })
+        .eq("cod_item", cod_item);
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Defensivo atualizado");
+      setEditOpen(false);
+      setEditOriginal(null);
+      await queryClient.invalidateQueries({ queryKey: ["defensivos-catalog"] });
+    } catch (e: any) {
+      toast.error(e?.message || String(e));
+    }
+  };
+
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>Catálogo de Defensivos</CardTitle>
@@ -78,6 +115,7 @@ export const ListDefensivos = () => {
                 <TableHead>Marca</TableHead>
                 <TableHead>Princípio ativo</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
+                <TableHead className="w-[140px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -93,11 +131,28 @@ export const ListDefensivos = () => {
                   <TableCell>{d.marca}</TableCell>
                   <TableCell>{d.principio_ativo}</TableCell>
                   <TableCell className="text-right">{d.saldo?.toFixed(2) || '0.00'}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditOriginal({ cod_item: String(d.cod_item) });
+                        setEditCodItem(String(d.cod_item || ""));
+                        setEditItem(String(d.item || ""));
+                        setEditGrupo(String(d.grupo || ""));
+                        setEditMarca(String(d.marca || ""));
+                        setEditPrincipioAtivo(String(d.principio_ativo || ""));
+                        setEditOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
+                  <TableCell colSpan={7} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -129,5 +184,39 @@ export const ListDefensivos = () => {
         </div>
       </CardContent>
     </Card>
+    <Dialog open={editOpen} onOpenChange={setEditOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar Defensivo</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Código</Label>
+            <Input value={editCodItem} onChange={(e) => setEditCodItem(e.target.value)} disabled />
+          </div>
+          <div className="space-y-1">
+            <Label>Item</Label>
+            <Input value={editItem} onChange={(e) => setEditItem(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label>Grupo</Label>
+            <Input value={editGrupo} onChange={(e) => setEditGrupo(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label>Marca</Label>
+            <Input value={editMarca} onChange={(e) => setEditMarca(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label>Princípio ativo</Label>
+            <Input value={editPrincipioAtivo} onChange={(e) => setEditPrincipioAtivo(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+          <Button onClick={handleSave}>Salvar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
