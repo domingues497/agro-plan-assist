@@ -502,7 +502,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                   onCheckedChange={(checked) => handleDefensivoChange(defensivo.tempId, "produto_salvo", !!checked)}
                 />
                 <Label htmlFor={`produto-salvo-${defensivo.tempId}`} className="text-sm">
-                  Produto salvo (RN012)
+                  Produto proprio.
                 </Label>
               </div>
             </div>

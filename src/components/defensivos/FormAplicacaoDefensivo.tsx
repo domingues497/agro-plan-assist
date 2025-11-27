@@ -891,7 +891,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
                 onCheckedChange={(checked) => onChange("produto_salvo", checked)}
               />
               <Label htmlFor={`produto-salvo-${index}`} className="cursor-pointer">
-                Produto salvo (RN012)
+                Produto proprio
               </Label>
             </div>
           </div>

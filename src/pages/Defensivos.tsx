@@ -117,14 +117,14 @@ const Defensivos = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-foreground">Programação de Defensivos</h2>
-            <p className="text-muted-foreground">Aplicações químicas planejadas por área</p>
+            <p className="text-muted-foreground">Aplicações planejadas por área</p>
           </div>
           <Button 
             onClick={() => setShowForm(!showForm)}
             disabled={!temProgramacoes}
           >
             <Plus className="mr-2 h-4 w-4" />
-            Nova aplicação
+            Nova Programação
           </Button>
         </div>
 
@@ -146,7 +146,7 @@ const Defensivos = () => {
 
         {editing && (
           <FormAplicacaoDefensivo
-            title="Editar Aplicação de Defensivo"
+            title="Editar Programação de Defensivo"
             submitLabel="Salvar alterações"
             initialData={{
               produtor_numerocm: editing.produtor_numerocm || getProdutorNumerocmFallback(editing.id),
@@ -163,12 +163,12 @@ const Defensivos = () => {
         )}
 
         {isLoading ? (
-          <p className="text-muted-foreground">Carregando aplicações...</p>
+          <p className="text-muted-foreground">Carregando programação...</p>
         ) : (
           <div className="grid gap-4">
             {aplicacoes.length === 0 ? (
               <Card className="p-6">
-                <p className="text-muted-foreground">Nenhuma aplicação cadastrada.</p>
+                <p className="text-muted-foreground">Nenhuma programação cadastrada.</p>
               </Card>
             ) : (
               aplicacoes.map((aplicacao) => (
@@ -195,7 +195,7 @@ const Defensivos = () => {
                             variant="outline"
                             size="icon"
                             onClick={() => setEditing(aplicacao)}
-                            title="Editar aplicação"
+                            title="Editar programação"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -208,7 +208,7 @@ const Defensivos = () => {
                               setReplicateArea("");
                               setReplicateOpen(true);
                             }}
-                            title="Replicar aplicação"
+                            title="Replicar programação"
                           >
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -216,7 +216,7 @@ const Defensivos = () => {
                             variant="outline"
                             size="icon"
                             onClick={() => remove(aplicacao.id)}
-                            title="Excluir aplicação"
+                            title="Excluir programação"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -267,7 +267,7 @@ const Defensivos = () => {
       <Dialog open={replicateOpen} onOpenChange={(o) => setReplicateOpen(o)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Replicar aplicação</DialogTitle>
+            <DialogTitle>Replicar programação</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">

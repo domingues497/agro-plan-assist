@@ -69,8 +69,8 @@ export default function Programacao() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Programação de Cultivares e Adubação</h1>
-            <p className="text-muted-foreground">Planejamento completo de sementes e fertilizantes</p>
+            <h1 className="text-3xl font-bold">Programação</h1>
+            <p className="text-muted-foreground">Planejamento de sementes e fertilizantes</p>
           </div>
           <Button 
             onClick={() => setShowForm(true)}
