@@ -126,7 +126,6 @@ export const FormAplicacaoDefensivo = ({
 
   const handleAddDefensivo = () => {
     setDefensivos([
-      ...defensivos,
       {
         tempId: safeRandomUUID(),
         classe: "",
@@ -141,6 +140,7 @@ export const FormAplicacaoDefensivo = ({
         area_hectares: 0,
         total: 0,
       },
+      ...defensivos
     ]);
   };
 
