@@ -352,7 +352,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
               onCheckedChange={(checked) => setFormData({ ...formData, fertilizante_salvo: !!checked })}
             />
             <Label htmlFor="fertilizante_salvo" className="font-medium">
-              Fertilizante salvo de safra anterior (RN012)
+              Fertilizante proprio
             </Label>
           </div>
 
