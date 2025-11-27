@@ -126,7 +126,6 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
   const handleAddDefensivo = () => {
     setDefensivosFazenda([
-      ...defensivosFazenda,
       {
         tempId: safeRandomUUID(),
         classe: "",
@@ -137,7 +136,8 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
         total: 0,
         produto_salvo: false,
         porcentagem_salva: 100,
-      }
+      },
+      ...defensivosFazenda
     ]);
   };
 
@@ -708,13 +708,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   }, [talhaoIds, talhoesDaFazenda]);
 
   const handleAddCultivar = () => {
-    setItensCultivar([...itensCultivar, {
+    setItensCultivar([{
       uiId: makeUiId(),
       cultivar: "",
       percentual_cobertura: 100,
       tipo_embalagem: "BAG 5000K" as const,
       tipo_tratamento: "NÃO" as const
-    }]);
+    }, ...itensCultivar]);
   };
 
   const handleRemoveCultivar = (index: number) => {
@@ -728,7 +728,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   };
 
   const handleAddAdubacao = () => {
-    setItensAdubacao([...itensAdubacao, { formulacao: "", dose: 0, percentual_cobertura: 100 }]);
+    setItensAdubacao([{ formulacao: "", dose: 0, percentual_cobertura: 100 }, ...itensAdubacao]);
   };
 
   const handleRemoveAdubacao = (index: number) => {
