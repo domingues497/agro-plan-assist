@@ -1112,7 +1112,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <div key={index} className="p-3 md:p-4 border rounded-lg space-y-3">
                   <div className="grid grid-cols-12 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                     <div className="space-y-12 lg:col-span-2">
-                      <Label>Formulação</Label>
+                      <Label>Teste</Label>
                       <Select
                         value={item.formulacao}
                         onValueChange={(value) => handleAdubacaoChange(index, "formulacao", value)}
