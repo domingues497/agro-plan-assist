@@ -316,8 +316,7 @@ export const useProgramacoes = () => {
           fazenda_idfazenda: data.fazenda_idfazenda,
           area: data.area,
           area_hectares: data.area_hectares,
-          safra_id: data.safra_id || null,
-          epoca_id: data.epoca_id || null
+          safra_id: data.safra_id || null
         })
         .eq("id", id);
       if (progUpdate.error) throw progUpdate.error;
