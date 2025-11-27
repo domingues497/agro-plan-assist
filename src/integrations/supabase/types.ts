@@ -152,13 +152,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "cultivares_tratamentos_cultivar_fkey"
-            columns: ["cultivar"]
-            isOneToOne: false
-            referencedRelation: "cultivares_catalog"
-            referencedColumns: ["cultivar"]
-          },
-          {
             foreignKeyName: "cultivares_tratamentos_tratamento_id_fkey"
             columns: ["tratamento_id"]
             isOneToOne: false
