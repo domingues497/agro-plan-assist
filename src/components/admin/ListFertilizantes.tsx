@@ -17,7 +17,7 @@ export const ListFertilizantes = () => {
     const base = data || [];
     if (!q) return base;
     const result = base.filter((f: any) => {
-      const hay = `${f.cod_item ?? ""} ${f.item ?? ""} ${f.marca ?? ""} ${f.principio_ativo ?? ""}`.toLowerCase();
+      const hay = `${f.cod_item ?? ""} ${f.item ?? ""} ${f.grupo ?? ""} ${f.marca ?? ""} ${f.principio_ativo ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
     return result;
@@ -37,7 +37,7 @@ export const ListFertilizantes = () => {
       <CardContent>
         <div className="flex items-center gap-2 mb-3">
           <Input
-            placeholder="Buscar por item, marca, princípio ativo..."
+            placeholder="Buscar por item, grupo, marca, princípio ativo..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -65,7 +65,9 @@ export const ListFertilizantes = () => {
               <TableRow>
                 <TableHead className="w-[120px]">Código</TableHead>
                 <TableHead>Item</TableHead>
+                <TableHead>Grupo</TableHead>
                 <TableHead>Marca</TableHead>
+                <TableHead className="w-[100px]">Saldo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -73,12 +75,14 @@ export const ListFertilizantes = () => {
                 <TableRow key={`${f.cod_item}-${idx}`}>
                   <TableCell>{f.cod_item}</TableCell>
                   <TableCell>{f.item}</TableCell>
+                  <TableCell>{f.grupo}</TableCell>
                   <TableCell>{f.marca}</TableCell>
+                  <TableCell>{f.saldo?.toFixed(2) || '0.00'}</TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
+                  <TableCell colSpan={5} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
