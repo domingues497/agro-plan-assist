@@ -262,15 +262,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                 <SelectItem value="SACAS 200K">SACAS 200K</SelectItem>
               </SelectContent>
             </Select>
-            <Button 
-              type="button" 
-              variant="destructive" 
-              size="icon" 
-              onClick={() => onRemove(index)} 
-              disabled={!canRemove}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+
           </div>
         </div>
 
@@ -323,6 +315,15 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
             }}
           />
         </div>
+                    <Button 
+              type="button" 
+              variant="destructive" 
+              size="icon" 
+              onClick={() => onRemove(index)} 
+              disabled={!canRemove}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
       </div>
 
       {item.cultivar && item.tipo_tratamento !== "NÃO" && item.tipo_tratamento !== "NA FAZENDA" && (
@@ -1074,7 +1075,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           {naoFazerAdubacao ? (
-            <div className="space-y-2">
+            <div className="space-y-4">
               <Label>Justificativa para não fazer adubação *</Label>
               <Select
                 value={itensAdubacao[0]?.justificativa_nao_adubacao_id || ""}
@@ -1109,8 +1110,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             <div className="space-y-4">
               {itensAdubacao.map((item, index) => (
                 <div key={index} className="p-3 md:p-4 border rounded-lg space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-12 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                    <div className="space-y-12 lg:col-span-2">
                       <Label>Formulação</Label>
                       <Select
                         value={item.formulacao}
@@ -1133,7 +1134,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-12 lg:col-span-2">
                     <Label>Dose (kg/ha)</Label>
                     <Input
                       type="number"
@@ -1167,36 +1168,32 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                       onChange={(e) => handleAdubacaoChange(index, "data_aplicacao", e.target.value)}
                     />
                   </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  
                     <div className="space-y-2">
                       <Label>Embalagem</Label>
-                      <Select
-                        value={item.embalagem || ""}
-                        onValueChange={(value) => handleAdubacaoChange(index, "embalagem", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Big Bag">Big Bag</SelectItem>
-                          <SelectItem value="Saca">Saca</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex items-end">
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleRemoveAdubacao(index)}
-                        disabled={false}
-                        className="w-full sm:w-auto"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Select
+                          value={item.embalagem || ""}
+                          onValueChange={(value) => handleAdubacaoChange(index, "embalagem", value)}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Big Bag">Big Bag</SelectItem>
+                            <SelectItem value="Saca">Saca</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleRemoveAdubacao(index)}
+                          disabled={false}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
