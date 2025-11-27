@@ -55,6 +55,7 @@ type DefensivoNaFazenda = {
 type CultivarRowProps = {
   item: ItemCultivar & { uiId?: string; defensivos_fazenda?: DefensivoNaFazenda[] };
   index: number;
+  // cultivaresDistinct mantido por compatibilidade, mas filtragem passa a usar o catálogo completo
   cultivaresDistinct: Array<{ cultivar: string | null }>;
   cultivaresCatalog: Array<{ cultivar: string | null; cultura: string | null; nome_cientifico: string | null }>;
   canRemove: boolean;
@@ -72,22 +73,29 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
   const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(cultivarNome);
   const { data: defensivosCatalog = [] } = useDefensivosCatalog();
   
-  // Obter culturas únicas do catálogo
+  // Obter culturas únicas do catálogo (todas as culturas importadas)
   const culturasUnicas = useMemo(() => {
-    const culturas = cultivaresCatalog
-      .map(c => c.cultura)
-      .filter((c, i, arr) => c && arr.indexOf(c) === i);
-    return culturas.sort();
+    const set = new Set<string>();
+    for (const c of cultivaresCatalog) {
+      const nome = String(c.cultura || "").trim();
+      if (nome) set.add(nome);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
   }, [cultivaresCatalog]);
   
-  // Filtrar cultivares pela cultura selecionada
+  // Filtrar cultivares pela cultura selecionada usando o catálogo completo
   const cultivaresFiltradas = useMemo(() => {
-    if (!culturaSelecionada) return cultivaresDistinct;
-    return cultivaresDistinct.filter(c => {
-      const cultivarData = cultivaresCatalog.find(cc => cc.cultivar === c.cultivar);
-      return cultivarData?.cultura === culturaSelecionada;
-    });
-  }, [culturaSelecionada, cultivaresDistinct, cultivaresCatalog]);
+    const nomes = cultivaresCatalog
+      .filter((cc) => {
+        const cult = String(cc.cultivar || "").trim();
+        if (!cult) return false;
+        if (!culturaSelecionada) return true;
+        return String(cc.cultura || "").trim() === culturaSelecionada;
+      })
+      .map((cc) => String(cc.cultivar || "").trim());
+    const unicos = Array.from(new Set(nomes));
+    return unicos.map((n) => ({ cultivar: n }));
+  }, [culturaSelecionada, cultivaresCatalog]);
   
   const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoNaFazenda[]>(
     item.defensivos_fazenda || [

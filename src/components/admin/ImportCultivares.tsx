@@ -32,6 +32,7 @@ export const ImportCultivares = () => {
   const [catalogTotal, setCatalogTotal] = useState<number>(0);
   const [cultureCounts, setCultureCounts] = useState<Record<string, number>>({});
   const [catalogSemCultura, setCatalogSemCultura] = useState<number>(0);
+  const [errorMessages, setErrorMessages] = useState<string[]>([]);
 
   const fetchCounts = async () => {
     try {
@@ -96,6 +97,21 @@ export const ImportCultivares = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Verificar se usuário é admin para poder inserir
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      if (rolesError) {
+        console.warn("Não foi possível verificar papel do usuário:", rolesError.message);
+      }
+      const isAdmin = Array.isArray(rolesData) && rolesData.some((r) => r.role === "admin");
+      if (!isAdmin) {
+        toast.error("Apenas administradores podem importar cultivares. Solicite acesso ao perfil admin.");
+        setIsImporting(false);
+        return;
+      }
+
       let deletedRecords = 0;
 
       // Limpar tabela se checkbox marcado
@@ -132,6 +148,7 @@ export const ImportCultivares = () => {
       setTotalRows(jsonData.length);
 
       // Processar e normalizar dados
+      // Importante: deduplicar por par (cultivar, cultura) para não perder associações
       const processedData = new Map<string, any>();
       let skippedEmpty = 0;
       let skippedDuplicate = 0;
@@ -153,12 +170,6 @@ export const ImportCultivares = () => {
           continue;
         }
         
-        // Se já existe um cultivar com o mesmo nome, pular
-        if (processedData.has(cultivar)) {
-          skippedDuplicate++;
-          console.log("Cultivar duplicado ignorado:", cultivar);
-          continue;
-        }
         
         // Normalizar cultura (aceitar qualquer cultura, apenas normalizar o texto)
         const culturaRaw = (
@@ -202,7 +213,14 @@ export const ImportCultivares = () => {
           nome_cientifico: nomeCientifico,
         };
         
-        processedData.set(cultivar, cultivarData);
+        // Usar chave composta para evitar colapsar cultivares iguais de culturas diferentes
+        const compositeKey = `${cultivar}||${cultura ?? ""}`;
+        if (processedData.has(compositeKey)) {
+          skippedDuplicate++;
+          console.log("Par cultivar+cultura duplicado ignorado:", compositeKey);
+          continue;
+        }
+        processedData.set(compositeKey, cultivarData);
       }
 
       console.log(`Processamento: ${jsonData.length} linhas lidas, ${processedData.size} válidas, ${skippedEmpty} vazias, ${skippedDuplicate} duplicadas`);
@@ -213,6 +231,7 @@ export const ImportCultivares = () => {
       const dataArray = Array.from(processedData.values());
       let imported = 0;
       let failedBatches = 0;
+      setErrorMessages([]);
       
       for (let i = 0; i < dataArray.length; i += batchSize) {
         const batch = dataArray.slice(i, i + batchSize);
@@ -220,13 +239,27 @@ export const ImportCultivares = () => {
         const { error } = await supabase
           .from("cultivares_catalog")
           .upsert(batch, { 
-            onConflict: "cultivar",
+            // Garantir que conflitos considerem a combinação cultivar+cultura
+            // Obs.: requer índice único correspondente na tabela para efeito idempotente
+            onConflict: "cultivar,cultura",
             ignoreDuplicates: false 
           });
 
         if (error) {
-          console.error("Erro ao importar lote:", error);
-          failedBatches++;
+          console.warn("Upsert falhou, tentando insert sem conflito (provável ausência de índice único)", error);
+          setErrorMessages((prev) => [...prev, `Upsert erro: ${error.message || error}`]);
+          const { error: insertError } = await supabase
+            .from("cultivares_catalog")
+            .insert(batch);
+
+          if (insertError) {
+            console.error("Erro ao inserir lote:", insertError);
+            setErrorMessages((prev) => [...prev, `Insert erro: ${insertError.message || insertError}`]);
+            failedBatches++;
+          } else {
+            imported += batch.length;
+            setImportedRows(imported);
+          }
         } else {
           imported += batch.length;
           setImportedRows(imported);
@@ -247,9 +280,10 @@ export const ImportCultivares = () => {
       console.log(`Importação concluída: ${imported} importados, ${skippedCount} ignorados, ${failedBatches} lotes com erro`);
       
       if (imported > 0) {
-        toast.success(`Importação concluída! ${imported} registros únicos importados${skippedCount > 0 ? ` (${skippedCount} linhas ignoradas)` : ''}${failedBatches > 0 ? `, ${failedBatches} lotes com erro` : ''}`);
+        toast.success(`Importação concluída! ${imported} registros processados${skippedCount > 0 ? ` (${skippedCount} linhas ignoradas)` : ''}${failedBatches > 0 ? `, ${failedBatches} lotes com erro` : ''}`);
       } else {
-        toast.error(`Nenhum registro foi importado. Verifique o formato do arquivo e as colunas: CULTIVAR, CULTURA, NOME_CIENTIFICO`);
+        const detail = errorMessages.length > 0 ? `\nDetalhes: ${errorMessages.join(" | ")}` : "";
+        toast.error(`Nenhum registro foi importado.${detail}`);
       }
       setShowSummary(true);
       setFile(null);
@@ -258,7 +292,7 @@ export const ImportCultivares = () => {
       await fetchCounts();
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
-      toast.error("Erro ao processar arquivo. Verifique o formato.");
+      toast.error(`Erro ao processar arquivo: ${(error as any)?.message || error}`);
     } finally {
       setIsImporting(false);
     }
@@ -370,6 +404,16 @@ export const ImportCultivares = () => {
                     <span className="text-sm font-medium">Registros importados:</span>
                     <Badge variant="default">{importedRows}</Badge>
                   </div>
+                  {errorMessages.length > 0 && (
+                    <div className="p-2 bg-destructive/10 rounded">
+                      <span className="text-sm font-medium">Erros:</span>
+                      <div className="text-xs text-destructive-foreground break-words">
+                        {errorMessages.map((msg, i) => (
+                          <div key={i}>• {msg}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground pt-2">
                   A importação foi registrada no histórico de importações.
