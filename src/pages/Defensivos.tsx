@@ -117,7 +117,7 @@ const Defensivos = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-foreground">Programação de Defensivos</h2>
-            <p className="text-muted-foreground">Aplicações planejadas por área</p>
+            <p className="text-muted-foreground">Programação planejadas por área</p>
           </div>
           <Button 
             onClick={() => setShowForm(!showForm)}
