@@ -71,7 +71,14 @@ CREATE POLICY "Users can view fazendas by role"
   FOR SELECT
   USING (
     has_role(auth.uid(), 'admin') OR
-    (has_role(auth.uid(), 'consultor') AND numerocm_consultor = get_user_consultor()) OR
+    (has_role(auth.uid(), 'consultor') AND (
+      numerocm_consultor = get_user_consultor() OR
+      EXISTS (
+        SELECT 1 FROM public.consultores c
+        WHERE c.numerocm_consultor = public.fazendas.numerocm_consultor
+          AND c.email = auth.jwt() ->> 'email'
+      )
+    )) OR
     (has_role(auth.uid(), 'gestor') AND id IN (
       SELECT fazenda_id FROM public.user_fazendas WHERE user_id = auth.uid()
     ))
@@ -82,14 +89,28 @@ CREATE POLICY "Consultores and gestores can update fazendas"
   FOR UPDATE
   USING (
     has_role(auth.uid(), 'admin') OR
-    (has_role(auth.uid(), 'consultor') AND numerocm_consultor = get_user_consultor()) OR
+    (has_role(auth.uid(), 'consultor') AND (
+      numerocm_consultor = get_user_consultor() OR
+      EXISTS (
+        SELECT 1 FROM public.consultores c
+        WHERE c.numerocm_consultor = public.fazendas.numerocm_consultor
+          AND c.email = auth.jwt() ->> 'email'
+      )
+    )) OR
     (has_role(auth.uid(), 'gestor') AND id IN (
       SELECT fazenda_id FROM public.user_fazendas WHERE user_id = auth.uid()
     ))
   )
   WITH CHECK (
     has_role(auth.uid(), 'admin') OR
-    (has_role(auth.uid(), 'consultor') AND numerocm_consultor = get_user_consultor()) OR
+    (has_role(auth.uid(), 'consultor') AND (
+      numerocm_consultor = get_user_consultor() OR
+      EXISTS (
+        SELECT 1 FROM public.consultores c
+        WHERE c.numerocm_consultor = public.fazendas.numerocm_consultor
+          AND c.email = auth.jwt() ->> 'email'
+      )
+    )) OR
     (has_role(auth.uid(), 'gestor') AND id IN (
       SELECT fazenda_id FROM public.user_fazendas WHERE user_id = auth.uid()
     ))
