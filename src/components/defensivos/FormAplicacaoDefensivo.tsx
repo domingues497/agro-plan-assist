@@ -672,7 +672,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     // Tenta match com e sem plural
     const matchesClasse = 
       clsNorm === "OUTRO" ? (grupoNorm === "" || grupoNorm === "OUTRO") :
-      (grupoNorm === clsNorm || grupoNormOriginal === clsNormOriginal);
+      (grupoNorm === clsNorm || grupoNormOriginal === clsNormOriginal || grupoNorm === "OUTRO");
 
     if (matchesClasse && d.grupo === 'INSETICIDA') {
       console.log('✅ MATCH INSETICIDA:', d.item);
@@ -703,6 +703,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
   });
 
   console.log('🎲 Filtered catalog length:', filteredCatalog.length);
+  const displayCatalog = filteredCatalog.length > 0 ? filteredCatalog : (defensivosCatalog || []);
 
   return (
     <Card className="p-4 bg-muted/50">
@@ -816,7 +817,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
                   <CommandList>
                     <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
                     <CommandGroup>
-                      {filteredCatalog.map((def) => (
+                      {displayCatalog.map((def) => (
                         <CommandItem
                           key={def.cod_item}
                           value={`${def.item} ${def.marca}`}
