@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
@@ -56,14 +55,23 @@ export const ListDefensivos = () => {
     if (!editOriginal) return;
     const { cod_item } = editOriginal;
     try {
-      const { error } = await supabase
-        .from("defensivos_catalog")
-        .update({ item: editItem || null, grupo: editGrupo || null, marca: editMarca || null, principio_ativo: editPrincipioAtivo || null })
-        .eq("cod_item", cod_item);
-
-      if (error) {
-        toast.error(error.message);
-        return;
+      const baseUrl = (import.meta as any).env?.VITE_API_URL || "http://127.0.0.1:5000";
+      const res = await fetch(`${baseUrl}/defensivos/${encodeURIComponent(cod_item)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "omit",
+          body: JSON.stringify({
+            item: editItem || null,
+            grupo: editGrupo || null,
+            marca: editMarca || null,
+            principio_ativo: editPrincipioAtivo || null,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Erro ao atualizar defensivo: ${res.status}`);
       }
       toast.success("Defensivo atualizado");
       setEditOpen(false);
@@ -130,7 +138,7 @@ export const ListDefensivos = () => {
                   <TableCell>{d.grupo}</TableCell>
                   <TableCell>{d.marca}</TableCell>
                   <TableCell>{d.principio_ativo}</TableCell>
-                  <TableCell className="text-right">{d.saldo?.toFixed(2) || '0.00'}</TableCell>
+                  <TableCell className="text-right">{Number(d.saldo ?? 0).toFixed(2)}</TableCell>
                   <TableCell>
                     <Button
                       variant="outline"

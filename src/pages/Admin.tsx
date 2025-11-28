@@ -36,6 +36,7 @@ import { ImportCultivaresTratamentos } from "@/components/admin/ImportCultivares
 import { ImportEpocas } from "@/components/admin/ImportEpocas";
 import { ListEpocas } from "@/components/admin/ListEpocas";
 import { GerenciarGestores } from "@/components/admin/GerenciarGestores";
+import { SystemConfig } from "@/components/admin/SystemConfig";
 
 const ADMIN_PASSWORD = "Co0p@gr!#0la";
 
@@ -241,8 +242,8 @@ export default function Admin() {
               )}
             </div>
 
-            {/* Gerais */}
-            <div>
+          {/* Gerais */}
+          <div>
               <button
                 type="button"
                 className="flex w-full items-center justify-between text-sm font-semibold py-1"
@@ -253,6 +254,14 @@ export default function Admin() {
               </button>
               {openGroups.gerais && (
                 <div className="mt-1 ml-3 space-y-1">
+                  <Button
+                    variant={selected === "config" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("config")}
+                  >
+                    Configurações
+                  </Button>
                   <Button
                     variant={selected === "usuarios" ? "secondary" : "ghost"}
                     className="w-full justify-start"
@@ -392,6 +401,7 @@ export default function Admin() {
             </>
           )}
           {selected === "usuarios" && <ListUsuarios />}
+          {selected === "config" && <SystemConfig />}
           {selected === "gestores" && <GerenciarGestores />}
           {selected === "replicar" && <ReplicarSafras />}
           {selected === "historico" && <HistoricoImportacoes />}

@@ -31,7 +31,8 @@ export const ImportDefensivos = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isSyncingApi, setIsSyncingApi] = useState(false);
   const [apiStatus, setApiStatus] = useState<'idle' | 'checking' | 'online' | 'offline'>('idle');
-  const [apiUrl, setApiUrl] = useState(import.meta.env.VITE_API_BASE_URL || '');
+  const baseEnv = (import.meta as any).env?.VITE_API_URL || '';
+  const [apiUrl, setApiUrl] = useState<string>(baseEnv);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -41,27 +42,17 @@ export const ImportDefensivos = () => {
 
   const checkApiConnectivity = async () => {
     setApiStatus('checking');
-    
     try {
-      // Tentar uma chamada simples à edge function para verificar conectividade
-      const { error } = await supabase.functions.invoke('defensivos-sync', {
-        body: { checkOnly: true }
-      });
-
-      if (error) {
-        console.error('API offline:', error);
-        setApiStatus('offline');
-        toast.error(`API não está acessível. Verifique se ${apiUrl} está disponível.`);
-        return false;
-      }
-
+      const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1';
+      const baseUrl = apiUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/health`);
+      if (!res.ok) throw new Error('offline');
       setApiStatus('online');
       toast.success('API está acessível!');
       return true;
-    } catch (error) {
-      console.error('Erro ao verificar API:', error);
+    } catch {
       setApiStatus('offline');
-      toast.error('Não foi possível conectar à API externa.');
+      toast.error('Não foi possível conectar à API Flask.');
       return false;
     }
   };
@@ -83,28 +74,8 @@ export const ImportDefensivos = () => {
 
       let deletedRecords = 0;
 
-      // Limpar tabela se checkbox marcado
-      if (limparAntes) {
-        const { count } = await supabase
-          .from("defensivos_catalog")
-          .select("*", { count: "exact", head: true });
-        
-        deletedRecords = count || 0;
-
-        const { error: deleteError } = await supabase
-          .from("defensivos_catalog")
-          .delete()
-          .neq("id", "00000000-0000-0000-0000-000000000000");
-        
-        if (deleteError) {
-          console.error("Erro ao limpar tabela:", deleteError);
-          toast.error("Erro ao limpar tabela");
-          setIsImporting(false);
-          return;
-        }
-        setDeletedRows(deletedRecords);
-        toast.info(`${deletedRecords} registros removidos`);
-      }
+      const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1';
+      const baseUrl = apiUrl || `http://${host}:5000`;
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -134,28 +105,19 @@ export const ImportDefensivos = () => {
         processedData.set(normalizedItem, defensivoData);
       }
 
-      // Importar dados únicos em lotes de 500
-      const batchSize = 500;
       const dataArray = Array.from(processedData.values());
-      let imported = 0;
-      
-      for (let i = 0; i < dataArray.length; i += batchSize) {
-        const batch = dataArray.slice(i, i + batchSize);
-        
-        const { error } = await supabase
-          .from("defensivos_catalog")
-          .upsert(batch, { 
-            onConflict: "cod_item",
-            ignoreDuplicates: false 
-          });
-
-        if (error) {
-          console.error("Erro ao importar lote:", error);
-        } else {
-          imported += batch.length;
-          setImportedRows(imported);
-        }
+      const res = await fetch(`${baseUrl}/defensivos/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: dataArray, limparAntes }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error || 'Falha ao importar via API');
       }
+      const j = await res.json();
+      const imported = Number(j?.imported || 0);
+      setImportedRows(imported);
 
       // Registrar no histórico
       await supabase.from("import_history").insert({
@@ -180,11 +142,8 @@ export const ImportDefensivos = () => {
   };
 
   const handleSyncApi = async () => {
-    // Validar conectividade primeiro
     const isConnected = await checkApiConnectivity();
-    if (!isConnected) {
-      return;
-    }
+    if (!isConnected) return;
 
     setIsSyncingApi(true);
     setIsImporting(true);
@@ -197,44 +156,26 @@ export const ImportDefensivos = () => {
     });
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      toast.loading('⏳ Conectando à API externa e processando dados...', {
-        description: 'Este processo pode levar alguns minutos.'
+      const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1';
+      const baseUrl = apiUrl || `http://${host}:5000`;
+      toast.loading('⏳ Conectando à API externa e processando dados...', { description: 'Este processo pode levar alguns minutos.' });
+      const res = await fetch(`${baseUrl}/defensivos/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limparAntes }),
       });
-
-      const { data, error } = await supabase.functions.invoke('defensivos-sync', {
-        body: { limparAntes }
-      });
-
       toast.dismiss();
-
-      if (error) {
-        console.error('Erro na função defensivos-sync:', error);
-        toast.error('❌ Erro ao sincronizar via API', {
-          description: error.message || 'Verifique os logs para mais detalhes.'
-        });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        toast.error(j?.error || 'Erro ao sincronizar via API externa');
         return;
       }
-
-      if (data?.error) {
-        toast.error('❌ Erro na sincronização', {
-          description: String(data.error)
-        });
-        return;
-      }
-
-      const imported = Number(data?.imported || 0);
-      const deleted = Number(data?.deleted || 0);
-      const ignored = Number(data?.ignored || 0);
+      const j = await res.json();
+      const imported = Number(j?.imported || 0);
       setImportedRows(imported);
-      setDeletedRows(deleted);
       setTotalRows(imported);
 
-      toast.success('✅ Sincronização concluída com sucesso!', {
-        description: `${imported} registros importados${deleted ? `, ${deleted} removidos` : ''}${ignored ? `, ${ignored} ignorados` : ''}`
-      });
+      toast.success('✅ Sincronização concluída com sucesso!');
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);
