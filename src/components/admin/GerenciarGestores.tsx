@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useUsuarios } from "@/hooks/useUsuarios";
-import { useUserProdutores } from "@/hooks/useUserProdutores";
-import { useUserFazendas } from "@/hooks/useUserFazendas";
-import { useProdutores } from "@/hooks/useProdutores";
-import { useFazendas } from "@/hooks/useFazendas";
+import { useGestorConsultor } from "@/hooks/useGestorConsultor";
+import { useConsultores } from "@/hooks/useConsultores";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -13,113 +11,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const GerenciarGestores = () => {
   const { usuarios, isLoading: loadingUsuarios } = useUsuarios();
-  const { data: produtores, isLoading: loadingProdutores } = useProdutores();
-  const { data: fazendas, isLoading: loadingFazendas } = useFazendas();
+  const { data: consultores, isLoading: loadingConsultores } = useConsultores();
 
   const [selectedGestor, setSelectedGestor] = useState<string>("");
-  const [selectedProdutores, setSelectedProdutores] = useState<string[]>([]);
-  const [selectedFazendas, setSelectedFazendas] = useState<string[]>([]);
+  const [selectedConsultor, setSelectedConsultor] = useState<string>("");
 
   const {
-    produtores: gestorProdutores,
-    addProdutor,
-    removeProdutor,
-    isAdding: addingProdutor,
-  } = useUserProdutores(selectedGestor);
-
-  const {
-    fazendas: gestorFazendas,
-    addFazenda,
-    removeFazenda,
-    isAdding: addingFazenda,
-  } = useUserFazendas(selectedGestor);
+    numerocmConsultor,
+    associarConsultor,
+    removerConsultor,
+    isAssociating,
+    isRemoving,
+  } = useGestorConsultor(selectedGestor);
 
   const gestores = usuarios?.filter((u) => u.role === "gestor") ?? [];
 
-  // Reset selections when gestor changes
-  useEffect(() => {
-    setSelectedProdutores([]);
-    setSelectedFazendas([]);
-  }, [selectedGestor]);
+  const consultorAtual = consultores?.find(
+    (c) => c.numerocm_consultor === numerocmConsultor
+  );
 
-  const availableProdutores = produtores?.filter(
-    (p) => !gestorProdutores.some((gp) => gp.produtor_numerocm === p.numerocm)
-  ) ?? [];
-
-  const availableFazendas = fazendas?.filter(
-    (f) => !gestorFazendas.some((gf) => gf.fazenda_id === f.id)
-  ) ?? [];
-
-  const handleToggleProdutor = (numerocm: string) => {
-    setSelectedProdutores((prev) =>
-      prev.includes(numerocm)
-        ? prev.filter((id) => id !== numerocm)
-        : [...prev, numerocm]
-    );
-  };
-
-  const handleToggleFazenda = (id: string) => {
-    setSelectedFazendas((prev) =>
-      prev.includes(id) ? prev.filter((fId) => fId !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAllProdutores = () => {
-    if (selectedProdutores.length === availableProdutores.length) {
-      setSelectedProdutores([]);
-    } else {
-      setSelectedProdutores(availableProdutores.map((p) => p.numerocm));
+  const handleAssociarConsultor = () => {
+    if (selectedGestor && selectedConsultor) {
+      associarConsultor({
+        userId: selectedGestor,
+        numerocmConsultor: selectedConsultor,
+      });
     }
   };
 
-  const handleSelectAllFazendas = () => {
-    if (selectedFazendas.length === availableFazendas.length) {
-      setSelectedFazendas([]);
-    } else {
-      setSelectedFazendas(availableFazendas.map((f) => f.id));
+  const handleRemoverConsultor = () => {
+    if (selectedGestor) {
+      removerConsultor(selectedGestor);
     }
   };
 
-  const handleAddProdutores = async () => {
-    if (selectedGestor && selectedProdutores.length > 0) {
-      for (const produtorNumerocm of selectedProdutores) {
-        addProdutor({
-          userId: selectedGestor,
-          produtorNumerocm,
-        });
-      }
-      setSelectedProdutores([]);
-    }
-  };
-
-  const handleAddFazendas = async () => {
-    if (selectedGestor && selectedFazendas.length > 0) {
-      for (const fazendaId of selectedFazendas) {
-        addFazenda({
-          userId: selectedGestor,
-          fazendaId,
-        });
-      }
-      setSelectedFazendas([]);
-    }
-  };
-
-  if (loadingUsuarios || loadingProdutores || loadingFazendas) {
+  if (loadingUsuarios || loadingConsultores) {
     return <div>Carregando...</div>;
   }
 
@@ -149,223 +80,74 @@ export const GerenciarGestores = () => {
           </div>
 
           {selectedGestor && (
-            <>
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">
-                    Produtores Associados
-                  </h3>
-                  
-                  {availableProdutores.length > 0 && (
-                    <div className="mb-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="select-all-produtores"
-                            checked={
-                              selectedProdutores.length ===
-                                availableProdutores.length &&
-                              availableProdutores.length > 0
-                            }
-                            onCheckedChange={handleSelectAllProdutores}
-                          />
-                          <label
-                            htmlFor="select-all-produtores"
-                            className="text-sm font-medium cursor-pointer"
-                          >
-                            Selecionar todos ({availableProdutores.length})
-                          </label>
-                        </div>
-                        <Button
-                          onClick={handleAddProdutores}
-                          disabled={
-                            selectedProdutores.length === 0 || addingProdutor
-                          }
-                          size="sm"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Adicionar ({selectedProdutores.length})
-                        </Button>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Consultor Associado</h3>
+                
+                {consultorAtual ? (
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{consultorAtual.consultor}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {consultorAtual.email}
+                        </p>
+                        <Badge variant="outline" className="mt-2">
+                          {consultorAtual.numerocm_consultor}
+                        </Badge>
                       </div>
-                      <ScrollArea className="h-[200px] border rounded-md p-2 bg-muted/30">
-                        <div className="space-y-2">
-                          {availableProdutores.map((produtor) => (
-                            <div
-                              key={produtor.id}
-                              className={`flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors ${
-                                selectedProdutores.includes(produtor.numerocm)
-                                  ? "bg-primary/10"
-                                  : ""
-                              }`}
-                            >
-                              <Checkbox
-                                id={`produtor-${produtor.id}`}
-                                checked={selectedProdutores.includes(
-                                  produtor.numerocm
-                                )}
-                                onCheckedChange={() =>
-                                  handleToggleProdutor(produtor.numerocm)
-                                }
-                              />
-                              <label
-                                htmlFor={`produtor-${produtor.id}`}
-                                className="text-sm cursor-pointer flex-1"
-                              >
-                                {produtor.nome}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={handleRemoverConsultor}
+                        disabled={isRemoving}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
-
-                  {gestorProdutores.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Produtor</TableHead>
-                          <TableHead className="w-[100px]">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {gestorProdutores.map((gp) => {
-                          const produtor = produtores?.find(
-                            (p) => p.numerocm === gp.produtor_numerocm
-                          );
-                          return (
-                            <TableRow key={gp.id}>
-                              <TableCell>
-                                {produtor?.nome || gp.produtor_numerocm}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeProdutor(gp.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">
-                      Nenhum produtor associado
+                  </div>
+                ) : (
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Nenhum consultor associado. Selecione um consultor para associar:
                     </p>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">
-                    Fazendas Associadas
-                  </h3>
-                  
-                  {availableFazendas.length > 0 && (
-                    <div className="mb-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="select-all-fazendas"
-                            checked={
-                              selectedFazendas.length ===
-                                availableFazendas.length &&
-                              availableFazendas.length > 0
-                            }
-                            onCheckedChange={handleSelectAllFazendas}
-                          />
-                          <label
-                            htmlFor="select-all-fazendas"
-                            className="text-sm font-medium cursor-pointer"
-                          >
-                            Selecionar todas ({availableFazendas.length})
-                          </label>
-                        </div>
-                        <Button
-                          onClick={handleAddFazendas}
-                          disabled={
-                            selectedFazendas.length === 0 || addingFazenda
-                          }
-                          size="sm"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Adicionar ({selectedFazendas.length})
-                        </Button>
-                      </div>
-                      <ScrollArea className="h-[200px] border rounded-md p-2 bg-muted/30">
-                        <div className="space-y-2">
-                          {availableFazendas.map((fazenda) => (
-                            <div
-                              key={fazenda.id}
-                              className={`flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors ${
-                                selectedFazendas.includes(fazenda.id)
-                                  ? "bg-primary/10"
-                                  : ""
-                              }`}
+                    <div className="flex gap-2">
+                      <Select
+                        value={selectedConsultor}
+                        onValueChange={setSelectedConsultor}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Escolha um consultor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {consultores?.map((consultor) => (
+                            <SelectItem
+                              key={consultor.id}
+                              value={consultor.numerocm_consultor}
                             >
-                              <Checkbox
-                                id={`fazenda-${fazenda.id}`}
-                                checked={selectedFazendas.includes(fazenda.id)}
-                                onCheckedChange={() =>
-                                  handleToggleFazenda(fazenda.id)
-                                }
-                              />
-                              <label
-                                htmlFor={`fazenda-${fazenda.id}`}
-                                className="text-sm cursor-pointer flex-1"
-                              >
-                                {fazenda.nomefazenda}
-                              </label>
-                            </div>
+                              {consultor.consultor} - {consultor.email}
+                            </SelectItem>
                           ))}
-                        </div>
-                      </ScrollArea>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={handleAssociarConsultor}
+                        disabled={!selectedConsultor || isAssociating}
+                      >
+                        Associar
+                      </Button>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {gestorFazendas.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Fazenda</TableHead>
-                          <TableHead className="w-[100px]">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {gestorFazendas.map((gf) => {
-                          const fazenda = fazendas?.find(
-                            (f) => f.id === gf.fazenda_id
-                          );
-                          return (
-                            <TableRow key={gf.id}>
-                              <TableCell>
-                                {fazenda?.nomefazenda || gf.fazenda_id}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeFazenda(gf.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">
-                      Nenhuma fazenda associada
-                    </p>
-                  )}
+                <div className="mt-4 p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    💡 O gestor terá acesso a todos os produtores e fazendas
+                    associados ao consultor selecionado.
+                  </p>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </CardContent>
       </Card>

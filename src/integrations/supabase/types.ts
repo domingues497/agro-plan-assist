@@ -383,6 +383,7 @@ export type Database = {
           id: string
           nome: string | null
           numerocm_consultor: string | null
+          numerocm_consultor_gestor: string | null
           updated_at: string | null
           user_id: string
         }
@@ -392,6 +393,7 @@ export type Database = {
           id?: string
           nome?: string | null
           numerocm_consultor?: string | null
+          numerocm_consultor_gestor?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -401,6 +403,7 @@ export type Database = {
           id?: string
           nome?: string | null
           numerocm_consultor?: string | null
+          numerocm_consultor_gestor?: string | null
           updated_at?: string | null
           user_id?: string
         }
