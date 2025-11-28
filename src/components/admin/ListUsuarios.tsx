@@ -200,6 +200,8 @@ export const ListUsuarios = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">Usuário</SelectItem>
+                    <SelectItem value="consultor">Consultor</SelectItem>
+                    <SelectItem value="gestor">Gestor</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>
@@ -236,7 +238,13 @@ export const ListUsuarios = () => {
               <TableCell>{usuario.nome || "-"}</TableCell>
               <TableCell>{usuario.numerocm_consultor || "-"}</TableCell>
               <TableCell>
-                {usuario.role === "admin" ? "Administrador" : "Usuário"}
+                {usuario.role === "admin" 
+                  ? "Administrador" 
+                  : usuario.role === "gestor"
+                  ? "Gestor"
+                  : usuario.role === "consultor"
+                  ? "Consultor"
+                  : "Usuário"}
               </TableCell>
               <TableCell>
                 <span
@@ -309,6 +317,8 @@ export const ListUsuarios = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">Usuário</SelectItem>
+                    <SelectItem value="consultor">Consultor</SelectItem>
+                    <SelectItem value="gestor">Gestor</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>

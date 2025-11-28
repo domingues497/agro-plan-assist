@@ -940,6 +940,56 @@ export type Database = {
         }
         Relationships: []
       }
+      user_fazendas: {
+        Row: {
+          created_at: string | null
+          fazenda_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          fazenda_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          fazenda_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_fazendas_fazenda_id_fkey"
+            columns: ["fazenda_id"]
+            isOneToOne: false
+            referencedRelation: "fazendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_produtores: {
+        Row: {
+          created_at: string | null
+          id: string
+          produtor_numerocm: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          produtor_numerocm: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          produtor_numerocm?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null

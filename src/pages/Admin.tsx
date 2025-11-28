@@ -35,6 +35,7 @@ import { ListCalendario } from "@/components/admin/ListCalendario";
 import { ImportCultivaresTratamentos } from "@/components/admin/ImportCultivaresTratamentos";
 import { ImportEpocas } from "@/components/admin/ImportEpocas";
 import { ListEpocas } from "@/components/admin/ListEpocas";
+import { GerenciarGestores } from "@/components/admin/GerenciarGestores";
 
 const ADMIN_PASSWORD = "Co0p@gr!#0la";
 
@@ -228,6 +229,14 @@ export default function Admin() {
                   >
                     Consultores
                   </Button>
+                  <Button
+                    variant={selected === "gestores" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("gestores")}
+                  >
+                    Gestores
+                  </Button>
                 </div>
               )}
             </div>
@@ -383,6 +392,7 @@ export default function Admin() {
             </>
           )}
           {selected === "usuarios" && <ListUsuarios />}
+          {selected === "gestores" && <GerenciarGestores />}
           {selected === "replicar" && <ReplicarSafras />}
           {selected === "historico" && <HistoricoImportacoes />}
         </main>
