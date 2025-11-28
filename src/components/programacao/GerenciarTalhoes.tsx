@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2, Plus, Pencil } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useTalhoes } from "@/hooks/useTalhoes";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,7 +20,7 @@ interface GerenciarTalhoesProps {
 
 export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }: GerenciarTalhoesProps) {
   const { data: talhoes = [], refetch } = useTalhoes(fazendaId);
-  const [editando, setEditando] = useState<{ id?: string; nome: string; area: string } | null>(null);
+  const [editando, setEditando] = useState<{ id?: string; nome: string; area: string; arrendado: boolean } | null>(null);
   const queryClient = useQueryClient();
 
   const handleSalvar = async () => {
@@ -36,7 +37,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
         // Editar
         const { error } = await supabase
           .from("talhoes")
-          .update({ nome: editando.nome, area })
+          .update({ nome: editando.nome, area, arrendado: editando.arrendado })
           .eq("id", editando.id);
         
         if (error) throw error;
@@ -45,7 +46,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
         // Criar
         const { error } = await supabase
           .from("talhoes")
-          .insert({ fazenda_id: fazendaId, nome: editando.nome, area });
+          .insert({ fazenda_id: fazendaId, nome: editando.nome, area, arrendado: editando.arrendado });
         
         if (error) throw error;
         toast.success("Talhão criado");
@@ -96,7 +97,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
               Área total: <span className="font-semibold">{areaTotal.toFixed(2)} ha</span>
             </p>
             <Button
-              onClick={() => setEditando({ nome: "", area: "" })}
+              onClick={() => setEditando({ nome: "", area: "", arrendado: false })}
               size="sm"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -125,6 +126,14 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
                     placeholder="Ex: 50.5"
                   />
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="arrendado"
+                    checked={editando.arrendado}
+                    onCheckedChange={(checked) => setEditando({ ...editando, arrendado: checked as boolean })}
+                  />
+                  <Label htmlFor="arrendado" className="cursor-pointer">Talhão Arrendado</Label>
+                </div>
                 <div className="flex gap-2">
                   <Button onClick={handleSalvar} size="sm">
                     Salvar
@@ -146,14 +155,19 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
               talhoes.map((talhao) => (
                 <Card key={talhao.id} className="p-3 flex items-center justify-between">
                   <div>
-                    <p className="font-medium">{talhao.nome}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{talhao.nome}</p>
+                      {talhao.arrendado && (
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded">Arrendado</span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">{Number(talhao.area).toFixed(2)} ha</p>
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString() })}
+                      onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString(), arrendado: talhao.arrendado })}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
