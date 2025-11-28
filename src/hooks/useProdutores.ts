@@ -19,21 +19,23 @@ export const useProdutores = () => {
       const user = auth?.user;
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Verifica se é admin
-      const { data: roleRow } = await supabase
+      // Busca role do usuário
+      const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", "admin")
         .maybeSingle();
-      const isAdmin = !!roleRow;
+      
+      const userRole = roleData?.role;
+      const isAdmin = userRole === "admin";
+      const isGestor = userRole === "gestor";
 
       let query = supabase
         .from("produtores")
         .select("*")
         .order("nome", { ascending: true });
 
-      if (!isAdmin) {
+      if (!isAdmin && !isGestor) {
         // Filtra pelos produtores do consultor logado obtido via profiles
         const { data: profile } = await supabase
           .from("profiles")
@@ -54,6 +56,7 @@ export const useProdutores = () => {
           query = query.eq("numerocm_consultor", cmConsultor);
         }
       }
+      // Para gestores, confia na RLS policy que filtra através da tabela user_produtores
 
       const { data, error } = await query;
       if (error) throw error;
