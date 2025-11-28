@@ -322,8 +322,8 @@ export const FormAplicacaoDefensivo = ({
           </div>
         )}
         {/* Seção fixa */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
+        <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-12">
+          <div className="space-y-2 md:col-span-1 lg:col-span-1">
             <Label>Safra *</Label>
             <Popover open={openSafra} onOpenChange={setOpenSafra}>
               <PopoverTrigger asChild>
@@ -366,7 +366,7 @@ export const FormAplicacaoDefensivo = ({
               </PopoverContent>
             </Popover>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-1 lg:col-span-3">
             <Label>Produtor *</Label>
             <Popover open={openProdutorPopover} onOpenChange={setOpenProdutorPopover}>
               <PopoverTrigger asChild>
@@ -407,7 +407,7 @@ export const FormAplicacaoDefensivo = ({
             </Popover>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-2 lg:col-span-6">
             <Label htmlFor="fazenda">Fazenda *</Label>
             <Popover open={openFazenda} onOpenChange={setOpenFazenda}>
               <PopoverTrigger asChild>
@@ -472,7 +472,7 @@ export const FormAplicacaoDefensivo = ({
             </Popover>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-2">
             <Label>Área cultivável (ha)</Label>
             <Input
               type="number"
@@ -481,6 +481,8 @@ export const FormAplicacaoDefensivo = ({
               className="bg-muted"
             />
           </div>
+
+
         </div>
 
         {/* Seleção de classe/aplicação agora por produto (na linha) */}
@@ -705,8 +707,8 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
   return (
     <Card className="p-4 bg-muted/50">
       <div className="flex items-start gap-4">
-        <div className="flex-1 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-2">
+        <div className="flex-1 grid gap-2 md:grid-cols-2 lg:grid-cols-12">
+          <div className="space-y-2 lg:col-span-2">
             <Label>Descrição da Classe</Label>
             <Popover open={openClassePopover} onOpenChange={setOpenClassePopover}>
               <PopoverTrigger asChild>
@@ -748,7 +750,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
             </Popover>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-2">
             <Label>Descrição da Aplicação</Label>
             <Popover open={openAplicacoesPopover} onOpenChange={setOpenAplicacoesPopover}>
               <PopoverTrigger asChild>
@@ -799,7 +801,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
             </Popover>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-3">
             <Label>Defensivo *</Label>
             <Popover open={openDefensivoPopover} onOpenChange={setOpenDefensivoPopover}>
               <PopoverTrigger asChild>
@@ -839,7 +841,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
             </Popover>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-1">
             <Label>Dose *</Label>
             <Input
               type="number"
@@ -855,8 +857,8 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
 
           {/* Área por produto removida: usa-se a área da fazenda selecionada */}
 
-          <div className="space-y-2">
-            <Label>Cobertura em %</Label>
+          <div className="space-y-2 lg:col-span-1">
+            <Label className="whitespace-nowrap text-xs truncate">Cobertura em %</Label>
             <Input
               type="number"
               step="0.1"
@@ -872,7 +874,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
             />
           </div>
 
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-2 md:col-span-2 lg:col-span-1">
             <Label>Total</Label>
             <Input
               type="number"
@@ -883,7 +885,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
             />
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 lg:col-span-1">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id={`produto-salvo-${index}`}
@@ -894,14 +896,13 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
                 Produto proprio
               </Label>
             </div>
+            {canRemove && (
+              <Button type="button" variant="ghost" size="icon" onClick={onRemove} title="Remover defensivo" className="h-10 w-10">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
-
-        {canRemove && (
-          <Button type="button" variant="ghost" size="icon" onClick={onRemove} title="Remover defensivo">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
       </div>
     </Card>
   );

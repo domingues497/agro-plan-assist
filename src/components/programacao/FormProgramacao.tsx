@@ -302,6 +302,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
         <div className="space-y-2">
           <Label>% Cobertura</Label>
+          <div className="flex gap-2">
           <Input
             type="number"
             step="0.1"
@@ -313,9 +314,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
               onChange(index, "percentual_cobertura", val);
             }}
-          />
-        </div>
-                    <Button 
+          /> <Button 
               type="button" 
               variant="destructive" 
               size="icon" 
@@ -325,6 +324,11 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
               <Trash2 className="h-4 w-4" />
             </Button>
       </div>
+        </div>
+
+
+      </div>
+                   
 
       {item.cultivar && item.tipo_tratamento !== "NÃO" && item.tipo_tratamento !== "NA FAZENDA" && (
         <div className="space-y-2">
@@ -509,7 +513,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
           checked={!!item.semente_propria}
           onCheckedChange={(checked) => onChange(index, "semente_propria", !!checked)}
         />
-        <Label htmlFor={`cultivar-salvo-${item.uiId || index}`}>Semente salva de safra anterior (RN012)</Label>
+        <Label htmlFor={`cultivar-salvo-${item.uiId || index}`}>Semente propria</Label>
       </div>
     </div>
   );
@@ -1110,8 +1114,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             <div className="space-y-4">
               {itensAdubacao.map((item, index) => (
                 <div key={index} className="p-3 md:p-4 border rounded-lg space-y-3">
-                  <div className="grid grid-cols-12 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-                    <div className="space-y-12 lg:col-span-2">
+                  <div className="grid grid-flow-col auto-cols-fr gap-3">
+                    <div className="space-y-2 lg:col-span-2">
                       <Label>Teste</Label>
                       <Select
                         value={item.formulacao}
@@ -1134,29 +1138,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     </Select>
                   </div>
 
-                  <div className="space-y-12 lg:col-span-2">
+                  <div className="space-y-2 lg:col-span-2">
                     <Label>Dose (kg/ha)</Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={item.dose}
                       onChange={(e) => handleAdubacaoChange(index, "dose", Number(e.target.value))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>% Cobertura</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="1"
-                      max="100"
-                      value={item.percentual_cobertura ?? 100}
-                      onChange={(e) => {
-                        const raw = Number(e.target.value);
-                        const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
-                        handleAdubacaoChange(index, "percentual_cobertura", val);
-                      }}
                     />
                   </div>
 
@@ -1184,17 +1172,37 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                             <SelectItem value="Saca">Saca</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => handleRemoveAdubacao(index)}
-                          disabled={false}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
+                    
+                  <div className="space-y-2">
+                    <Label>% Cobertura</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max="100"
+                        value={item.percentual_cobertura ?? 100}
+                        onChange={(e) => {
+                          const raw = Number(e.target.value);
+                          const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
+                          handleAdubacaoChange(index, "percentual_cobertura", val);
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleRemoveAdubacao(index)}
+                        disabled={false}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
                   </div>
 
                   <div className="flex items-center gap-2 pt-2 border-t">
@@ -1204,7 +1212,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                       onCheckedChange={(checked) => handleAdubacaoChange(index, "fertilizante_salvo", !!checked)}
                     />
                     <Label htmlFor={`adubacao-salvo-${index}`} className="text-sm">
-                      Fertilizante salvo de safra anterior (RN012)
+                      Fertilizante proprio
                     </Label>
                   </div>
                 </div>
