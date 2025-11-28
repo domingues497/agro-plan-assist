@@ -24,6 +24,7 @@ import { ImportCalendario } from "@/components/admin/ImportCalendario";
 import { ImportJustificativas } from "@/components/admin/ImportJustificativas";
 import { ImportCalendarioAplicacoes } from "@/components/admin/ImportCalendarioAplicacoes";
 import { HistoricoImportacoes } from "@/components/admin/HistoricoImportacoes";
+import { ListUsuarios } from "@/components/admin/ListUsuarios";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { ListConsultores } from "@/components/admin/ListConsultores";
 import { ListProdutores } from "@/components/admin/ListProdutores";
@@ -244,6 +245,14 @@ export default function Admin() {
               {openGroups.gerais && (
                 <div className="mt-1 ml-3 space-y-1">
                   <Button
+                    variant={selected === "usuarios" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("usuarios")}
+                  >
+                    Usuários
+                  </Button>
+                  <Button
                     variant={selected === "safras" ? "secondary" : "ghost"}
                     className="w-full justify-start"
                     size="sm"
@@ -373,6 +382,7 @@ export default function Admin() {
               <ListEpocas />
             </>
           )}
+          {selected === "usuarios" && <ListUsuarios />}
           {selected === "replicar" && <ReplicarSafras />}
           {selected === "historico" && <HistoricoImportacoes />}
         </main>
