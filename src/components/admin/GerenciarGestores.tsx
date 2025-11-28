@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/table";
 import { Trash2, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const GerenciarGestores = () => {
   const { usuarios, isLoading: loadingUsuarios } = useUsuarios();
@@ -30,8 +32,8 @@ export const GerenciarGestores = () => {
   const { data: fazendas, isLoading: loadingFazendas } = useFazendas();
 
   const [selectedGestor, setSelectedGestor] = useState<string>("");
-  const [selectedProdutor, setSelectedProdutor] = useState<string>("");
-  const [selectedFazenda, setSelectedFazenda] = useState<string>("");
+  const [selectedProdutores, setSelectedProdutores] = useState<string[]>([]);
+  const [selectedFazendas, setSelectedFazendas] = useState<string[]>([]);
 
   const {
     produtores: gestorProdutores,
@@ -49,23 +51,65 @@ export const GerenciarGestores = () => {
 
   const gestores = usuarios?.filter((u) => u.role === "gestor") ?? [];
 
-  const handleAddProdutor = () => {
-    if (selectedGestor && selectedProdutor) {
-      addProdutor({
-        userId: selectedGestor,
-        produtorNumerocm: selectedProdutor,
-      });
-      setSelectedProdutor("");
+  const availableProdutores = produtores?.filter(
+    (p) => !gestorProdutores.some((gp) => gp.produtor_numerocm === p.numerocm)
+  ) ?? [];
+
+  const availableFazendas = fazendas?.filter(
+    (f) => !gestorFazendas.some((gf) => gf.fazenda_id === f.id)
+  ) ?? [];
+
+  const handleToggleProdutor = (numerocm: string) => {
+    setSelectedProdutores((prev) =>
+      prev.includes(numerocm)
+        ? prev.filter((id) => id !== numerocm)
+        : [...prev, numerocm]
+    );
+  };
+
+  const handleToggleFazenda = (id: string) => {
+    setSelectedFazendas((prev) =>
+      prev.includes(id) ? prev.filter((fId) => fId !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllProdutores = () => {
+    if (selectedProdutores.length === availableProdutores.length) {
+      setSelectedProdutores([]);
+    } else {
+      setSelectedProdutores(availableProdutores.map((p) => p.numerocm));
     }
   };
 
-  const handleAddFazenda = () => {
-    if (selectedGestor && selectedFazenda) {
-      addFazenda({
-        userId: selectedGestor,
-        fazendaId: selectedFazenda,
-      });
-      setSelectedFazenda("");
+  const handleSelectAllFazendas = () => {
+    if (selectedFazendas.length === availableFazendas.length) {
+      setSelectedFazendas([]);
+    } else {
+      setSelectedFazendas(availableFazendas.map((f) => f.id));
+    }
+  };
+
+  const handleAddProdutores = async () => {
+    if (selectedGestor && selectedProdutores.length > 0) {
+      for (const produtorNumerocm of selectedProdutores) {
+        addProdutor({
+          userId: selectedGestor,
+          produtorNumerocm,
+        });
+      }
+      setSelectedProdutores([]);
+    }
+  };
+
+  const handleAddFazendas = async () => {
+    if (selectedGestor && selectedFazendas.length > 0) {
+      for (const fazendaId of selectedFazendas) {
+        addFazenda({
+          userId: selectedGestor,
+          fazendaId,
+        });
+      }
+      setSelectedFazendas([]);
     }
   };
 
@@ -105,40 +149,66 @@ export const GerenciarGestores = () => {
                   <h3 className="text-lg font-semibold mb-2">
                     Produtores Associados
                   </h3>
-                  <div className="flex gap-2 mb-4">
-                    <Select
-                      value={selectedProdutor}
-                      onValueChange={setSelectedProdutor}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Selecione um produtor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {produtores
-                          ?.filter(
-                            (p) =>
-                              !gestorProdutores.some(
-                                (gp) => gp.produtor_numerocm === p.numerocm
-                              )
-                          )
-                          .map((produtor) => (
-                            <SelectItem
+                  
+                  {availableProdutores.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="select-all-produtores"
+                            checked={
+                              selectedProdutores.length ===
+                                availableProdutores.length &&
+                              availableProdutores.length > 0
+                            }
+                            onCheckedChange={handleSelectAllProdutores}
+                          />
+                          <label
+                            htmlFor="select-all-produtores"
+                            className="text-sm font-medium cursor-pointer"
+                          >
+                            Selecionar todos ({availableProdutores.length})
+                          </label>
+                        </div>
+                        <Button
+                          onClick={handleAddProdutores}
+                          disabled={
+                            selectedProdutores.length === 0 || addingProdutor
+                          }
+                          size="sm"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Adicionar ({selectedProdutores.length})
+                        </Button>
+                      </div>
+                      <ScrollArea className="h-[200px] border rounded-md p-2">
+                        <div className="space-y-2">
+                          {availableProdutores.map((produtor) => (
+                            <div
                               key={produtor.id}
-                              value={produtor.numerocm}
+                              className="flex items-center gap-2"
                             >
-                              {produtor.nome}
-                            </SelectItem>
+                              <Checkbox
+                                id={`produtor-${produtor.id}`}
+                                checked={selectedProdutores.includes(
+                                  produtor.numerocm
+                                )}
+                                onCheckedChange={() =>
+                                  handleToggleProdutor(produtor.numerocm)
+                                }
+                              />
+                              <label
+                                htmlFor={`produtor-${produtor.id}`}
+                                className="text-sm cursor-pointer flex-1"
+                              >
+                                {produtor.nome}
+                              </label>
+                            </div>
                           ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      onClick={handleAddProdutor}
-                      disabled={!selectedProdutor || addingProdutor}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar
-                    </Button>
-                  </div>
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
 
                   {gestorProdutores.length > 0 ? (
                     <Table>
@@ -183,37 +253,64 @@ export const GerenciarGestores = () => {
                   <h3 className="text-lg font-semibold mb-2">
                     Fazendas Associadas
                   </h3>
-                  <div className="flex gap-2 mb-4">
-                    <Select
-                      value={selectedFazenda}
-                      onValueChange={setSelectedFazenda}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Selecione uma fazenda" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {fazendas
-                          ?.filter(
-                            (f) =>
-                              !gestorFazendas.some(
-                                (gf) => gf.fazenda_id === f.id
-                              )
-                          )
-                          .map((fazenda) => (
-                            <SelectItem key={fazenda.id} value={fazenda.id}>
-                              {fazenda.nomefazenda}
-                            </SelectItem>
+                  
+                  {availableFazendas.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="select-all-fazendas"
+                            checked={
+                              selectedFazendas.length ===
+                                availableFazendas.length &&
+                              availableFazendas.length > 0
+                            }
+                            onCheckedChange={handleSelectAllFazendas}
+                          />
+                          <label
+                            htmlFor="select-all-fazendas"
+                            className="text-sm font-medium cursor-pointer"
+                          >
+                            Selecionar todas ({availableFazendas.length})
+                          </label>
+                        </div>
+                        <Button
+                          onClick={handleAddFazendas}
+                          disabled={
+                            selectedFazendas.length === 0 || addingFazenda
+                          }
+                          size="sm"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Adicionar ({selectedFazendas.length})
+                        </Button>
+                      </div>
+                      <ScrollArea className="h-[200px] border rounded-md p-2">
+                        <div className="space-y-2">
+                          {availableFazendas.map((fazenda) => (
+                            <div
+                              key={fazenda.id}
+                              className="flex items-center gap-2"
+                            >
+                              <Checkbox
+                                id={`fazenda-${fazenda.id}`}
+                                checked={selectedFazendas.includes(fazenda.id)}
+                                onCheckedChange={() =>
+                                  handleToggleFazenda(fazenda.id)
+                                }
+                              />
+                              <label
+                                htmlFor={`fazenda-${fazenda.id}`}
+                                className="text-sm cursor-pointer flex-1"
+                              >
+                                {fazenda.nomefazenda}
+                              </label>
+                            </div>
                           ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      onClick={handleAddFazenda}
-                      disabled={!selectedFazenda || addingFazenda}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar
-                    </Button>
-                  </div>
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
 
                   {gestorFazendas.length > 0 ? (
                     <Table>
