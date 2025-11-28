@@ -875,6 +875,7 @@ export type Database = {
       talhoes: {
         Row: {
           area: number
+          arrendado: boolean
           created_at: string
           fazenda_id: string
           id: string
@@ -883,6 +884,7 @@ export type Database = {
         }
         Insert: {
           area: number
+          arrendado?: boolean
           created_at?: string
           fazenda_id: string
           id?: string
@@ -891,6 +893,7 @@ export type Database = {
         }
         Update: {
           area?: number
+          arrendado?: boolean
           created_at?: string
           fazenda_id?: string
           id?: string

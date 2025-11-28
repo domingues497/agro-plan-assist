@@ -6,6 +6,7 @@ export type Talhao = {
   fazenda_id: string;
   nome: string;
   area: number;
+  arrendado: boolean;
   created_at: string;
   updated_at: string;
 };
