@@ -86,20 +86,20 @@ const Dashboard = () => {
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
   const [fazendaSelecionada, setFazendaSelecionada] = useState<{ id: string; nome: string } | null>(null);
 
-  const produtoresDoConsultor = useMemo(() => {
-    if (!profile?.numerocm_consultor) return [];
-    return allProdutores.filter((p) => p.numerocm_consultor === profile.numerocm_consultor);
-  }, [allProdutores, profile]);
+  const produtoresDisponiveis = useMemo(() => {
+    // Usa produtores já filtrados por RLS conforme role (consultor/gestor/admin)
+    return allProdutores;
+  }, [allProdutores]);
 
   const fazendasPorProdutor = useMemo(() => {
     const grouped: Record<string, typeof allFazendas> = {};
-    produtoresDoConsultor.forEach((produtor) => {
+    produtoresDisponiveis.forEach((produtor) => {
       grouped[produtor.numerocm] = allFazendas.filter(
         (f) => f.numerocm === produtor.numerocm
       );
     });
     return grouped;
-  }, [produtoresDoConsultor, allFazendas]);
+  }, [produtoresDisponiveis, allFazendas]);
 
   // Área agora é calculada pelos talhões - modal de edição removido
 
@@ -244,13 +244,13 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {produtoresDoConsultor.length === 0 ? (
+          {produtoresDisponiveis.length === 0 ? (
             <div className="text-center py-4 text-muted-foreground">
               <p>Nenhum produtor vinculado ao seu perfil.</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {produtoresDoConsultor.map((produtor) => {
+              {produtoresDisponiveis.map((produtor) => {
                 const fazendas = fazendasPorProdutor[produtor.numerocm] || [];
                 if (fazendas.length === 0) return null;
 

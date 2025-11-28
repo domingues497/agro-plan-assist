@@ -78,10 +78,13 @@ export const useProgramacoes = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Confia nas RLS para retornar:
+      // - consultor: apenas próprias (auth.uid = user_id)
+      // - gestor: todas vinculadas aos consultores associados
+      // - admin: todas
       const response = await (supabase as any)
         .from("programacoes")
         .select("*")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (response.error) throw response.error;

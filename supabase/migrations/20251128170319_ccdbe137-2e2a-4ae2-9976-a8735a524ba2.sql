@@ -153,7 +153,7 @@ WITH CHECK (
   )
 );
 
--- Adicionar policy para gestores verem programações
+-- Adicionar policy para gestores verem programacoes
 CREATE POLICY "Gestores can view programacoes"
 ON public.programacoes
 FOR SELECT
@@ -218,6 +218,26 @@ USING (
           FROM public.gestor_consultores gc 
           WHERE gc.user_id = auth.uid()
         )
+      )
+  ))
+);
+
+-- Atualizar RLS de aplicacoes_defensivos para permitir gestores
+DROP POLICY IF EXISTS "Users can view own aplicacoes" ON public.aplicacoes_defensivos;
+
+CREATE POLICY "Users can view aplicacoes by role"
+ON public.aplicacoes_defensivos
+FOR SELECT
+USING (
+  auth.uid() = user_id OR
+  has_role(auth.uid(), 'admin') OR
+  (has_role(auth.uid(), 'gestor') AND EXISTS (
+    SELECT 1 FROM public.produtores p
+    WHERE p.numerocm = public.aplicacoes_defensivos.produtor_numerocm
+      AND p.numerocm_consultor IN (
+        SELECT gc.numerocm_consultor 
+        FROM public.gestor_consultores gc 
+        WHERE gc.user_id = auth.uid()
       )
   ))
 );
