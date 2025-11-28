@@ -2,28 +2,35 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-export const useGestorConsultor = (userId?: string) => {
+export type GestorConsultor = {
+  id: string;
+  user_id: string;
+  numerocm_consultor: string;
+  created_at: string;
+};
+
+export const useGestorConsultores = (userId?: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["gestor-consultor", userId],
+    queryKey: ["gestor-consultores", userId],
     queryFn: async () => {
-      if (!userId) return null;
+      if (!userId) return [];
 
       const { data, error } = await supabase
-        .from("profiles")
-        .select("numerocm_consultor_gestor")
+        .from("gestor_consultores")
+        .select("*")
         .eq("user_id", userId)
-        .maybeSingle();
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data?.numerocm_consultor_gestor || null;
+      return data as GestorConsultor[];
     },
     enabled: !!userId,
   });
 
-  const associarConsultor = useMutation({
+  const addConsultor = useMutation({
     mutationFn: async ({
       userId,
       numerocmConsultor,
@@ -31,15 +38,20 @@ export const useGestorConsultor = (userId?: string) => {
       userId: string;
       numerocmConsultor: string;
     }) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ numerocm_consultor_gestor: numerocmConsultor })
-        .eq("user_id", userId);
+      const { data, error } = await supabase
+        .from("gestor_consultores")
+        .insert({
+          user_id: userId,
+          numerocm_consultor: numerocmConsultor,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gestor-consultor"] });
+      queryClient.invalidateQueries({ queryKey: ["gestor-consultores"] });
       queryClient.invalidateQueries({ queryKey: ["produtores"] });
       queryClient.invalidateQueries({ queryKey: ["fazendas"] });
       toast({
@@ -56,17 +68,17 @@ export const useGestorConsultor = (userId?: string) => {
     },
   });
 
-  const removerConsultor = useMutation({
-    mutationFn: async (userId: string) => {
+  const removeConsultor = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("profiles")
-        .update({ numerocm_consultor_gestor: null })
-        .eq("user_id", userId);
+        .from("gestor_consultores")
+        .delete()
+        .eq("id", id);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gestor-consultor"] });
+      queryClient.invalidateQueries({ queryKey: ["gestor-consultores"] });
       queryClient.invalidateQueries({ queryKey: ["produtores"] });
       queryClient.invalidateQueries({ queryKey: ["fazendas"] });
       toast({
@@ -84,12 +96,12 @@ export const useGestorConsultor = (userId?: string) => {
   });
 
   return {
-    numerocmConsultor: data,
+    consultores: data ?? [],
     isLoading,
     error,
-    associarConsultor: associarConsultor.mutate,
-    removerConsultor: removerConsultor.mutate,
-    isAssociating: associarConsultor.isPending,
-    isRemoving: removerConsultor.isPending,
+    addConsultor: addConsultor.mutate,
+    removeConsultor: removeConsultor.mutate,
+    isAdding: addConsultor.isPending,
+    isRemoving: removeConsultor.isPending,
   };
 };

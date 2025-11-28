@@ -289,6 +289,27 @@ export type Database = {
         }
         Relationships: []
       }
+      gestor_consultores: {
+        Row: {
+          created_at: string | null
+          id: string
+          numerocm_consultor: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          numerocm_consultor: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          numerocm_consultor?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       import_history: {
         Row: {
           arquivo_nome: string | null
@@ -383,7 +404,6 @@ export type Database = {
           id: string
           nome: string | null
           numerocm_consultor: string | null
-          numerocm_consultor_gestor: string | null
           updated_at: string | null
           user_id: string
         }
@@ -393,7 +413,6 @@ export type Database = {
           id?: string
           nome?: string | null
           numerocm_consultor?: string | null
-          numerocm_consultor_gestor?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -403,7 +422,6 @@ export type Database = {
           id?: string
           nome?: string | null
           numerocm_consultor?: string | null
-          numerocm_consultor_gestor?: string | null
           updated_at?: string | null
           user_id?: string
         }
