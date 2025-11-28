@@ -34,7 +34,7 @@ export const ListFazendas = () => {
   const { data = [], isLoading, error } = useFazendas();
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<
-    "idfazenda" | "nomefazenda" | "numerocm" | "area_cultivavel" | "produtor_nome" | "consultor_nome"
+    "idfazenda" | "nomefazenda" | "numerocm" | "produtor_nome" | "consultor_nome"
   >("nomefazenda");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
@@ -42,7 +42,6 @@ export const ListFazendas = () => {
   const [openDeleteKey, setOpenDeleteKey] = useState<{ idfazenda: string; numerocm: string } | null>(null);
   const [editRow, setEditRow] = useState<any | null>(null);
   const [editNome, setEditNome] = useState("");
-  const [editArea, setEditArea] = useState<string>("");
   const [editNumerocmConsultor, setEditNumerocmConsultor] = useState<string>("");
   const qc = useQueryClient();
   const { data: consultores = [] } = useConsultores();
@@ -123,7 +122,6 @@ export const ListFazendas = () => {
   const onOpenEdit = (row: any) => {
     setEditRow(row);
     setEditNome(row.nomefazenda ?? "");
-    setEditArea(row.area_cultivavel != null ? String(row.area_cultivavel) : "");
     setEditNumerocmConsultor(row.numerocm_consultor != null ? String(row.numerocm_consultor) : "");
   };
 
@@ -131,8 +129,7 @@ export const ListFazendas = () => {
     if (!editRow) return;
     try {
       const payload: any = { nomefazenda: editNome };
-      const nArea = Number(editArea);
-      payload.area_cultivavel = isNaN(nArea) ? null : nArea;
+      // área cultivável removida do cadastro de fazendas; gerenciada em talhões
       payload.numerocm_consultor = editNumerocmConsultor ? String(editNumerocmConsultor) : null;
       const { error } = await supabase
         .from("fazendas")
@@ -191,9 +188,7 @@ export const ListFazendas = () => {
                 <TableHead>
                   <button className="flex items-center gap-1" onClick={() => toggleSort("consultor_nome")}>Consultor {sortKey === "consultor_nome" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}</button>
                 </TableHead>
-                <TableHead className="w-[150px]">
-                  <button className="flex items-center gap-1" onClick={() => toggleSort("area_cultivavel")}>Área cultivável (ha) {sortKey === "area_cultivavel" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}</button>
-                </TableHead>
+                {/* coluna de área removida: área agora é gerenciada pelos talhões */}
                 <TableHead className="w-[120px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -227,7 +222,7 @@ export const ListFazendas = () => {
                       return txt || "—";
                     })()}
                   </TableCell>
-                  <TableCell>{typeof f.area_cultivavel === "number" ? f.area_cultivavel : "—"}</TableCell>
+                  {/* área cultivável removida da listagem */}
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={() => onOpenEdit(f)}>
@@ -242,7 +237,7 @@ export const ListFazendas = () => {
               ))}
               {paged.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
+                  <TableCell colSpan={4} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -283,10 +278,7 @@ export const ListFazendas = () => {
                 <Label>Nome</Label>
                 <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <Label>Área cultivável (ha)</Label>
-                <Input value={editArea} onChange={(e) => setEditArea(e.target.value)} />
-              </div>
+              {/* campo de área cultivável removido: gerencie via talhões */}
               <div className="grid grid-cols-1 md:grid-cols-1 gap-3">
                 <div className="space-y-1">
                   <Label>Consultor</Label>

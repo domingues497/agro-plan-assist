@@ -82,7 +82,6 @@ export function ImportFazendas() {
         idfazenda: String(row.IDFAZENDA ?? row.idfazenda ?? "").trim(),
         nomefazenda: String(row.NOMEFAZENDA ?? row.nomefazenda ?? "").trim(),
         numerocm_consultor: String(row.NUMEROCMCONSULTOR ?? row.numerocm_consultor ?? "").trim(),
-        area_cultivavel: row.AREA_CULTIVAVEL ?? row.area_cultivavel ?? null,
       })).filter((r) => r.numerocm && r.idfazenda && r.nomefazenda && r.numerocm_consultor);
 
       if (payload.length === 0) {
@@ -146,7 +145,7 @@ export function ImportFazendas() {
     <Card>
       <CardHeader>
         <CardTitle>Importar Fazendas</CardTitle>
-        <CardDescription>Planilha com colunas: NUMEROCM, IDFAZENDA, NOMEFAZENDA, NUMEROCMCONSULTOR, AREA_CULTIVAVEL</CardDescription>
+        <CardDescription>Planilha com colunas: NUMEROCM, IDFAZENDA, NOMEFAZENDA, NUMEROCMCONSULTOR</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
