@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useUserProdutores } from "@/hooks/useUserProdutores";
 import { useUserFazendas } from "@/hooks/useUserFazendas";
@@ -50,6 +50,12 @@ export const GerenciarGestores = () => {
   } = useUserFazendas(selectedGestor);
 
   const gestores = usuarios?.filter((u) => u.role === "gestor") ?? [];
+
+  // Reset selections when gestor changes
+  useEffect(() => {
+    setSelectedProdutores([]);
+    setSelectedFazendas([]);
+  }, [selectedGestor]);
 
   const availableProdutores = produtores?.filter(
     (p) => !gestorProdutores.some((gp) => gp.produtor_numerocm === p.numerocm)
@@ -181,12 +187,16 @@ export const GerenciarGestores = () => {
                           Adicionar ({selectedProdutores.length})
                         </Button>
                       </div>
-                      <ScrollArea className="h-[200px] border rounded-md p-2">
+                      <ScrollArea className="h-[200px] border rounded-md p-2 bg-muted/30">
                         <div className="space-y-2">
                           {availableProdutores.map((produtor) => (
                             <div
                               key={produtor.id}
-                              className="flex items-center gap-2"
+                              className={`flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors ${
+                                selectedProdutores.includes(produtor.numerocm)
+                                  ? "bg-primary/10"
+                                  : ""
+                              }`}
                             >
                               <Checkbox
                                 id={`produtor-${produtor.id}`}
@@ -285,12 +295,16 @@ export const GerenciarGestores = () => {
                           Adicionar ({selectedFazendas.length})
                         </Button>
                       </div>
-                      <ScrollArea className="h-[200px] border rounded-md p-2">
+                      <ScrollArea className="h-[200px] border rounded-md p-2 bg-muted/30">
                         <div className="space-y-2">
                           {availableFazendas.map((fazenda) => (
                             <div
                               key={fazenda.id}
-                              className="flex items-center gap-2"
+                              className={`flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors ${
+                                selectedFazendas.includes(fazenda.id)
+                                  ? "bg-primary/10"
+                                  : ""
+                              }`}
                             >
                               <Checkbox
                                 id={`fazenda-${fazenda.id}`}
