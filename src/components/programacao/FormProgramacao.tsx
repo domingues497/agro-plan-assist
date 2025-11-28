@@ -205,7 +205,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
   return (
     <div className="space-y-3 p-3 md:p-4 border rounded-lg">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         <div className="space-y-2">
           <Label>Cultura</Label>
           <Select 
@@ -230,7 +230,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
           </Select>
         </div>
         
-        <div className="space-y-2 lg:col-span-2">
+        <div className="space-y-2 sm:col-span-2 lg:col-span-2 xl:col-span-2">
           <Label>Cultivar</Label>
           <Select 
             value={item.cultivar} 
@@ -300,30 +300,33 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
           />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 sm:col-span-2 lg:col-span-1">
           <Label>% Cobertura</Label>
           <div className="flex gap-2">
-          <Input
-            type="number"
-            step="0.1"
-            min="1"
-            max="100"
-            value={item.percentual_cobertura ?? 100}
-            onChange={(e) => {
-              const raw = Number(e.target.value);
-              const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
-              onChange(index, "percentual_cobertura", val);
-            }}
-          /> <Button 
+            <Input
+              type="number"
+              step="0.1"
+              min="1"
+              max="100"
+              value={item.percentual_cobertura ?? 100}
+              onChange={(e) => {
+                const raw = Number(e.target.value);
+                const val = Number.isFinite(raw) ? Math.min(100, Math.max(1, raw)) : 100;
+                onChange(index, "percentual_cobertura", val);
+              }}
+              className="flex-1"
+            />
+            <Button 
               type="button" 
               variant="destructive" 
               size="icon" 
               onClick={() => onRemove(index)} 
               disabled={!canRemove}
+              className="shrink-0"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-      </div>
+          </div>
         </div>
 
 
@@ -390,7 +393,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
 
           {defensivosFazenda.map((defensivo, defIndex) => (
             <div key={defensivo.tempId} className="space-y-3 p-3 border rounded-md bg-muted/30">
-              <div className="grid grid-flow-col auto-cols-fr gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                 <div className="space-y-2">
                   <Label>Aplicação</Label>
                   <Input
@@ -400,7 +403,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 sm:col-span-2 lg:col-span-2">
                   <Label>Defensivo *</Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -478,14 +481,14 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                   />
                 </div>
 
-                <div className="flex items-center gap-2 justify-between h-10 self-center">
+                <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-1 flex flex-col sm:flex-row items-start sm:items-center gap-2 justify-between">
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id={`produto-salvo-${defensivo.tempId}`}
                       checked={defensivo.produto_salvo}
                       onCheckedChange={(checked) => handleDefensivoChange(defensivo.tempId, "produto_salvo", !!checked)}
                     />
-                    <Label htmlFor={`produto-salvo-${defensivo.tempId}`} className="text-sm">
+                    <Label htmlFor={`produto-salvo-${defensivo.tempId}`} className="text-sm whitespace-nowrap">
                       Produto proprio.
                     </Label>
                   </div>
@@ -495,6 +498,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
                       variant="ghost"
                       size="icon"
                       onClick={() => handleRemoveDefensivo(defensivo.tempId)}
+                      className="shrink-0"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -885,16 +889,14 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   };
 
   return (
-    <Card className="p-4 md:p-6 mb-6">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <Card className="overflow-hidden">
+      <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
         {title && (
-          <div className="mb-2">
-            <h3 className="text-lg font-semibold">{title}</h3>
-          </div>
+          <h2 className="text-xl sm:text-2xl font-bold mb-2">{title}</h2>
         )}
         
         {/* Seção Produtor/Fazenda/Safra */}
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Produtor</Label>
             <Select value={produtorNumerocm} onValueChange={setProdutorNumerocm}>
@@ -936,10 +938,12 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   const invalid = !f.area_cultivavel || Number(f.area_cultivavel) <= 0;
                   return (
                     <SelectItem key={f.idfazenda} value={f.idfazenda}>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                      <div className="flex flex-col gap-1">
                         <span>{f.nomefazenda}</span>
-                        <span className="text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
-                        {invalid && <Badge variant="destructive" className="text-xs">sem área</Badge>}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
+                          {invalid && <Badge variant="destructive" className="text-xs">sem área</Badge>}
+                        </div>
                       </div>
                     </SelectItem>
                   );
@@ -949,7 +953,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           {fazendaIdfazenda && talhoesDaFazenda.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-2 lg:col-span-2">
               <Label>Talhões da Fazenda *</Label>
               <div className="border rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
                 {talhoesDaFazenda.map((talhao) => (
@@ -975,7 +979,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 ))}
               </div>
               {talhaoIds.length > 0 && (
-                <div className="text-sm text-muted-foreground bg-muted/30 p-2 rounded">
+                <div className="text-xs sm:text-sm text-muted-foreground bg-muted/30 p-2 rounded">
                   {talhaoIds.length} talhão(ões) selecionado(s) • Total: {areaHectares} ha
                 </div>
               )}
@@ -983,9 +987,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           )}
 
           {fazendaIdfazenda && talhoesDaFazenda.length === 0 && (
-            <div className="space-y-2 p-3 border border-destructive/50 rounded-lg bg-destructive/5">
+            <div className="space-y-2 p-3 border border-destructive/50 rounded-lg bg-destructive/5 lg:col-span-2">
               <Badge variant="destructive" className="mb-1">Fazenda sem talhões</Badge>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Cadastre os talhões usando o botão "Gerenciar Talhões" acima.
               </p>
             </div>
@@ -1114,9 +1118,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             <div className="space-y-4">
               {itensAdubacao.map((item, index) => (
                 <div key={index} className="p-3 md:p-4 border rounded-lg space-y-3">
-                  <div className="grid grid-flow-col auto-cols-fr gap-3">
-                    <div className="space-y-2 lg:col-span-2">
-                      <Label>Teste</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                    <div className="space-y-2 sm:col-span-2 lg:col-span-2">
+                      <Label>Formulação</Label>
                       <Select
                         value={item.formulacao}
                         onValueChange={(value) => handleAdubacaoChange(index, "formulacao", value)}
@@ -1138,7 +1142,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     </Select>
                   </div>
 
-                  <div className="space-y-2 lg:col-span-2">
+                  <div className="space-y-2">
                     <Label>Dose (kg/ha)</Label>
                     <Input
                       type="number"
@@ -1148,8 +1152,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Data provável de aplicação</Label>
+                  <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                    <Label>Data provável</Label>
                     <Input
                       type="date"
                       value={item.data_aplicacao || ""}
@@ -1157,25 +1161,23 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     />
                   </div>
                   
-                    <div className="space-y-2">
-                      <Label>Embalagem</Label>
-                      <div className="flex gap-2">
-                        <Select
-                          value={item.embalagem || ""}
-                          onValueChange={(value) => handleAdubacaoChange(index, "embalagem", value)}
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Big Bag">Big Bag</SelectItem>
-                            <SelectItem value="Saca">Saca</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
                   <div className="space-y-2">
+                    <Label>Embalagem</Label>
+                    <Select
+                      value={item.embalagem || ""}
+                      onValueChange={(value) => handleAdubacaoChange(index, "embalagem", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Big Bag">Big Bag</SelectItem>
+                        <SelectItem value="Saca">Saca</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                    
+                  <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                     <Label>% Cobertura</Label>
                     <div className="flex gap-2">
                       <Input
@@ -1197,6 +1199,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         size="icon"
                         onClick={() => handleRemoveAdubacao(index)}
                         disabled={false}
+                        className="shrink-0"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -1205,7 +1208,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t">
+                  <div className="flex items-center gap-2 pt-2 border-t sm:col-span-2 lg:col-span-3 xl:col-span-5">
                     <Checkbox
                       id={`adubacao-salvo-${index}`}
                       checked={!!item.fertilizante_salvo}
