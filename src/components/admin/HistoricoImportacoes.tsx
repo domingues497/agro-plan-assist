@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -21,14 +20,13 @@ export const HistoricoImportacoes = () => {
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ["import-history"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("import_history")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-      return data as ImportHistory[];
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/import_history`);
+      if (!res.ok) throw new Error(`Erro ao carregar histórico: ${res.status}`);
+      const json = await res.json();
+      return (json?.items ?? []) as ImportHistory[];
     },
   });
 

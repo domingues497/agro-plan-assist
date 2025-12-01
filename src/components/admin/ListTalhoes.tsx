@@ -6,9 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { useTalhoes } from "@/hooks/useTalhoes";
+import { useTalhoesMultiFazendas } from "@/hooks/useTalhoes";
 import { useFazendas } from "@/hooks/useFazendas";
-import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Pencil, Trash2, ChevronUp, ChevronDown } from "lucide-react";
@@ -17,8 +16,9 @@ type SortKey = "nome" | "area" | "fazenda";
 type SortDirection = "asc" | "desc";
 
 export function ListTalhoes() {
-  const { data: talhoes = [], isLoading: loadingTalhoes } = useTalhoes();
   const { data: fazendas = [], isLoading: loadingFazendas } = useFazendas();
+  const fazendaIds = useMemo(() => (fazendas || []).map((f) => f.id), [fazendas]);
+  const { data: talhoes = [], isLoading: loadingTalhoes } = useTalhoesMultiFazendas(fazendaIds);
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
@@ -86,13 +86,20 @@ export function ListTalhoes() {
 
   const onDelete = async () => {
     if (!deleteId) return;
-    const { error } = await supabase.from("talhoes").delete().eq("id", deleteId);
-    if (error) {
-      toast.error("Erro ao deletar talhão");
-      console.error(error);
-    } else {
+    try {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/talhoes/${deleteId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
       toast.success("Talhão deletado com sucesso");
       queryClient.invalidateQueries({ queryKey: ["talhoes"] });
+    } catch (error: any) {
+      toast.error("Erro ao deletar talhão");
+      console.error(error);
     }
     setDeleteId(null);
   };
@@ -111,18 +118,25 @@ export function ListTalhoes() {
       return;
     }
 
-    const { error } = await supabase
-      .from("talhoes")
-      .update({ nome: editNome, area })
-      .eq("id", editItem.id);
-
-    if (error) {
-      toast.error("Erro ao atualizar talhão");
-      console.error(error);
-    } else {
+    try {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/talhoes/${editItem.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: editNome, area }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
       toast.success("Talhão atualizado com sucesso");
       queryClient.invalidateQueries({ queryKey: ["talhoes"] });
       setEditItem(null);
+    } catch (error: any) {
+      toast.error("Erro ao atualizar talhão");
+      console.error(error);
     }
   };
 

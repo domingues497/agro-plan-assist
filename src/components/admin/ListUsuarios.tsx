@@ -36,6 +36,7 @@ export const ListUsuarios = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [passwordValue, setPasswordValue] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -159,6 +160,36 @@ export const ListUsuarios = () => {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSetPassword = async () => {
+    try {
+      if (!editingUser) return;
+      if ((passwordValue || "").length < 6) {
+        toast({ title: "Senha muito curta", description: "Use ao menos 6 caracteres.", variant: "destructive" });
+        return;
+      }
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const token = localStorage.getItem("auth_token") || "";
+      const res = await fetch(`${baseUrl}/users/${editingUser.id}/password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ password: passwordValue }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      toast({ title: "Senha atualizada", description: "A senha foi definida com sucesso." });
+      setPasswordValue("");
+    } catch (error: any) {
+      toast({ title: "Erro ao definir senha", description: error.message, variant: "destructive" });
     }
   };
               <div className="space-y-2">
@@ -372,6 +403,22 @@ export const ListUsuarios = () => {
                     setEditingUser({ ...editingUser, ativo: checked })
                   }
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reset-password">Definir/Resetar Senha</Label>
+                <Input
+                  id="reset-password"
+                  type="password"
+                  value={passwordValue}
+                  onChange={(e) => setPasswordValue(e.target.value)}
+                  placeholder="Nova senha (mín. 6 caracteres)"
+                />
+                <div className="flex justify-end">
+                  <Button variant="secondary" onClick={handleSetPassword}>
+                    Definir/Resetar senha
+                  </Button>
+                </div>
               </div>
             </div>
           )}

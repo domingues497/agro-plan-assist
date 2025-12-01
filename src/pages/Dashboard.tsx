@@ -46,7 +46,7 @@ const Dashboard = () => {
     .toLowerCase() === "true";
 
   // Modal obrigatório: preenchimento de área cultivável ao logar
-  const { profile, updateProfile } = useProfile();
+  const { profile, updateProfile, changePassword } = useProfile();
   const { data: allFazendas = [] } = useFazendas();
   const { data: allProdutores = [] } = useProdutores();
   const { toast } = useToast();
@@ -57,6 +57,7 @@ const Dashboard = () => {
 
   // Estados do modal de área removidos - agora gerenciado via talhões
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
   const [fazendaSelecionada, setFazendaSelecionada] = useState<{ id: string; nome: string } | null>(null);
 
   const produtoresDisponiveis = useMemo(() => {
@@ -170,6 +171,36 @@ const Dashboard = () => {
             </Card>
           </div>
         )}
+
+        <Card className="p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-semibold text-lg">Meu Perfil</h3>
+              <p className="text-sm text-muted-foreground">{profile?.nome || "Usuário"}</p>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">Alterar minha senha</Label>
+              <Input
+                id="new-password"
+                type="password"
+                placeholder="Nova senha"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="default"
+                onClick={() => changePassword(newPassword)}
+                disabled={!newPassword || newPassword.length < 6}
+              >
+                Definir senha
+              </Button>
+            </div>
+          </div>
+        </Card>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Link to="/programacao">

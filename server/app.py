@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema
+from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema, ensure_gestor_consultores_schema
 from psycopg2.extras import execute_values
 import uuid
 import time
@@ -36,6 +36,7 @@ try:
     ensure_cultivares_catalog_schema()
     ensure_tratamentos_sementes_schema()
     ensure_cultivares_tratamentos_schema()
+    ensure_gestor_consultores_schema()
 except Exception:
     pass
 
@@ -620,6 +621,28 @@ def import_calendario_aplicacoes():
 @app.route("/version")
 def version():
     return jsonify({"app": "agro-plan-assist-api", "version": "0.1.0"})
+
+@app.route("/import_history", methods=["GET"])
+def list_import_history():
+    ensure_import_history_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes, created_at
+                FROM public.import_history
+                ORDER BY created_at DESC
+                LIMIT 100
+                """
+            )
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            items = [dict(zip(cols, r)) for r in rows]
+            return jsonify({"items": items, "count": len(items)})
+    finally:
+        pool.putconn(conn)
 
 @app.route("/consultores", methods=["GET"])
 def list_consultores():
@@ -2912,6 +2935,65 @@ def remove_user_fazenda(id: str):
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/gestor_consultores", methods=["GET"])
+def list_gestor_consultores():
+    ensure_gestor_consultores_schema()
+    user_id = request.args.get("user_id")
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            if user_id:
+                cur.execute("SELECT id, user_id, numerocm_consultor, created_at FROM public.gestor_consultores WHERE user_id = %s ORDER BY created_at DESC", [user_id])
+            else:
+                cur.execute("SELECT id, user_id, numerocm_consultor, created_at FROM public.gestor_consultores ORDER BY created_at DESC")
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            items = [dict(zip(cols, r)) for r in rows]
+            return jsonify({"items": items, "count": len(items)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/gestor_consultores", methods=["POST"])
+def add_gestor_consultor():
+    ensure_gestor_consultores_schema()
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get("user_id")
+    numerocm_consultor = payload.get("numerocm_consultor")
+    if not user_id or not numerocm_consultor:
+        return jsonify({"error": "user_id e numerocm_consultor obrigatórios"}), 400
+    id_val = str(uuid.uuid4())
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO public.gestor_consultores (id, user_id, numerocm_consultor)
+                    VALUES (%s, %s, %s)
+                    """,
+                    [id_val, user_id, numerocm_consultor]
+                )
+        return jsonify({"ok": True, "id": id_val})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/gestor_consultores/<id>", methods=["DELETE"])
+def remove_gestor_consultor(id: str):
+    ensure_gestor_consultores_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM public.gestor_consultores WHERE id = %s", [id])
+        return jsonify({"ok": True})
     finally:
         pool.putconn(conn)
 

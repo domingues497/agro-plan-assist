@@ -119,6 +119,25 @@ def ensure_system_config_schema():
     finally:
         pool.putconn(conn)
 
+def ensure_gestor_consultores_schema():
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.gestor_consultores (
+                      id TEXT PRIMARY KEY,
+                      user_id TEXT NOT NULL,
+                      numerocm_consultor TEXT NOT NULL,
+                      created_at TIMESTAMPTZ DEFAULT now()
+                    );
+                    """
+                )
+    finally:
+        pool.putconn(conn)
+
 def ensure_consultores_schema():
     pool = get_pool()
     conn = pool.getconn()
