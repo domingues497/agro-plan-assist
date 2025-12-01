@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Trash2, Plus, Pencil } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTalhoes } from "@/hooks/useTalhoes";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { useQueryClient } from "@tanstack/react-query";

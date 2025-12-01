@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/useProfile";
 import { Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
@@ -23,6 +23,7 @@ export const ImportCalendario = () => {
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
+  const { profile } = useProfile();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -38,29 +39,30 @@ export const ImportCalendario = () => {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
       setTotalRows(jsonData.length);
+      const items = (jsonData as any[]).map((row) => ({
+        cod_aplic: row["Cód. aplic."] ?? row["COD. APLIC"] ?? row["COD APLIC"] ?? null,
+        descr_aplicacao: row["Descr. aplicação"] ?? row["DESCR. APLICAÇÃO"] ?? row["DESCR APLICACAO"] ?? null,
+        cod_aplic_ger: row["Cód. aplic. ger."] ?? row["COD. APLIC. GER."] ?? row["COD APLIC GER"] ?? null,
+        cod_classe: row["Cód. classe"] ?? row["COD. CLASSE"] ?? row["COD CLASSE"] ?? null,
+        descricao_classe: row["Descrição classe"] ?? row["DESCRIÇÃO CLASSE"] ?? row["DESCRICAO CLASSE"] ?? null,
+        trat_sementes: row["Trat. sementes"] ?? row["TRAT. SEMENTES"] ?? row["TRAT SEMENTES"] ?? null,
+      }));
 
-      for (const row of jsonData as any[]) {
-        const calendarioData = {
-          cod_aplic: row["Cód. aplic."] ?? row["COD. APLIC"] ?? row["COD APLIC"] ?? null,
-          descr_aplicacao: row["Descr. aplicação"] ?? row["DESCR. APLICAÇÃO"] ?? row["DESCR APLICACAO"] ?? null,
-          cod_aplic_ger: row["Cód. aplic. ger."] ?? row["COD. APLIC. GER."] ?? row["COD APLIC GER"] ?? null,
-          cod_classe: row["Cód. classe"] ?? row["COD. CLASSE"] ?? row["COD CLASSE"] ?? null,
-          descricao_classe: row["Descrição classe"] ?? row["DESCRIÇÃO CLASSE"] ?? row["DESCRICAO CLASSE"] ?? null,
-          trat_sementes: row["Trat. sementes"] ?? row["TRAT. SEMENTES"] ?? row["TRAT SEMENTES"] ?? null,
-        } as any;
-
-        const { error } = await supabase
-          .from("calendario_aplicacoes")
-          .insert(calendarioData);
-
-        if (error) {
-          console.error("Erro ao importar calendário:", error);
-        } else {
-          setImportedRows((prev) => prev + 1);
-        }
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/calendario_aplicacoes/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, limpar_antes: false, user_id: profile?.id, arquivo_nome: file.name }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-
-      toast.success(`Importação concluída! ${importedRows} de ${totalRows} processadas`);
+      const json = await res.json();
+      setImportedRows(Number(json?.imported || items.length));
+      toast.success(`Importação concluída! ${Number(json?.imported || items.length)} de ${totalRows} processadas`);
       setShowSummary(true);
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);

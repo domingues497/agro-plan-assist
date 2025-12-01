@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Copy } from "lucide-react";
 import { useSafras } from "@/hooks/useSafras";
-import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 
 export const ReplicarSafras = () => {
@@ -13,6 +13,7 @@ export const ReplicarSafras = () => {
   const [safraOrigemId, setSafraOrigemId] = useState<string>("");
   const [safraDestinoId, setSafraDestinoId] = useState<string>("");
   const [isReplicating, setIsReplicating] = useState(false);
+  const { profile } = useProfile();
 
   const handleReplicate = async () => {
     if (!safraOrigemId || !safraDestinoId) {
@@ -28,45 +29,31 @@ export const ReplicarSafras = () => {
     setIsReplicating(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
 
-      // Buscar programações de cultivares da safra origem
-      const { data: cultivares, error: errorCultivares } = await supabase
-        .from("programacao_cultivares")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("safra", safraOrigemId);
+      const token = localStorage.getItem("auth_token") || "";
+      const userId = profile?.id || "";
+      if (!userId) throw new Error("Usuário não autenticado");
 
-      if (errorCultivares) throw errorCultivares;
+      const getJson = async (url: string) => {
+        const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt);
+        }
+        return res.json();
+      };
 
-      // Buscar programações de adubação da safra origem
-      const { data: adubacoes, error: errorAdubacoes } = await supabase
-        .from("programacao_adubacao")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("safra_id", safraOrigemId);
+      const progCult = await getJson(`${baseUrl}/programacao_cultivares`);
+      const cultivares = (progCult.items || []).filter((p: any) => String(p.user_id) === userId && String(p.safra) === safraOrigemId);
 
-      if (errorAdubacoes) throw errorAdubacoes;
+      const progAdub = await getJson(`${baseUrl}/programacao_adubacao`);
+      const adubacoes = (progAdub.items || []).filter((p: any) => String(p.user_id) === userId && String(p.safra_id) === safraOrigemId);
 
-      // Buscar aplicações de defensivos da safra origem
-      const { data: aplicacoes, error: errorAplicacoes } = await supabase
-        .from("aplicacoes_defensivos")
-        .select("*")
-        .eq("user_id", user.id);
-
-      if (errorAplicacoes) throw errorAplicacoes;
-
-      // Buscar defensivos associados às aplicações
-      const aplicacoesIds = aplicacoes?.map(a => a.id) || [];
-      const { data: defensivos, error: errorDefensivos } = await supabase
-        .from("programacao_defensivos")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("safra_id", safraOrigemId)
-        .in("aplicacao_id", aplicacoesIds);
-
-      if (errorDefensivos) throw errorDefensivos;
+      const appl = await getJson(`${baseUrl}/aplicacoes_defensivos`);
+      const aplicacoes = (appl.items || []).filter((a: any) => String(a.user_id) === userId);
 
       let cultivaresCopiados = 0;
       let adubacoesCopiadas = 0;
@@ -74,64 +61,61 @@ export const ReplicarSafras = () => {
 
       // Replicar cultivares
       if (cultivares && cultivares.length > 0) {
-        const cultivaresNovos = cultivares.map(({ id, created_at, updated_at, ...rest }) => ({
-          ...rest,
-          safra: safraDestinoId,
-        }));
-
-        const { error: errorInsertCultivares } = await supabase
-          .from("programacao_cultivares")
-          .insert(cultivaresNovos);
-
-        if (errorInsertCultivares) throw errorInsertCultivares;
-        cultivaresCopiados = cultivaresNovos.length;
+        for (const c of cultivares) {
+          const { id, created_at, updated_at, defensivos_fazenda, tratamento_ids, ...rest } = c;
+          const payload = { ...rest, safra: safraDestinoId, tratamento_ids: tratamento_ids || [], defensivos_fazenda: defensivos_fazenda || [] };
+          const res = await fetch(`${baseUrl}/programacao_cultivares`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt);
+          }
+          cultivaresCopiados += 1;
+        }
       }
 
       // Replicar adubações
       if (adubacoes && adubacoes.length > 0) {
-        const adubacoesNovas = adubacoes.map(({ id, created_at, updated_at, ...rest }) => ({
-          ...rest,
-          safra_id: safraDestinoId,
-        }));
-
-        const { error: errorInsertAdubacoes } = await supabase
-          .from("programacao_adubacao")
-          .insert(adubacoesNovas);
-
-        if (errorInsertAdubacoes) throw errorInsertAdubacoes;
-        adubacoesCopiadas = adubacoesNovas.length;
+        for (const a of adubacoes) {
+          const { id, created_at, updated_at, ...rest } = a;
+          const payload = { ...rest, safra_id: safraDestinoId };
+          const res = await fetch(`${baseUrl}/programacao_adubacao`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt);
+          }
+          adubacoesCopiadas += 1;
+        }
       }
 
       // Replicar aplicações de defensivos e seus itens
       if (aplicacoes && aplicacoes.length > 0) {
         for (const aplicacao of aplicacoes) {
-          // Criar nova aplicação
-          const { id: oldId, created_at, updated_at, ...aplicacaoRest } = aplicacao;
-          const { data: novaAplicacao, error: errorNovaAplicacao } = await supabase
-            .from("aplicacoes_defensivos")
-            .insert(aplicacaoRest)
-            .select()
-            .single();
-
-          if (errorNovaAplicacao) throw errorNovaAplicacao;
-
-          // Buscar defensivos desta aplicação específica
-          const defensivosDaAplicacao = defensivos?.filter(d => d.aplicacao_id === oldId) || [];
-
-          if (defensivosDaAplicacao.length > 0) {
-            const defensivosNovos = defensivosDaAplicacao.map(({ id, created_at, updated_at, ...rest }) => ({
-              ...rest,
-              aplicacao_id: novaAplicacao.id,
-              safra_id: safraDestinoId,
-            }));
-
-            const { error: errorInsertDefensivos } = await supabase
-              .from("programacao_defensivos")
-              .insert(defensivosNovos);
-
-            if (errorInsertDefensivos) throw errorInsertDefensivos;
-            defensivosCopiados += defensivosNovos.length;
+          const defensivosDaAplicacao = (aplicacao.defensivos || []).filter((d: any) => String(d.safra_id) === safraOrigemId);
+          if (defensivosDaAplicacao.length === 0) continue;
+          const payload = {
+            user_id: aplicacao.user_id,
+            produtor_numerocm: aplicacao.produtor_numerocm,
+            area: aplicacao.area,
+            defensivos: defensivosDaAplicacao.map((d: any) => ({ ...d, safra_id: safraDestinoId })),
+          };
+          const res = await fetch(`${baseUrl}/aplicacoes_defensivos`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt);
           }
+          defensivosCopiados += defensivosDaAplicacao.length;
         }
       }
 

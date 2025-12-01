@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { Wifi, WifiOff, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
@@ -69,9 +68,6 @@ export const ImportDefensivos = () => {
     setDeletedRows(0);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
       let deletedRecords = 0;
 
       const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1';
@@ -118,16 +114,6 @@ export const ImportDefensivos = () => {
       const j = await res.json();
       const imported = Number(j?.imported || 0);
       setImportedRows(imported);
-
-      // Registrar no histórico
-      await supabase.from("import_history").insert({
-        user_id: user.id,
-        tabela_nome: "defensivos_catalog",
-        registros_importados: importedRows,
-        registros_deletados: deletedRecords,
-        arquivo_nome: file.name,
-        limpar_antes: limparAntes,
-      });
 
       toast.success(`Importação concluída! ${importedRows} registros únicos de ${totalRows} linhas processadas`);
       setShowSummary(true);

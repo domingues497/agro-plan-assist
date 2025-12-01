@@ -16,7 +16,6 @@ import { useFazendas } from "@/hooks/useFazendas";
 import type { DefensivoItem } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useSafras } from "@/hooks/useSafras";
-import { supabase } from "@/integrations/supabase/client";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 
 type FormAplicacaoDefensivoProps = {
