@@ -7,25 +7,30 @@ import dns from "node:dns";
 dns.setDefaultResultOrder("verbatim");
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: true,
-    port: 8080,
-    strictPort: true,
-    hmr: {
-      host: "programacao.coopagricola.coop.br",
-      protocol: "wss",
-      clientPort: 443,
+export default defineConfig(({ mode }) => {
+  const devPort = 5173;
+  const hmr = mode === "development"
+    ? (process.env.VITE_HMR_HOST
+        ? { host: process.env.VITE_HMR_HOST, protocol: "wss", clientPort: 443 }
+        : { host: "localhost", protocol: "ws", port: devPort, clientPort: devPort })
+    : undefined;
+
+  return {
+    server: {
+      host: true,
+      port: devPort,
+      strictPort: true,
+      ...(hmr ? { hmr } : {}),
     },
-  },
-  preview: {
-    port: 8080,
-    strictPort: true,
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    preview: {
+      port: devPort,
+      strictPort: true,
     },
-  },
-}));
+    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  };
+});

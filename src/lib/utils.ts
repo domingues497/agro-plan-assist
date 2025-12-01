@@ -28,14 +28,30 @@ export function safeRandomUUID(): string {
 export function getApiBaseUrl(): string {
   const envUrl = (import.meta as any).env?.VITE_API_URL as string | undefined;
   const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+  const isBrowser = typeof window !== "undefined";
+  const isHttps = isBrowser && window.location.protocol === "https:";
+  const isLocalHost = ["localhost", "127.0.0.1"].includes(host);
+
+  if (isBrowser && !isLocalHost) {
+    const normalizedEnv = (envUrl || "").trim();
+    const envPointsToLocal = /localhost|127\.0\.0\.1/.test(normalizedEnv);
+    if (!envPointsToLocal && normalizedEnv) {
+      if (isHttps && normalizedEnv.startsWith("http://")) {
+        return "https://" + normalizedEnv.slice("http://".length);
+      }
+      return normalizedEnv;
+    }
+    return `${window.location.protocol}//${window.location.host}`;
+  }
+
   if (envUrl && envUrl.trim()) {
     const url = envUrl.trim();
-    if (typeof window !== "undefined" && window.location.protocol === "https:" && url.startsWith("http://")) {
+    if (isHttps && url.startsWith("http://")) {
       return "https://" + url.slice("http://".length);
     }
     return url;
   }
-  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+
   if (isHttps) {
     return `https://${host}`;
   }
