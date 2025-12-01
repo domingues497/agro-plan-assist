@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sprout } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getApiBaseUrl } from "@/lib/utils";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -28,9 +29,7 @@ const Auth = () => {
     setLoading(true);
 
     // Permitir cadastro apenas se email consta na base de consultores
-    const envUrl = (import.meta as any).env?.VITE_API_URL;
-    const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-    const baseUrl = envUrl || `http://${host}:5000`;
+    const baseUrl = getApiBaseUrl();
     const res = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(email.toLowerCase())}`);
     if (!res.ok) {
       toast({ title: "Cadastro bloqueado", description: "Email não encontrado na base de consultores.", variant: "destructive" });
@@ -47,9 +46,7 @@ const Auth = () => {
     setLoading(true);
 
     // Permitir login apenas para emails de consultores cadastrados
-    const envUrl2 = (import.meta as any).env?.VITE_API_URL;
-    const host2 = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-    const baseUrl2 = envUrl2 || `http://${host2}:5000`;
+    const baseUrl2 = getApiBaseUrl();
     const res2 = await fetch(`${baseUrl2}/consultores/by_email?email=${encodeURIComponent(email.toLowerCase())}`);
     if (!res2.ok) {
       toast({ title: "Login bloqueado", description: "Email não encontrado na base de consultores.", variant: "destructive" });

@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
+import { getApiBaseUrl } from "@/lib/utils";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
@@ -33,9 +34,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
           setLoading(false);
           return;
         }
-        const envUrl = (import.meta as any).env?.VITE_API_URL;
-        const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-        const baseUrl = envUrl || `http://${host}:5000`;
+        const baseUrl = getApiBaseUrl();
         const res = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) {
           localStorage.removeItem("auth_token");
@@ -77,6 +76,7 @@ const App = () => (
       <BrowserRouter
         future={{
           v7_relativeSplatPath: true,
+          v7_startTransition: true,
         }}
       >
         <Routes>

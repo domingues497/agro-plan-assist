@@ -9,6 +9,7 @@ import { useTalhoes } from "@/hooks/useTalhoes";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { useQueryClient } from "@tanstack/react-query";
+import { getApiBaseUrl } from "@/lib/utils";
 
 interface GerenciarTalhoesProps {
   fazendaId: string;
@@ -32,9 +33,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
     }
 
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       if (editando.id) {
         const res = await fetch(`${baseUrl}/talhoes/${editando.id}`, {
           method: "PUT",
@@ -73,9 +72,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
     if (!confirm("Deseja excluir este talhão?")) return;
     
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/talhoes/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const txt = await res.text();

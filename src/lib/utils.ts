@@ -16,13 +16,28 @@ export function safeRandomUUID(): string {
   if (c?.getRandomValues) {
     const bytes = new Uint8Array(16);
     c.getRandomValues(bytes);
-    // Ajustes para RFC4122 v4
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
     return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
   }
-  // Fallback simples
   const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
   return `${s4()}${s4()}-${s4()}-${s4()}-${s4()}-${s4()}${s4()}${s4()}`;
+}
+
+export function getApiBaseUrl(): string {
+  const envUrl = (import.meta as any).env?.VITE_API_URL as string | undefined;
+  const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+  if (envUrl && envUrl.trim()) {
+    const url = envUrl.trim();
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && url.startsWith("http://")) {
+      return "https://" + url.slice("http://".length);
+    }
+    return url;
+  }
+  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+  if (isHttps) {
+    return `https://${host}`;
+  }
+  return `http://${host}:5000`;
 }
