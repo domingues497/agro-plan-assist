@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
@@ -19,6 +18,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { useAdminRole } from "@/hooks/useAdminRole";
+import { useProfile } from "@/hooks/useProfile";
 
 export const ImportCultivares = () => {
   const [isImporting, setIsImporting] = useState(false);
@@ -33,6 +34,8 @@ export const ImportCultivares = () => {
   const [cultureCounts, setCultureCounts] = useState<Record<string, number>>({});
   const [catalogSemCultura, setCatalogSemCultura] = useState<number>(0);
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
+  const { data: adminRole } = useAdminRole();
+  const { profile } = useProfile();
 
   const fetchCounts = async () => {
     try {
@@ -91,18 +94,7 @@ export const ImportCultivares = () => {
     setShowSummary(false);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      // Verificar se usuário é admin para poder inserir
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-      if (rolesError) {
-        console.warn("Não foi possível verificar papel do usuário:", rolesError.message);
-      }
-      const isAdmin = Array.isArray(rolesData) && rolesData.some((r) => r.role === "admin");
+      const isAdmin = !!adminRole?.isAdmin;
       if (!isAdmin) {
         toast.error("Apenas administradores podem importar cultivares. Solicite acesso ao perfil admin.");
         setIsImporting(false);
@@ -110,29 +102,6 @@ export const ImportCultivares = () => {
       }
 
       let deletedRecords = 0;
-
-      // Limpar tabela se checkbox marcado
-      if (limparAntes) {
-        const { count } = await supabase
-          .from("cultivares_catalog")
-          .select("*", { count: "exact", head: true });
-        
-        deletedRecords = count || 0;
-
-        const { error: deleteError } = await supabase
-          .from("cultivares_catalog")
-          .delete()
-          .neq("id", "00000000-0000-0000-0000-000000000000");
-        
-        if (deleteError) {
-          console.error("Erro ao limpar tabela:", deleteError);
-          toast.error("Erro ao limpar tabela");
-          setIsImporting(false);
-          return;
-        }
-        setDeletedRows(deletedRecords);
-        toast.info(`${deletedRecords} registros removidos`);
-      }
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -234,7 +203,7 @@ export const ImportCultivares = () => {
       const res = await fetch(`${baseUrl}/cultivares_catalog/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: dataArray, limparAntes, user_id: user.id, arquivo_nome: file.name }),
+        body: JSON.stringify({ items: dataArray, limparAntes, user_id: profile?.id, arquivo_nome: file.name }),
       });
       if (!res.ok) {
         const txt = await res.text();

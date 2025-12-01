@@ -57,6 +57,57 @@ def db_health():
     finally:
         pool.putconn(conn)
 
+@app.route("/talhoes/import", methods=["POST"])
+def import_talhoes():
+    ensure_talhoes_schema()
+    ensure_import_history_schema()
+    payload = request.get_json(silent=True) or {}
+    items = payload.get("items") or []
+    limpar_antes = bool(payload.get("limpar_antes")) or bool(payload.get("limparAntes"))
+    user_id = payload.get("user_id")
+    arquivo_nome = payload.get("arquivo_nome")
+    pool = get_pool()
+    conn = pool.getconn()
+    deleted = 0
+    imported = 0
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                if limpar_antes:
+                    cur.execute("SELECT COUNT(*) FROM public.talhoes")
+                    deleted = cur.fetchone()[0] or 0
+                    cur.execute("DELETE FROM public.talhoes")
+                values = []
+                for it in (items or []):
+                    fazenda_id = it.get("fazenda_id")
+                    nome = it.get("nome")
+                    area = it.get("area")
+                    arrendado = bool(it.get("arrendado", False))
+                    if not fazenda_id or not nome or area is None:
+                        continue
+                    values.append([str(uuid.uuid4()), fazenda_id, nome, area, arrendado])
+                if values:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO public.talhoes (id, fazenda_id, nome, area, arrendado)
+                        VALUES %s
+                        """,
+                        values,
+                    )
+                    imported = len(values)
+                cur.execute(
+                    """
+                    INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    [f"ih{int(time.time()*1000)}", user_id, "talhoes", imported, deleted, arquivo_nome, limpar_antes]
+                )
+        return jsonify({"ok": True, "imported": imported, "deleted": deleted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
 @app.route("/fazendas", methods=["GET"])
 def list_fazendas():
     ensure_fazendas_schema()
@@ -210,6 +261,29 @@ def update_fazenda_by_key():
                 cur.execute(
                     f"UPDATE public.fazendas SET {', '.join(set_parts)}, updated_at = now() WHERE numerocm = %s AND idfazenda = %s",
                     values + [numerocm, idfazenda]
+                )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/fazendas/by_key", methods=["DELETE"])
+def delete_fazenda_by_key():
+    ensure_fazendas_schema()
+    payload = request.get_json(silent=True) or {}
+    numerocm = (payload.get("numerocm") or request.args.get("numerocm") or "").strip()
+    idfazenda = (payload.get("idfazenda") or request.args.get("idfazenda") or "").strip()
+    if not numerocm or not idfazenda:
+        return jsonify({"error": "chave ausente"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM public.fazendas WHERE numerocm = %s AND idfazenda = %s",
+                    [numerocm, idfazenda]
                 )
         return jsonify({"ok": True})
     except Exception as e:

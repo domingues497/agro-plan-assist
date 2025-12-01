@@ -22,7 +22,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
@@ -104,12 +103,18 @@ export const ListFazendas = () => {
 
   const onDelete = async (key: { idfazenda: string; numerocm: string }) => {
     try {
-      const { error } = await supabase
-        .from("fazendas")
-        .delete()
-        .eq("idfazenda", key.idfazenda)
-        .eq("numerocm", key.numerocm);
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/fazendas/by_key`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numerocm: key.numerocm, idfazenda: key.idfazenda }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
       toast.success("Fazenda removida");
       qc.invalidateQueries({ queryKey: ["fazendas", "by-consultor"] });
     } catch (e: any) {

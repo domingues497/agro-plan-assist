@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
 import { useFertilizantesCatalog } from "@/hooks/useFertilizantesCatalog";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -46,13 +45,22 @@ export const ListFertilizantes = () => {
     if (!editOriginal) return;
     const { cod_item } = editOriginal;
     try {
-      const { error } = await supabase
-        .from("fertilizantes_catalog")
-        .update({ item: editItem || null, marca: editMarca || null, principio_ativo: editPrincipioAtivo || null })
-        .eq("cod_item", cod_item);
-
-      if (error) {
-        toast.error(error.message);
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/fertilizantes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cod_item,
+          item: editItem || null,
+          marca: editMarca || null,
+          principio_ativo: editPrincipioAtivo || null,
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        toast.error(txt);
         return;
       }
       toast.success("Fertilizante atualizado");

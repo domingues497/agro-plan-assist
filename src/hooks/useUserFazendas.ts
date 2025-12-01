@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export type UserFazenda = {
@@ -17,38 +16,36 @@ export const useUserFazendas = (userId?: string) => {
     queryKey: ["user-fazendas", userId],
     queryFn: async () => {
       if (!userId) return [];
-
-      const { data, error } = await supabase
-        .from("user_fazendas")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as UserFazenda[];
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/user_fazendas?user_id=${encodeURIComponent(userId)}`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      return (json?.items || []) as UserFazenda[];
     },
     enabled: !!userId,
   });
 
   const addFazenda = useMutation({
-    mutationFn: async ({
-      userId,
-      fazendaId,
-    }: {
-      userId: string;
-      fazendaId: string;
-    }) => {
-      const { data, error } = await supabase
-        .from("user_fazendas")
-        .insert({
-          user_id: userId,
-          fazenda_id: fazendaId,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+    mutationFn: async ({ userId, fazendaId }: { userId: string; fazendaId: string; }) => {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/user_fazendas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, fazenda_id: fazendaId }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      return json;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-fazendas"] });
@@ -68,12 +65,14 @@ export const useUserFazendas = (userId?: string) => {
 
   const removeFazenda = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("user_fazendas")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/user_fazendas/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-fazendas"] });

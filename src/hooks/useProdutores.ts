@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 export type Produtor = {
   id: string;
@@ -15,42 +14,51 @@ export const useProdutores = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ["produtores", "by-consultor"],
     queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const user = auth?.user;
-      if (!user) throw new Error("Usuário não autenticado");
-
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const userRole = roleData?.role;
-      const isAdmin = userRole === "admin";
-      const isGestor = userRole === "gestor";
-
       const envUrl = (import.meta as any).env?.VITE_API_URL;
       const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const baseUrl = envUrl || `http://${host}:5000`;
 
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+
+      let isAdmin = false;
+      let isGestor = false;
+      try {
+        const roleRes = await fetch(`${baseUrl}/user_roles/me`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!roleRes.ok) {
+          const txt = await roleRes.text();
+          throw new Error(txt || "Falha ao obter role do usuário");
+        }
+        const roleJson = await roleRes.json();
+        const userRole = String(roleJson?.role || "consultor").toLowerCase();
+        isAdmin = userRole === "admin";
+        isGestor = userRole === "gestor";
+      } catch (e: any) {
+        throw new Error(e?.message || "Falha ao verificar papel do usuário");
+      }
+
       let url = `${baseUrl}/produtores`;
       if (!isAdmin && !isGestor) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("numerocm_consultor, email")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        let cmConsultor = profile?.numerocm_consultor as string | null | undefined;
-        if (!cmConsultor && profile?.email) {
-          const res = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(String(profile.email).toLowerCase())}`);
-          if (res.ok) {
-            const json = await res.json();
-            cmConsultor = json?.item?.numerocm_consultor;
+        let cmConsultor: string | undefined;
+        let email: string | undefined;
+        const meRes = await fetch(`${baseUrl}/auth/me`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (meRes.ok) {
+          const meJson = await meRes.json();
+          cmConsultor = meJson?.user?.numerocm_consultor as string | undefined;
+          email = (meJson?.user?.email || "") as string;
+        }
+        if (!cmConsultor && email) {
+          const byEmailRes = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(String(email).toLowerCase())}`);
+          if (byEmailRes.ok) {
+            const json = await byEmailRes.json();
+            cmConsultor = json?.item?.numerocm_consultor as string | undefined;
           }
         }
         if (cmConsultor) url = `${baseUrl}/produtores?numerocm_consultor=${encodeURIComponent(cmConsultor)}`;
       }
 
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);

@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -34,23 +33,23 @@ export function ImportTalhoes() {
     setProgress(0);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      if (!token) {
         toast.error("Usuário não autenticado");
         return;
       }
+      const meRes = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!meRes.ok) {
+        toast.error("Falha ao obter usuário");
+        return;
+      }
+      const meJson = await meRes.json();
+      const user = meJson?.user;
 
       let deletedCount = 0;
-      if (limparAntes) {
-        const { error: deleteError } = await supabase.from("talhoes").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-        if (deleteError) {
-          console.error("Erro ao limpar tabela:", deleteError);
-          toast.error("Erro ao limpar talhões existentes");
-          return;
-        }
-        const { count } = await supabase.from("talhoes").select("*", { count: "exact", head: true });
-        deletedCount = count || 0;
-      }
 
       setProgress(10);
 
@@ -85,31 +84,25 @@ export function ImportTalhoes() {
 
       setProgress(50);
 
-      const batchSize = 500;
-      let imported = 0;
-
-      for (let i = 0; i < records.length; i += batchSize) {
-        const batch = records.slice(i, i + batchSize);
-        const { error } = await supabase.from("talhoes").upsert(batch, {
-          onConflict: "id",
-        });
-        if (error) {
-          console.error("Erro no batch:", error);
-          toast.error(`Erro ao importar batch ${Math.floor(i / batchSize) + 1}`);
-          return;
-        }
-        imported += batch.length;
-        setProgress(50 + (imported / records.length) * 40);
-      }
-
-      await supabase.from("import_history").insert({
-        user_id: user.id,
-        tabela_nome: "talhoes",
-        arquivo_nome: file.name,
-        registros_importados: imported,
-        registros_deletados: deletedCount,
-        limpar_antes: limparAntes,
+      const res = await fetch(`${baseUrl}/talhoes/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          items: records,
+          limpar_antes: limparAntes,
+          user_id: user?.user_id || user?.id,
+          arquivo_nome: file.name,
+        }),
       });
+      if (!res.ok) {
+        const txt = await res.text();
+        toast.error(txt);
+        return;
+      }
+      const json = await res.json();
+      const imported = Number(json?.imported || records.length);
+      deletedCount = Number(json?.deleted || 0);
+      setProgress(90);
 
       setProgress(100);
       setSummary({ imported, deleted: deletedCount });

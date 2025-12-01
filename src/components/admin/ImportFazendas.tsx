@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
@@ -44,8 +43,16 @@ export function ImportFazendas() {
       setDeletedRows(0);
       setShowSummary(false);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      if (!token) throw new Error("Usuário não autenticado");
+      const meRes = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!meRes.ok) throw new Error("Falha ao obter usuário");
+      const meJson = await meRes.json();
+      const user = meJson?.user;
+      if (!user?.user_id && !user?.id) throw new Error("Usuário inválido");
 
       let deletedRecords = 0;
       const data = await file.arrayBuffer();
@@ -81,16 +88,13 @@ export function ImportFazendas() {
 
       setTotalRows(uniquePayload.length);
 
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
       const res = await fetch(`${baseUrl}/fazendas/bulk`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : undefined as any },
         body: JSON.stringify({
           items: uniquePayload,
           limparAntes,
-          user_id: user.id,
+          user_id: user.user_id || user.id,
           arquivo_nome: file.name,
         }),
       });

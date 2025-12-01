@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export type UserProdutor = {
@@ -17,38 +16,36 @@ export const useUserProdutores = (userId?: string) => {
     queryKey: ["user-produtores", userId],
     queryFn: async () => {
       if (!userId) return [];
-
-      const { data, error } = await supabase
-        .from("user_produtores")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as UserProdutor[];
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/user_produtores?user_id=${encodeURIComponent(userId)}`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      return (json?.items || []) as UserProdutor[];
     },
     enabled: !!userId,
   });
 
   const addProdutor = useMutation({
-    mutationFn: async ({
-      userId,
-      produtorNumerocm,
-    }: {
-      userId: string;
-      produtorNumerocm: string;
-    }) => {
-      const { data, error } = await supabase
-        .from("user_produtores")
-        .insert({
-          user_id: userId,
-          produtor_numerocm: produtorNumerocm,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+    mutationFn: async ({ userId, produtorNumerocm }: { userId: string; produtorNumerocm: string; }) => {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/user_produtores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, produtor_numerocm: produtorNumerocm }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      return json;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-produtores"] });
@@ -68,12 +65,14 @@ export const useUserProdutores = (userId?: string) => {
 
   const removeProdutor = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("user_produtores")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/user_produtores/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-produtores"] });

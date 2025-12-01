@@ -17,7 +17,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn, safeRandomUUID } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 
 export default function Programacao() {
