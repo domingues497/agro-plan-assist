@@ -121,11 +121,26 @@ export const useProgramacoes = () => {
       queryClient.invalidateQueries({ queryKey: ['programacao-adubacao'] });
       toast({ title: "Programação criada com sucesso!" });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      const raw = error?.message || String(error);
+      try {
+        const data = JSON.parse(raw);
+        if (data?.error === "talhao já possui programação nesta safra") {
+          const talhoes = Array.isArray(data?.talhoes) ? data.talhoes.join(", ") : "";
+          toast({
+            title: "Conflito de Programação",
+            description: talhoes
+              ? `Os talhões ${talhoes} já possuem programação na safra selecionada.`
+              : "Já existe uma programação para ao menos um dos talhões na safra selecionada.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch {}
       toast({
         title: "Erro ao criar programação",
-        description: error.message,
-        variant: "destructive"
+        description: raw,
+        variant: "destructive",
       });
     }
   });
@@ -177,11 +192,26 @@ export const useProgramacoes = () => {
       queryClient.invalidateQueries({ queryKey: ['programacao-adubacao'] });
       toast({ title: "Programação atualizada com sucesso!" });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      const raw = error?.message || String(error);
+      try {
+        const data = JSON.parse(raw);
+        if (data?.error === "talhao já possui programação nesta safra") {
+          const talhoes = Array.isArray(data?.talhoes) ? data.talhoes.join(", ") : "";
+          toast({
+            title: "Conflito de Programação",
+            description: talhoes
+              ? `Os talhões ${talhoes} já possuem programação na safra selecionada.`
+              : "Já existe uma programação para ao menos um dos talhões na safra selecionada.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch {}
       toast({
         title: "Erro ao atualizar programação",
-        description: error.message,
-        variant: "destructive"
+        description: raw,
+        variant: "destructive",
       });
     }
   });
@@ -270,11 +300,26 @@ export const useProgramacoes = () => {
       queryClient.invalidateQueries({ queryKey: ['programacao-adubacao'] });
       toast({ title: "Replicação concluída com sucesso!" });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      const raw = error?.message || String(error);
+      try {
+        const data = JSON.parse(raw);
+        if (data?.error === "talhao já possui programação nesta safra") {
+          const talhoes = Array.isArray(data?.talhoes) ? data.talhoes.join(", ") : "";
+          toast({
+            title: "Conflito de Programação",
+            description: talhoes
+              ? `Os talhões ${talhoes} já possuem programação na safra selecionada.`
+              : "Já existe uma programação para ao menos um dos talhões na safra selecionada.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch {}
       toast({
         title: "Erro ao replicar programação",
-        description: error.message,
-        variant: "destructive"
+        description: raw,
+        variant: "destructive",
       });
     }
   });

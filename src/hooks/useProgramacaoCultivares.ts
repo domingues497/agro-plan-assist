@@ -70,9 +70,8 @@ export const useProgramacaoCultivares = () => {
   const { data: programacoes, isLoading, error } = useQuery({
     queryKey: ["programacao-cultivares"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/programacao_cultivares`);
       if (!res.ok) throw new Error(`Erro ao carregar cultivares: ${res.status}`);
       const json = await res.json();
@@ -110,9 +109,8 @@ export const useProgramacaoCultivares = () => {
 
   const createMutation = useMutation({
     mutationFn: async (programacao: CreateProgramacaoCultivar) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const { defensivos_fazenda, ...cultivarData } = programacao as any;
       const payload = { ...cultivarData, defensivos_fazenda } as any;
       const res = await fetch(`${baseUrl}/programacao_cultivares`, {
@@ -139,9 +137,8 @@ export const useProgramacaoCultivares = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<ProgramacaoCultivar> & { id: string }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/programacao_cultivares/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -165,9 +162,8 @@ export const useProgramacaoCultivares = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/programacao_cultivares/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Erro ao excluir programação: ${res.status}`);
     },
@@ -183,9 +179,8 @@ export const useProgramacaoCultivares = () => {
 
   const duplicateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const original = programacoes?.find((p) => p.id === id);
       if (!original) throw new Error("Programação não encontrada");
       const { id: _, created_at, updated_at, ...duplicateData } = original as any;
@@ -214,9 +209,8 @@ export const useProgramacaoCultivares = () => {
   // Replicate mutation: cria uma cópia em outro produtor/fazenda
   const replicateMutation = useMutation({
     mutationFn: async ({ id, produtor_numerocm, area }: { id: string; produtor_numerocm: string; area: string }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const original = programacoes?.find((p) => p.id === id);
       if (!original) throw new Error("Programação não encontrada");
       const { id: _, created_at, updated_at, user_id, produtor_numerocm: _cm, area: _area, ...rest } = original as any;

@@ -945,6 +945,19 @@ def create_programacao():
     try:
         with conn:
             with conn.cursor() as cur:
+                if safra_id and talhao_ids:
+                    cur.execute(
+                        """
+                        SELECT pt.talhao_id
+                        FROM public.programacoes p
+                        JOIN public.programacao_talhoes pt ON pt.programacao_id = p.id
+                        WHERE p.safra_id = %s AND pt.talhao_id = ANY(%s)
+                        """,
+                        [safra_id, talhao_ids],
+                    )
+                    rows_conf = cur.fetchall()
+                    if rows_conf:
+                        return jsonify({"error": "talhao já possui programação nesta safra", "talhoes": [r[0] for r in rows_conf]}), 400
                 cur.execute(
                     """
                     INSERT INTO public.programacoes (id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id)
@@ -1005,10 +1018,10 @@ def create_programacao():
                 for tid in talhao_ids:
                     cur.execute(
                         """
-                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id)
-                        VALUES (%s, %s, %s)
+                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id)
+                        VALUES (%s, %s, %s, %s)
                         """,
-                        [f"pt{int(time.time()*1000)}", prog_id, tid]
+                        [f"pt{int(time.time()*1000)}", prog_id, tid, safra_id]
                     )
         return jsonify({"id": prog_id})
     except Exception as e:
@@ -1079,6 +1092,19 @@ def update_programacao(id: str):
     try:
         with conn:
             with conn.cursor() as cur:
+                if safra_id and talhao_ids:
+                    cur.execute(
+                        """
+                        SELECT pt.talhao_id
+                        FROM public.programacoes p
+                        JOIN public.programacao_talhoes pt ON pt.programacao_id = p.id
+                        WHERE p.safra_id = %s AND pt.talhao_id = ANY(%s) AND p.id <> %s
+                        """,
+                        [safra_id, talhao_ids, id],
+                    )
+                    rows_conf = cur.fetchall()
+                    if rows_conf:
+                        return jsonify({"error": "talhao já possui programação nesta safra", "talhoes": [r[0] for r in rows_conf]}), 400
                 cur.execute(
                     """
                     UPDATE public.programacoes
@@ -1143,10 +1169,10 @@ def update_programacao(id: str):
                 for tid in talhao_ids:
                     cur.execute(
                         """
-                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id)
-                        VALUES (%s, %s, %s)
+                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id)
+                        VALUES (%s, %s, %s, %s)
                         """,
-                        [f"pt{int(time.time()*1000)}", id, tid]
+                        [f"pt{int(time.time()*1000)}", id, tid, safra_id]
                     )
         return jsonify({"ok": True, "id": id})
     except Exception as e:

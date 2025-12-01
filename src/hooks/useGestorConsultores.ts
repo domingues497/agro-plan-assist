@@ -16,9 +16,8 @@ export const useGestorConsultores = (userId?: string) => {
     queryKey: ["gestor-consultores", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/gestor_consultores?user_id=${encodeURIComponent(userId)}`);
       if (!res.ok) {
         const txt = await res.text();
@@ -32,9 +31,8 @@ export const useGestorConsultores = (userId?: string) => {
 
   const addConsultor = useMutation({
     mutationFn: async ({ userId, numerocmConsultor }: { userId: string; numerocmConsultor: string; }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/gestor_consultores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -67,9 +65,8 @@ export const useGestorConsultores = (userId?: string) => {
 
   const removeConsultor = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/gestor_consultores/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const txt = await res.text();

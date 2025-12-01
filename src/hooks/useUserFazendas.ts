@@ -16,9 +16,8 @@ export const useUserFazendas = (userId?: string) => {
     queryKey: ["user-fazendas", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/user_fazendas?user_id=${encodeURIComponent(userId)}`);
       if (!res.ok) {
         const txt = await res.text();
@@ -32,9 +31,8 @@ export const useUserFazendas = (userId?: string) => {
 
   const addFazenda = useMutation({
     mutationFn: async ({ userId, fazendaId }: { userId: string; fazendaId: string; }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/user_fazendas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,9 +63,8 @@ export const useUserFazendas = (userId?: string) => {
 
   const removeFazenda = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/user_fazendas/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const txt = await res.text();
