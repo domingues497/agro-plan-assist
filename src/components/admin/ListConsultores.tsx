@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+// Migração para API Flask
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
@@ -78,8 +78,11 @@ export const ListConsultores = () => {
 
   const onDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from("consultores").delete().eq("id", id);
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/consultores/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Erro ao remover consultor: ${res.status}`);
       toast.success("Consultor removido");
       qc.invalidateQueries({ queryKey: ["consultores"] });
     } catch (e: any) {
@@ -98,11 +101,15 @@ export const ListConsultores = () => {
   const onSaveEdit = async () => {
     if (!editRow) return;
     try {
-      const { error } = await supabase
-        .from("consultores")
-        .update({ consultor: editConsultor, email: editEmail })
-        .eq("id", editRow.id);
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/consultores/${editRow.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consultor: editConsultor, email: editEmail })
+      });
+      if (!res.ok) throw new Error(`Erro ao atualizar consultor: ${res.status}`);
       toast.success("Consultor atualizado");
       qc.invalidateQueries({ queryKey: ["consultores"] });
       setEditRow(null);

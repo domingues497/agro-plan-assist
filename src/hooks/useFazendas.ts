@@ -31,57 +31,41 @@ export const useFazendas = (produtorNumerocm?: string) => {
       const isAdmin = userRole === "admin";
       const isGestor = userRole === "gestor";
 
-      let query = supabase
-        .from("fazendas")
-        .select("*")
-        .order("nomefazenda", { ascending: true });
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
 
+      let url = `${baseUrl}/fazendas`;
       if (produtorNumerocm) {
-        query = query.eq("numerocm", produtorNumerocm);
+        url = `${baseUrl}/fazendas?numerocm=${encodeURIComponent(produtorNumerocm)}`;
       } else if (!isAdmin && !isGestor) {
-        // Filtra fazendas do consultor logado obtido via profiles
         const { data: profile } = await supabase
           .from("profiles")
-          .select("numerocm_consultor")
+          .select("numerocm_consultor, email")
           .eq("user_id", user.id)
           .maybeSingle();
         let cmConsultor = profile?.numerocm_consultor as string | null | undefined;
-        if (!cmConsultor) {
-          // Fallback: tenta obter via consultores por e-mail
-          const { data: consultor } = await supabase
-            .from("consultores")
-            .select("numerocm_consultor")
-            .eq("email", user.email as string)
-            .maybeSingle();
-          cmConsultor = consultor?.numerocm_consultor;
+        if (!cmConsultor && profile?.email) {
+          const res = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(String(profile.email).toLowerCase())}`);
+          if (res.ok) {
+            const json = await res.json();
+            cmConsultor = json?.item?.numerocm_consultor;
+          }
         }
-        if (cmConsultor) {
-          query = query.eq("numerocm_consultor", cmConsultor);
-        }
+        if (cmConsultor) url = `${baseUrl}/fazendas?numerocm_consultor=${encodeURIComponent(cmConsultor)}`;
       }
-      // Para gestores, confia na RLS policy que filtra através da tabela user_fazendas
 
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      // Para cada fazenda, busca a área cultivável (soma dos talhões) usando a função do banco
-      const fazendasComArea = await Promise.all(
-        (data || []).map(async (f: any) => {
-          const { data: areaData } = await supabase.rpc('get_fazenda_area_cultivavel', {
-            fazenda_uuid: f.id
-          });
-          
-          return {
-            ...f,
-            id: String(f.id ?? f.idfazenda ?? ""),
-            idfazenda: String(f.idfazenda ?? f.id ?? ""),
-            numerocm: String(f.numerocm ?? ""),
-            numerocm_consultor: String(f.numerocm_consultor ?? ""),
-            area_cultivavel: areaData ? Number(areaData) : 0,
-          };
-        })
-      );
-      
+      const res = await fetch(url);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      const data = (json?.items || []) as any[];
+      const fazendasComArea = data.map((f: any) => ({
+        ...f,
+        area_cultivavel: 0,
+      }));
       return fazendasComArea as Fazenda[];
     },
   });
@@ -95,33 +79,22 @@ export const useFazendasMulti = (produtoresNumerocm: string[] = []) => {
   const { data, isLoading, error } = useQuery({
     queryKey: ["fazendas-multi", key],
     queryFn: async () => {
-      let query = supabase
-        .from("fazendas")
-        .select("*")
-        .order("nomefazenda", { ascending: true });
-
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      let url = `${baseUrl}/fazendas`;
       if (produtoresNumerocm && produtoresNumerocm.length > 0) {
-        query = query.in("numerocm", produtoresNumerocm);
+        // sem endpoint IN; obter tudo e filtrar client-side se necessário
+        url = `${baseUrl}/fazendas`;
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      // Para cada fazenda, busca a área cultivável (soma dos talhões)
-      const fazendasComArea = await Promise.all(
-        (data || []).map(async (f: any) => {
-          const { data: areaData } = await supabase.rpc('get_fazenda_area_cultivavel', {
-            fazenda_uuid: f.id
-          });
-          
-          return {
-            ...f,
-            area_cultivavel: areaData ? Number(areaData) : 0,
-          };
-        })
-      );
-      
-      return fazendasComArea as Fazenda[];
+      const res = await fetch(url);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      const data = (json?.items || []) as any[];
+      return data as Fazenda[];
     },
   });
 

@@ -50,33 +50,7 @@ export const ImportFertilizantes = () => {
     setDeletedRows(0);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
       let deletedRecords = 0;
-
-      // Limpar tabela se checkbox marcado
-      if (limparAntes) {
-        const { count } = await supabase
-          .from("fertilizantes_catalog")
-          .select("*", { count: "exact", head: true });
-        
-        deletedRecords = count || 0;
-
-        const { error: deleteError } = await supabase
-          .from("fertilizantes_catalog")
-          .delete()
-          .neq("id", "00000000-0000-0000-0000-000000000000");
-        
-        if (deleteError) {
-          console.error("Erro ao limpar tabela:", deleteError);
-          toast.error("Erro ao limpar tabela");
-          setIsImporting(false);
-          return;
-        }
-        setDeletedRows(deletedRecords);
-        toast.info(`${deletedRecords} registros removidos`);
-      }
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -106,33 +80,26 @@ export const ImportFertilizantes = () => {
         processedData.set(normalizedItem, fertilizanteData);
       }
 
-      // Importar dados únicos
-      let imported = 0;
-      for (const fertilizanteData of processedData.values()) {
-        const { error } = await supabase
-          .from("fertilizantes_catalog")
-          .upsert(fertilizanteData, { 
-            onConflict: "cod_item",
-            ignoreDuplicates: false 
-          });
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
 
-        if (error) {
-          console.error("Erro ao importar fertilizante:", error);
-        } else {
-          imported++;
-          setImportedRows(imported);
-        }
-      }
+      const items = Array.from(processedData.values());
 
-      // Registrar no histórico
-      await supabase.from("import_history").insert({
-        user_id: user.id,
-        tabela_nome: "fertilizantes_catalog",
-        registros_importados: importedRows,
-        registros_deletados: deletedRecords,
-        arquivo_nome: file.name,
-        limpar_antes: limparAntes,
+      const res = await fetch(`${baseUrl}/fertilizantes/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, limparAntes }),
       });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Erro ${res.status}`);
+      }
+      const json = await res.json();
+      const imported = Number(json?.imported || items.length);
+      setImportedRows(imported);
+
+      // Opcional: manter histórico no Supabase se desejado (não obrigatório para PostgreSQL)
 
       toast.success(`Importação concluída! ${importedRows} registros únicos de ${totalRows} linhas processadas`);
       setShowSummary(true);
@@ -149,12 +116,13 @@ export const ImportFertilizantes = () => {
   const checkApiConnectivity = async () => {
     setApiStatus('checking');
     try {
-      const { error } = await supabase.functions.invoke('fertilizantes-sync', {
-        body: { checkOnly: true }
-      });
-      if (error) {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/fertilizantes/sync/test`);
+      if (!res.ok) {
         setApiStatus('offline');
-        toast.error('API não está acessível. Verifique a função "fertilizantes-sync" e a configuração em system_config (api_fertilizantes_url).');
+        toast.error('API Flask não está acessível. Verifique /fertilizantes/sync/test e system_config.');
         return false;
       }
       setApiStatus('online');
@@ -182,33 +150,24 @@ export const ImportFertilizantes = () => {
     });
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
-
       toast.loading('⏳ Conectando à API externa e processando dados...', {
         description: 'Este processo pode levar alguns minutos.'
       });
-
-      const { data, error } = await supabase.functions.invoke('fertilizantes-sync', {
-        body: { limparAntes }
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/fertilizantes/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limparAntes }),
       });
-
       toast.dismiss();
-
-      if (error) {
-        toast.error('❌ Erro ao sincronizar via API', {
-          description: error.message || 'Verifique os logs para mais detalhes.'
-        });
+      if (!res.ok) {
+        const txt = await res.text();
+        toast.error('❌ Erro ao sincronizar via API', { description: txt });
         return;
       }
-
-      if (data?.error) {
-        toast.error('❌ Erro na sincronização', {
-          description: String(data.error)
-        });
-        return;
-      }
-
+      const data = await res.json();
       const imported = Number(data?.imported || 0);
       const deleted = Number(data?.deleted || 0);
       const ignored = Number(data?.ignored || 0);

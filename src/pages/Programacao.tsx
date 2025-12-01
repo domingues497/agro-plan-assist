@@ -212,36 +212,24 @@ export default function Programacao() {
                       size="icon"
                       onClick={async () => {
                         // Buscar talhões da programacao
-                        const { data: talhoesData } = await (supabase as any)
-                          .from("programacao_talhoes")
-                          .select("talhao_id")
-                          .eq("programacao_id", prog.id);
-                        
-                        // Buscar tratamentos e defensivos da tabela de junção antes de abrir edição
-                        const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === prog.id);
-                        const tratamentosMap: Record<string, string[]> = {};
+                        const envUrl = (import.meta as any).env?.VITE_API_URL;
+                        const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+                        const baseUrl = envUrl || `http://${host}:5000`;
+                        const res = await fetch(`${baseUrl}/programacoes/${prog.id}/children`);
+                        if (!res.ok) {
+                          toast.error("Erro ao carregar dados da programação para edição");
+                          return;
+                        }
+                        const json = await res.json();
+                        const talhoesData = (json?.talhoes || []).map((t: any) => ({ talhao_id: t }));
+                        const cults = (json?.cultivares || []) as any[];
+                        const tratamentosMap: Record<string, string[]> = json?.tratamentos || {};
+                        const defensivosRows: any[] = json?.defensivos || [];
                         const defensivosMap: Record<string, any[]> = {};
-                        
-                        // Pegar época do primeiro cultivar (assumindo que todos têm a mesma época)
                         const epocaId = cults.length > 0 ? cults[0].epoca_id : undefined;
-                        
                         for (const cult of cults) {
-                          // Buscar tratamentos
-                          const { data: tratData } = await (supabase as any)
-                            .from("programacao_cultivares_tratamentos")
-                            .select("tratamento_id")
-                            .eq("programacao_cultivar_id", cult.id);
-                          
-                          tratamentosMap[cult.id] = (tratData || []).map((t: any) => t.tratamento_id);
-                          
-                          // Buscar defensivos se tipo_tratamento for "NA FAZENDA"
                           if (cult.tipo_tratamento === "NA FAZENDA") {
-                            const { data: defData } = await (supabase as any)
-                              .from("programacao_cultivares_defensivos")
-                              .select("*")
-                              .eq("programacao_cultivar_id", cult.id);
-                            
-                            defensivosMap[cult.id] = (defData || []).map((d: any) => ({
+                            const defs = defensivosRows.filter(d => d.programacao_cultivar_id === cult.id).map((d: any) => ({
                               tempId: safeRandomUUID(),
                               classe: d.classe || "",
                               aplicacao: d.aplicacao,
@@ -252,6 +240,7 @@ export default function Programacao() {
                               produto_salvo: Boolean(d.produto_salvo),
                               porcentagem_salva: 100
                             }));
+                            defensivosMap[cult.id] = defs;
                           }
                         }
                         
@@ -478,7 +467,7 @@ export default function Programacao() {
               if (!replicateTargetId || replicateTargets.length === 0) return;
               const results = await Promise.allSettled(
                 replicateTargets.map((t) =>
-                  replicate({ id: replicateTargetId!, produtor_numerocm: t.produtor_numerocm, fazenda_idfazenda: t.fazenda_idfazenda, area_hectares: t.area_hectares })
+                  replicate({ id: replicateTargetId!, produtor_numerocm: t.produtor_numerocm, fazenda_idfazenda: t.fazenda_idfazenda, area_hectares: t.area_hectares, area_name: (fazendasReplicate.find((f: any) => f.idfazenda === t.fazenda_idfazenda)?.nomefazenda || "") })
                 )
               );
               const ok = results.filter((r) => r.status === "fulfilled").length;

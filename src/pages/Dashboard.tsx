@@ -59,22 +59,23 @@ const Dashboard = () => {
       if (profile && !profile.numerocm_consultor) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.email) {
-          const { data: consultor } = await supabase
-            .from("consultores")
-            .select("numerocm_consultor, consultor")
-            .eq("email", user.email.toLowerCase())
-            .maybeSingle();
-          
-          if (consultor) {
-            await supabase
-              .from("profiles")
-              .update({
-                numerocm_consultor: consultor.numerocm_consultor,
-                nome: consultor.consultor,
-              })
-              .eq("user_id", user.id);
-            
-            queryClient.invalidateQueries({ queryKey: ["profile"] });
+          const envUrl = (import.meta as any).env?.VITE_API_URL;
+          const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+          const baseUrl = envUrl || `http://${host}:5000`;
+          const res = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(user.email.toLowerCase())}`);
+          if (res.ok) {
+            const json = await res.json();
+            const consultor = json?.item;
+            if (consultor) {
+              await supabase
+                .from("profiles")
+                .update({
+                  numerocm_consultor: consultor.numerocm_consultor,
+                  nome: consultor.consultor,
+                })
+                .eq("user_id", user.id);
+              queryClient.invalidateQueries({ queryKey: ["profile"] });
+            }
           }
         }
       }

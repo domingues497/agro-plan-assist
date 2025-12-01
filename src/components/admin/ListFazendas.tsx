@@ -129,14 +129,23 @@ export const ListFazendas = () => {
     if (!editRow) return;
     try {
       const payload: any = { nomefazenda: editNome };
-      // área cultivável removida do cadastro de fazendas; gerenciada em talhões
       payload.numerocm_consultor = editNumerocmConsultor ? String(editNumerocmConsultor) : null;
-      const { error } = await supabase
-        .from("fazendas")
-        .update(payload)
-        .eq("idfazenda", editRow.idfazenda)
-        .eq("numerocm", editRow.numerocm);
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/fazendas/by_key`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          numerocm: editRow.numerocm,
+          idfazenda: editRow.idfazenda,
+          ...payload,
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
       toast.success("Fazenda atualizada");
       qc.invalidateQueries({ queryKey: ["fazendas", "by-consultor"] });
       setEditRow(null);

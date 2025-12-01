@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export type ProgramacaoAdubacao = {
@@ -59,21 +58,19 @@ export const useProgramacaoAdubacao = () => {
   const { data: programacoes, isLoading, error } = useQuery({
     queryKey: ["programacao-adubacao"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("programacao_adubacao")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      // Sincroniza produtor_numerocm do localStorage para BD quando ausente
-      const list = (data as ProgramacaoAdubacao[]) || [];
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/programacao_adubacao`);
+      if (!res.ok) throw new Error(`Erro ao carregar adubação: ${res.status}`);
+      const json = await res.json();
+      const list = (json?.items ?? []) as ProgramacaoAdubacao[];
       const key = "programacao_adubacao_produtor_map";
       let map: Record<string, string> = {};
       try {
         const raw = localStorage.getItem(key);
         map = raw ? JSON.parse(raw) : {};
       } catch (_) {}
-
       const updates: Promise<any>[] = [];
       const hydrated = list.map((item) => {
         const cm = String(item.produtor_numerocm || "").trim();
@@ -81,12 +78,11 @@ export const useProgramacaoAdubacao = () => {
           const fallback = String(map[item.id] || "").trim();
           if (fallback) {
             updates.push(
-              Promise.resolve(
-                supabase
-                  .from("programacao_adubacao")
-                  .update({ produtor_numerocm: fallback })
-                  .eq("id", item.id)
-              )
+              fetch(`${baseUrl}/programacao_adubacao/${item.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ produtor_numerocm: fallback })
+              })
             );
             return { ...item, produtor_numerocm: fallback } as ProgramacaoAdubacao;
           }
@@ -95,43 +91,28 @@ export const useProgramacaoAdubacao = () => {
       });
       try {
         if (updates.length) await Promise.all(updates);
-      } catch (_) {
-        // silencioso: se falhar, continuamos com dados locais
-      }
+      } catch (_) {}
       return hydrated;
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (programacao: CreateProgramacaoAdubacao) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      const payload = { ...programacao, user_id: user.id } as any;
-      const { data, error } = await supabase
-        .from("programacao_adubacao")
-        .insert(payload)
-        .select()
-        .single();
-
-      if (error) {
-        const missingColumn = /schema cache/i.test(error.message) && /produtor_numerocm/.test(error.message);
-        if (missingColumn) {
-          const { produtor_numerocm, ...rest } = payload;
-          const fallback = await supabase
-            .from("programacao_adubacao")
-            .insert(rest as any)
-            .select()
-            .single();
-          if (fallback.error) throw fallback.error;
-          toast.message("Migração pendente: vínculo com produtor será aplicado após atualização do schema.");
-          setProdutorMapping(fallback.data?.id, programacao.produtor_numerocm);
-          return fallback.data;
-        }
-        throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/programacao_adubacao`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(programacao as any)
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
+      const data = await res.json();
       setProdutorMapping(data?.id, programacao.produtor_numerocm);
-      return data;
+      return { ...programacao, id: data.id } as any;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programacao-adubacao"] });
@@ -144,32 +125,20 @@ export const useProgramacaoAdubacao = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<ProgramacaoAdubacao> & { id: string }) => {
-      const { data, error } = await supabase
-        .from("programacao_adubacao")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) {
-        const missingColumn = /schema cache/i.test(error.message) && /produtor_numerocm/.test(error.message);
-        if (missingColumn) {
-          const { produtor_numerocm, ...rest } = updates;
-          const fallback = await supabase
-            .from("programacao_adubacao")
-            .update(rest)
-            .eq("id", id)
-            .select()
-            .single();
-          if (fallback.error) throw fallback.error;
-          toast.message("Migração pendente: atualização realizada sem vínculo de produtor.");
-          if (produtor_numerocm) setProdutorMapping(id, produtor_numerocm as string);
-          return fallback.data;
-        }
-        throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/programacao_adubacao/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates as any)
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-      if (updates.produtor_numerocm) setProdutorMapping(id, updates.produtor_numerocm as string);
-      return data;
+      if ((updates as any).produtor_numerocm) setProdutorMapping(id, (updates as any).produtor_numerocm);
+      return { id, ...(updates as any) } as any;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programacao-adubacao"] });
@@ -200,12 +169,11 @@ export const useProgramacaoAdubacao = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("programacao_adubacao")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/programacao_adubacao/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Erro ao excluir adubação: ${res.status}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programacao-adubacao"] });
@@ -220,38 +188,24 @@ export const useProgramacaoAdubacao = () => {
 
   const duplicateMutation = useMutation({
     mutationFn: async (id: string) => {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
       const original = programacoes?.find((p) => p.id === id);
       if (!original) throw new Error("Adubação não encontrada");
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      const { id: _, created_at, updated_at, ...duplicateData } = original;
-      const payload = { ...duplicateData, user_id: user.id } as any;
-      const { data, error } = await supabase
-        .from("programacao_adubacao")
-        .insert(payload)
-        .select()
-        .single();
-
-      if (error) {
-        const missingColumn = /schema cache/i.test(error.message) && /produtor_numerocm/.test(error.message);
-        if (missingColumn) {
-          const { produtor_numerocm, ...rest } = payload;
-          const fallback = await supabase
-            .from("programacao_adubacao")
-            .insert(rest as any)
-            .select()
-            .single();
-          if (fallback.error) throw fallback.error;
-          toast.message("Migração pendente: duplicação realizada sem vínculo de produtor.");
-          setProdutorMapping(fallback.data?.id, (duplicateData as any).produtor_numerocm);
-          return fallback.data;
-        }
-        throw error;
+      const { id: _, created_at, updated_at, ...duplicateData } = original as any;
+      const res = await fetch(`${baseUrl}/programacao_adubacao`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(duplicateData)
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
+      const data = await res.json();
       setProdutorMapping(data?.id, (duplicateData as any).produtor_numerocm);
-      return data;
+      return { ...duplicateData, id: data.id } as any;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programacao-adubacao"] });

@@ -30,19 +30,11 @@ const Auth = () => {
     setLoading(true);
 
     // Permitir cadastro apenas se email consta na base de consultores
-    const { data: consultantRows, error: consultError } = await supabase
-      .from("consultores")
-      .select("email")
-      .eq("email", email.toLowerCase())
-      .limit(1);
-
-    if (consultError) {
-      toast({ title: "Erro ao verificar consultor", description: consultError.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    if (!consultantRows || consultantRows.length === 0) {
+    const envUrl = (import.meta as any).env?.VITE_API_URL;
+    const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+    const baseUrl = envUrl || `http://${host}:5000`;
+    const res = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(email.toLowerCase())}`);
+    if (!res.ok) {
       toast({ title: "Cadastro bloqueado", description: "Email não encontrado na base de consultores.", variant: "destructive" });
       setLoading(false);
       return;
@@ -76,19 +68,11 @@ const Auth = () => {
     setLoading(true);
 
     // Permitir login apenas para emails de consultores cadastrados
-    const { data: consultantRows, error: consultError } = await supabase
-      .from("consultores")
-      .select("email")
-      .eq("email", email.toLowerCase())
-      .limit(1);
-
-    if (consultError) {
-      toast({ title: "Erro ao verificar consultor", description: consultError.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    if (!consultantRows || consultantRows.length === 0) {
+    const envUrl2 = (import.meta as any).env?.VITE_API_URL;
+    const host2 = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+    const baseUrl2 = envUrl2 || `http://${host2}:5000`;
+    const res2 = await fetch(`${baseUrl2}/consultores/by_email?email=${encodeURIComponent(email.toLowerCase())}`);
+    if (!res2.ok) {
       toast({ title: "Login bloqueado", description: "Email não encontrado na base de consultores.", variant: "destructive" });
       setLoading(false);
       return;

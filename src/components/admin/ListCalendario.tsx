@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+// Migração para API Flask
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
@@ -84,8 +84,14 @@ export const ListCalendario = () => {
 
   const onDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from("calendario_aplicacoes").delete().eq("id", id);
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/calendario_aplicacoes/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
       toast.success("Aplicação removida");
       qc.invalidateQueries({ queryKey: ["calendario-aplicacoes"] });
     } catch (e: any) {
@@ -107,6 +113,9 @@ export const ListCalendario = () => {
   const onSaveEdit = async () => {
     if (!editRow) return;
     try {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
       const payload = {
         descr_aplicacao: editDescrAplicacao,
         cod_classe: editCodClasse || null,
@@ -114,11 +123,15 @@ export const ListCalendario = () => {
         trat_sementes: editTratSementes || null,
         cod_aplic_ger: editCodAplicGer || null,
       };
-      const { error } = await supabase
-        .from("calendario_aplicacoes")
-        .update(payload)
-        .eq("id", editRow.id);
-      if (error) throw error;
+      const res = await fetch(`${baseUrl}/calendario_aplicacoes/${editRow.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
       toast.success("Aplicação atualizada");
       qc.invalidateQueries({ queryKey: ["calendario-aplicacoes"] });
       setEditRow(null);

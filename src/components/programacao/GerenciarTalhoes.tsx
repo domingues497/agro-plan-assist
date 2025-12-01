@@ -33,22 +33,30 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
     }
 
     try {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
       if (editando.id) {
-        // Editar
-        const { error } = await supabase
-          .from("talhoes")
-          .update({ nome: editando.nome, area, arrendado: editando.arrendado })
-          .eq("id", editando.id);
-        
-        if (error) throw error;
+        const res = await fetch(`${baseUrl}/talhoes/${editando.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nome: editando.nome, area, arrendado: editando.arrendado }),
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt);
+        }
         toast.success("Talhão atualizado");
       } else {
-        // Criar
-        const { error } = await supabase
-          .from("talhoes")
-          .insert({ fazenda_id: fazendaId, nome: editando.nome, area, arrendado: editando.arrendado });
-        
-        if (error) throw error;
+        const res = await fetch(`${baseUrl}/talhoes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fazenda_id: fazendaId, nome: editando.nome, area, arrendado: editando.arrendado }),
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt);
+        }
         toast.success("Talhão criado");
       }
       
@@ -66,12 +74,14 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
     if (!confirm("Deseja excluir este talhão?")) return;
     
     try {
-      const { error } = await supabase
-        .from("talhoes")
-        .delete()
-        .eq("id", id);
-      
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/talhoes/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
       toast.success("Talhão excluído");
       refetch();
       // Invalida queries de fazendas para recalcular área cultivável

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { supabase } from "@/integrations/supabase/client";
+// Migração para API Flask
 import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
@@ -44,33 +44,12 @@ export function ImportConsultores() {
       setDeletedRows(0);
       setShowSummary(false);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      const user = null;
 
       let deletedRecords = 0;
 
       // Limpar tabela se checkbox marcado
-      if (limparAntes) {
-        const { count } = await supabase
-          .from("consultores")
-          .select("*", { count: "exact", head: true });
-        
-        deletedRecords = count || 0;
-
-        const { error: deleteError } = await supabase
-          .from("consultores")
-          .delete()
-          .neq("id", "00000000-0000-0000-0000-000000000000");
-        
-        if (deleteError) {
-          console.error("Erro ao limpar tabela:", deleteError);
-          toast.error("Erro ao limpar tabela");
-          setIsImporting(false);
-          return;
-        }
-        setDeletedRows(deletedRecords);
-        toast.info(`${deletedRecords} registros removidos`);
-      }
+      // limpeza será feita pelo backend caso solicitado
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const sheetName = workbook.SheetNames[0];
@@ -101,34 +80,31 @@ export function ImportConsultores() {
 
       setTotalRows(uniquePayload.length);
 
-      const batchSize = 100;
-      let imported = 0;
-      for (let i = 0; i < uniquePayload.length; i += batchSize) {
-        const chunk = uniquePayload.slice(i, i + batchSize);
-        const { error } = await supabase.from("consultores").upsert(chunk, { onConflict: "email" });
-        if (error) {
-          console.error("Erro ao importar chunk de consultores:", error);
-          // Mensagem amigável para erro 21000
-          if (String((error as any).code) === "21000" || String((error as any).message).includes("ON CONFLICT DO UPDATE command cannot affect row a second time")) {
-            toast.error("Arquivo contém entradas duplicadas para o mesmo email no mesmo lote. Revise a planilha.");
-          }
-        } else {
-          imported += chunk.length;
-          setImportedRows(imported);
-        }
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/consultores/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          limpar_antes: limparAntes,
+          items: uniquePayload,
+          user_id: null,
+          arquivo_nome: file.name
+        })
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
+      const json = await res.json();
+      setDeletedRows(json?.deleted ?? 0);
+      setImportedRows(json?.imported ?? uniquePayload.length);
 
       // Registrar no histórico
-      await supabase.from("import_history").insert({
-        user_id: user.id,
-        tabela_nome: "consultores",
-        registros_importados: imported,
-        registros_deletados: deletedRecords,
-        arquivo_nome: file.name,
-        limpar_antes: limparAntes,
-      });
+      // Histórico de importação registrado no back-end
 
-      toast.success(`Importação de consultores concluída (${imported} de ${uniquePayload.length})`);
+      toast.success(`Importação de consultores concluída (${json?.imported ?? uniquePayload.length} de ${uniquePayload.length})`);
       setShowSummary(true);
       setLimparAntes(false);
     } catch (err: any) {

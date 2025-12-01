@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+// Migração para API Flask
 
 export type Epoca = {
   id: string;
@@ -14,14 +14,16 @@ export const useEpocas = () => {
   return useQuery({
     queryKey: ["epocas"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("epocas")
-        .select("*")
-        .eq("ativa", true)
-        .order("nome");
-
-      if (error) throw error;
-      return (data || []) as Epoca[];
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/epocas?ativas=true`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      return (json?.items || []) as Epoca[];
     },
   });
 };

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { supabase } from "@/integrations/supabase/client";
+// Migração para API Flask
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,35 +54,6 @@ export const ImportCalendarioAplicacoes = () => {
     setDeletedCount(0);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      let deletedRecords = 0;
-
-      // Limpar tabela se checkbox marcado
-      if (limparAntes) {
-        // Primeiro contar quantos registros existem
-        const { count } = await supabase
-          .from("calendario_aplicacoes")
-          .select("*", { count: "exact", head: true });
-        
-        deletedRecords = count || 0;
-
-        // Depois deletar todos
-        const { error: deleteError } = await supabase
-          .from("calendario_aplicacoes")
-          .delete()
-          .neq("id", "00000000-0000-0000-0000-000000000000");
-        
-        if (deleteError) {
-          console.error("Erro ao limpar tabela:", deleteError);
-          toast.error("Erro ao limpar tabela");
-          setIsImporting(false);
-          return;
-        }
-        setDeletedCount(deletedRecords);
-        toast.info(`${deletedRecords} registros removidos`);
-      }
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -104,43 +75,30 @@ export const ImportCalendarioAplicacoes = () => {
         new Map(rows.map((row) => [row.cod_aplic, row])).values()
       );
 
-      const batchSize = 50;
-      let importedTotal = 0;
-
-      for (let i = 0; i < uniqueRows.length; i += batchSize) {
-        const batch = uniqueRows.slice(i, i + batchSize);
-        
-        const { error } = await supabase
-          .from("calendario_aplicacoes")
-          .upsert(batch, {
-            onConflict: "cod_aplic",
-            ignoreDuplicates: false,
-          });
-
-        if (error) {
-          console.error("Erro ao importar batch:", error);
-          toast.error(`Erro ao importar: ${error.message}`);
-        } else {
-          importedTotal += batch.length;
-        }
-
-        setImportProgress(Math.round((importedTotal / uniqueRows.length) * 100));
-      }
-
-      setImportedCount(importedTotal);
-
-      // Registrar no histórico
-      await supabase.from("import_history").insert({
-        user_id: user.id,
-        tabela_nome: "calendario_aplicacoes",
-        registros_importados: importedTotal,
-        registros_deletados: deletedRecords,
-        arquivo_nome: file.name,
-        limpar_antes: limparAntes,
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/calendario_aplicacoes/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          limpar_antes: limparAntes,
+          items: uniqueRows,
+          user_id: null,
+          arquivo_nome: file.name,
+        }),
       });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      setDeletedCount(Number(json?.deleted || 0));
+      setImportedCount(Number(json?.imported || uniqueRows.length));
+      setImportProgress(100);
 
       setShowSummary(true);
-      toast.success(`${importedTotal} registros importados com sucesso!`);
+      toast.success(`${Number(json?.imported || uniqueRows.length)} registros importados com sucesso!`);
       setFile(null);
       setLimparAntes(false);
     } catch (error) {

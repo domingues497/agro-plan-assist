@@ -68,8 +68,14 @@ export const ListProdutores = () => {
 
   const onDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from("produtores").delete().eq("id", id);
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/produtores/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
       toast.success("Produtor removido");
       qc.invalidateQueries({ queryKey: ["produtores", "by-consultor"] });
     } catch (e: any) {

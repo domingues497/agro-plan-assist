@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export interface DefensivoFazenda {
@@ -75,27 +74,21 @@ export const useProgramacoes = () => {
   const { data: programacoes, isLoading } = useQuery({
     queryKey: ['programacoes-list'],
     queryFn: async (): Promise<Programacao[]> => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      // Confia nas RLS para retornar:
-      // - consultor: apenas próprias (auth.uid = user_id)
-      // - gestor: todas vinculadas aos consultores associados
-      // - admin: todas
-      const response = await (supabase as any)
-        .from("programacoes")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (response.error) throw response.error;
-      return (response.data || []);
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/programacoes`, { credentials: "omit" });
+      if (!res.ok) throw new Error(`Erro ao carregar programações: ${res.status}`);
+      const json = await res.json();
+      return (json?.items ?? []) as Programacao[];
     }
   });
 
   const createMutation = useMutation({
     mutationFn: async (newProgramacao: CreateProgramacao) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
 
       const totalCultivares = newProgramacao.cultivares.reduce(
         (sum, item) => sum + item.percentual_cobertura, 0
@@ -105,162 +98,21 @@ export const useProgramacoes = () => {
         throw new Error("O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)");
       }
 
-      const progResponse = await (supabase as any)
-        .from("programacoes")
-        .insert({
-          user_id: user.id,
-          produtor_numerocm: newProgramacao.produtor_numerocm,
-          fazenda_idfazenda: newProgramacao.fazenda_idfazenda,
-          area: newProgramacao.area,
-          area_hectares: newProgramacao.area_hectares,
-          safra_id: newProgramacao.safra_id || null
-        })
-        .select()
-        .single();
-
-      if (progResponse.error) throw progResponse.error;
-
-      if (newProgramacao.cultivares.length > 0) {
-        const cultivaresData = newProgramacao.cultivares.map(item => {
-          const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
-          const firstTratamento = item.tipo_tratamento === 'NÃO' ? null : (tratamentoIds[0] || null);
-          return ({
-          user_id: user.id,
-          programacao_id: progResponse.data.id,
-          produtor_numerocm: newProgramacao.produtor_numerocm,
-          area: newProgramacao.area,
-          area_hectares: newProgramacao.area_hectares,
-          cultivar: item.cultivar,
-          quantidade: 0,
-          unidade: "kg",
-          percentual_cobertura: item.percentual_cobertura,
-          tipo_embalagem: item.tipo_embalagem,
-          tipo_tratamento: item.tipo_tratamento,
-          tratamento_id: firstTratamento, // Gravamos também o primeiro tratamento para compatibilidade
-          data_plantio: item.data_plantio || null,
-          populacao_recomendada: item.populacao_recomendada || 0,
-          semente_propria: item.semente_propria || false,
-          referencia_rnc_mapa: item.referencia_rnc_mapa || null,
-          sementes_por_saca: item.sementes_por_saca || 0,
-          // Grava o id da safra na linha de cultivar para facilitar o filtro
-          safra: newProgramacao.safra_id || null,
-          // Grava o id da época na linha de cultivar
-          epoca_id: newProgramacao.epoca_id || null,
-          porcentagem_salva: 0
-        });
-        });
-
-        const cultResponse = await (supabase as any)
-          .from("programacao_cultivares")
-          .insert(cultivaresData)
-          .select();
-
-        if (cultResponse.error) throw cultResponse.error;
-
-        // Hardening: garantir remoção de vínculos se algum item for "NÃO"
-        try {
-          const naoIds = (cultResponse.data || [])
-            .map((row: any, idx: number) => ({ id: row.id, tipo: newProgramacao.cultivares[idx]?.tipo_tratamento }))
-            .filter((p) => p.tipo === 'NÃO')
-            .map((p) => p.id)
-            .filter(Boolean);
-          if (naoIds.length > 0) {
-            await (supabase as any)
-              .from('programacao_cultivares_tratamentos')
-              .delete()
-              .in('programacao_cultivar_id', naoIds);
-          }
-        } catch (_) {
-          // silencioso
-        }
-
-        // Inserir tratamentos na tabela de junção N:N
-        const tratamentosData = newProgramacao.cultivares.flatMap((item, idx) => {
-          if (item.tipo_tratamento === 'NÃO') return [] as any[];
-          const cultivarId = cultResponse.data[idx]?.id;
-          const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
-          return tratamentoIds.map(tratamentoId => ({
-            programacao_cultivar_id: cultivarId,
-            tratamento_id: tratamentoId
-          }));
-        }).filter(t => t.programacao_cultivar_id && t.tratamento_id);
-
-        if (tratamentosData.length > 0) {
-          const tratResponse = await (supabase as any)
-            .from("programacao_cultivares_tratamentos")
-            .insert(tratamentosData);
-          if (tratResponse.error) throw tratResponse.error;
-        }
-
-        // Inserir defensivos "NA FAZENDA" na tabela programacao_cultivares_defensivos
-        const defensivosData = newProgramacao.cultivares.flatMap((item, idx) => {
-          if (item.tipo_tratamento !== 'NA FAZENDA' || !item.defensivos_fazenda || item.defensivos_fazenda.length === 0) {
-            return [] as any[];
-          }
-          const cultivarId = cultResponse.data[idx]?.id;
-          return item.defensivos_fazenda.map(def => ({
-            programacao_cultivar_id: cultivarId,
-            aplicacao: def.aplicacao,
-            defensivo: def.defensivo,
-            dose: def.dose,
-            cobertura: def.cobertura,
-            total: def.total,
-            produto_salvo: def.produto_salvo || false
-          }));
-        }).filter(d => d.programacao_cultivar_id);
-
-        if (defensivosData.length > 0) {
-          const defResponse = await (supabase as any)
-            .from("programacao_cultivares_defensivos")
-            .insert(defensivosData);
-          if (defResponse.error) throw defResponse.error;
-        }
+      const payload = {
+        user_id: undefined,
+        ...newProgramacao,
+      } as any;
+      const res = await fetch(`${baseUrl}/programacoes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-
-      if (newProgramacao.adubacao.length > 0) {
-        const adubacaoData = newProgramacao.adubacao.map(item => ({
-          user_id: user.id,
-          programacao_id: progResponse.data.id,
-          produtor_numerocm: newProgramacao.produtor_numerocm,
-          area: newProgramacao.area,
-          formulacao: item.formulacao,
-          dose: item.dose,
-          percentual_cobertura: item.percentual_cobertura,
-          data_aplicacao: item.data_aplicacao || null,
-          embalagem: item.embalagem || null,
-          justificativa_nao_adubacao_id: item.justificativa_nao_adubacao_id || null,
-          fertilizante_salvo: !!item.fertilizante_salvo,
-          deve_faturar: typeof item.deve_faturar === 'boolean' ? item.deve_faturar : true,
-          porcentagem_salva: Number.isFinite(item.porcentagem_salva as number)
-            ? Math.min(100, Math.max(0, Number(item.porcentagem_salva)))
-            : 0,
-          total: null,
-          // Grava o id da safra para adubação
-          safra_id: newProgramacao.safra_id || null
-        }));
-
-        const adubResponse = await (supabase as any)
-          .from("programacao_adubacao")
-          .insert(adubacaoData);
-
-      if (adubResponse.error) throw adubResponse.error;
-      }
-
-      // Salvar talhões selecionados na tabela programacao_talhoes
-      if (newProgramacao.talhao_ids && newProgramacao.talhao_ids.length > 0) {
-        const talhoesData = newProgramacao.talhao_ids.map(talhao_id => ({
-          programacao_id: progResponse.data.id,
-          talhao_id: talhao_id
-        }));
-
-        const talhoesResponse = await (supabase as any)
-          .from("programacao_talhoes")
-          .insert(talhoesData);
-
-        if (talhoesResponse.error) throw talhoesResponse.error;
-      }
-
-      return progResponse.data;
+      const progResponse = await res.json();
+      return progResponse;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
@@ -280,12 +132,11 @@ export const useProgramacoes = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await (supabase as any)
-        .from("programacoes")
-        .delete()
-        .eq("id", id);
-
-      if (response.error) throw response.error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/programacoes/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Erro ao excluir programação: ${res.status}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
@@ -302,181 +153,21 @@ export const useProgramacoes = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: { id: string } & CreateProgramacao) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      const totalCultivares = data.cultivares.reduce(
-        (sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0
-      );
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const totalCultivares = data.cultivares.reduce((sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0);
       if (Math.abs(totalCultivares - 100) > 0.1) {
         throw new Error("O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)");
       }
-
-      const progUpdate = await (supabase as any)
-        .from("programacoes")
-        .update({
-          produtor_numerocm: data.produtor_numerocm,
-          fazenda_idfazenda: data.fazenda_idfazenda,
-          area: data.area,
-          area_hectares: data.area_hectares,
-          safra_id: data.safra_id || null
-        })
-        .eq("id", id);
-      if (progUpdate.error) throw progUpdate.error;
-
-      // Substitui cultivares vinculadas (deletar também remove tratamentos via CASCADE)
-      const delCult = await (supabase as any)
-        .from("programacao_cultivares")
-        .delete()
-        .eq("programacao_id", id);
-      if (delCult.error) throw delCult.error;
-
-      if (data.cultivares.length > 0) {
-        const cultivaresData = data.cultivares.map(item => {
-          const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
-          const firstTratamento = item.tipo_tratamento === 'NÃO' ? null : (tratamentoIds[0] || null);
-          return ({
-          user_id: user.id,
-          programacao_id: id,
-          produtor_numerocm: data.produtor_numerocm,
-          area: data.area,
-          area_hectares: data.area_hectares,
-          cultivar: item.cultivar,
-          quantidade: 0,
-          unidade: "kg",
-          percentual_cobertura: item.percentual_cobertura,
-          tipo_embalagem: item.tipo_embalagem,
-          tipo_tratamento: item.tipo_tratamento,
-          tratamento_id: firstTratamento, // Gravamos também o primeiro tratamento para compatibilidade
-          data_plantio: item.data_plantio || null,
-          populacao_recomendada: item.populacao_recomendada || 0,
-          semente_propria: item.semente_propria || false,
-          referencia_rnc_mapa: item.referencia_rnc_mapa || null,
-          sementes_por_saca: item.sementes_por_saca || 0,
-          // Grava o id da safra na linha de cultivar para facilitar o filtro
-          safra: data.safra_id || null,
-          // Grava o id da época na linha de cultivar
-          epoca_id: data.epoca_id || null,
-          porcentagem_salva: 0
-        });
-        });
-        const cultInsert = await (supabase as any)
-          .from("programacao_cultivares")
-          .insert(cultivaresData)
-          .select();
-        if (cultInsert.error) throw cultInsert.error;
-
-        // Hardening: garantir remoção de vínculos se algum item for "NÃO"
-        try {
-          const naoIds = (cultInsert.data || [])
-            .map((row: any, idx: number) => ({ id: row.id, tipo: data.cultivares[idx]?.tipo_tratamento }))
-            .filter((p) => p.tipo === 'NÃO')
-            .map((p) => p.id)
-            .filter(Boolean);
-          if (naoIds.length > 0) {
-            await (supabase as any)
-              .from('programacao_cultivares_tratamentos')
-              .delete()
-              .in('programacao_cultivar_id', naoIds);
-          }
-        } catch (_) {
-          // silencioso
-        }
-
-        // Inserir tratamentos na tabela de junção N:N
-        const tratamentosData = data.cultivares.flatMap((item, idx) => {
-          if (item.tipo_tratamento === 'NÃO') return [] as any[];
-          const cultivarId = cultInsert.data[idx]?.id;
-          const tratamentoIds = item.tratamento_ids || (item.tratamento_id ? [item.tratamento_id] : []);
-          return tratamentoIds.map(tratamentoId => ({
-            programacao_cultivar_id: cultivarId,
-            tratamento_id: tratamentoId
-          }));
-        }).filter(t => t.programacao_cultivar_id && t.tratamento_id);
-
-        if (tratamentosData.length > 0) {
-          const tratResponse = await (supabase as any)
-            .from("programacao_cultivares_tratamentos")
-            .insert(tratamentosData);
-          if (tratResponse.error) throw tratResponse.error;
-        }
-
-        // Inserir defensivos "NA FAZENDA" na tabela programacao_cultivares_defensivos
-        const defensivosData = data.cultivares.flatMap((item, idx) => {
-          if (item.tipo_tratamento !== 'NA FAZENDA' || !item.defensivos_fazenda || item.defensivos_fazenda.length === 0) {
-            return [] as any[];
-          }
-          const cultivarId = cultInsert.data[idx]?.id;
-          return item.defensivos_fazenda.map(def => ({
-            programacao_cultivar_id: cultivarId,
-            aplicacao: def.aplicacao,
-            defensivo: def.defensivo,
-            dose: def.dose,
-            cobertura: def.cobertura,
-            total: def.total,
-            produto_salvo: def.produto_salvo || false
-          }));
-        }).filter(d => d.programacao_cultivar_id);
-
-        if (defensivosData.length > 0) {
-          const defResponse = await (supabase as any)
-            .from("programacao_cultivares_defensivos")
-            .insert(defensivosData);
-          if (defResponse.error) throw defResponse.error;
-        }
-      }
-
-      // Substitui talhões vinculados
-      const delTalhoes = await (supabase as any)
-        .from("programacao_talhoes")
-        .delete()
-        .eq("programacao_id", id);
-      if (delTalhoes.error) throw delTalhoes.error;
-
-      if (data.talhao_ids && data.talhao_ids.length > 0) {
-        const talhoesData = data.talhao_ids.map(talhao_id => ({
-          programacao_id: id,
-          talhao_id: talhao_id
-        }));
-
-        const talhoesInsert = await (supabase as any)
-          .from("programacao_talhoes")
-          .insert(talhoesData);
-        if (talhoesInsert.error) throw talhoesInsert.error;
-      }
-
-      // Substitui adubações vinculadas
-      const delAdub = await (supabase as any)
-        .from("programacao_adubacao")
-        .delete()
-        .eq("programacao_id", id);
-      if (delAdub.error) throw delAdub.error;
-
-      if (data.adubacao.length > 0) {
-        const adubacaoData = data.adubacao.map(item => ({
-          user_id: user.id,
-          programacao_id: id,
-          produtor_numerocm: data.produtor_numerocm,
-          area: data.area,
-          formulacao: item.formulacao,
-          dose: item.dose,
-          percentual_cobertura: item.percentual_cobertura,
-          data_aplicacao: item.data_aplicacao || null,
-          embalagem: item.embalagem || null,
-          justificativa_nao_adubacao_id: item.justificativa_nao_adubacao_id || null,
-          fertilizante_salvo: !!item.fertilizante_salvo,
-          deve_faturar: typeof item.deve_faturar === 'boolean' ? item.deve_faturar : true,
-          porcentagem_salva: Number.isFinite(item.porcentagem_salva as number)
-            ? Math.min(100, Math.max(0, Number(item.porcentagem_salva)))
-            : 0,
-          total: null,
-          // Grava o id da safra para adubação
-          safra_id: data.safra_id || null
-        }));
-        const adubInsert = await (supabase as any)
-          .from("programacao_adubacao")
-          .insert(adubacaoData);
-      if (adubInsert.error) throw adubInsert.error;
+      const res = await fetch(`${baseUrl}/programacoes/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data as any)
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
     },
     onSuccess: () => {
@@ -496,153 +187,82 @@ export const useProgramacoes = () => {
   });
 
   const replicateMutation = useMutation({
-    mutationFn: async ({ id, produtor_numerocm, fazenda_idfazenda, area_hectares }: { id: string; produtor_numerocm: string; fazenda_idfazenda: string; area_hectares: number }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
+    mutationFn: async ({ id, produtor_numerocm, fazenda_idfazenda, area_hectares, area_name }: { id: string; produtor_numerocm: string; fazenda_idfazenda: string; area_hectares: number; area_name?: string }) => {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
       if (!area_hectares || Number(area_hectares) <= 0) {
         throw new Error("A fazenda selecionada não possui área preenchida");
       }
-
-      // Fetch original programacao and its children
-      const original = await (supabase as any)
-        .from("programacoes")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (original.error) throw original.error;
-
-      // Fetch destination fazenda name to set correct area string
-      const destFazenda = await (supabase as any)
-        .from("fazendas")
-        .select("nomefazenda")
-        .eq("idfazenda", fazenda_idfazenda)
-        .eq("numerocm", produtor_numerocm)
-        .maybeSingle?.() ?? await (supabase as any)
-        .from("fazendas")
-        .select("nomefazenda")
-        .eq("idfazenda", fazenda_idfazenda)
-        .eq("numerocm", produtor_numerocm)
-        .single();
-      if (destFazenda.error) {
-        // Não bloquear replicação se nome não encontrado; usar área original como fallback
-      }
-      const destAreaName = destFazenda.data?.nomefazenda || original.data.area;
-
-      const [cultOrig, adubOrig] = await Promise.all([
-        (supabase as any)
-          .from("programacao_cultivares")
-          .select("*")
-          .eq("programacao_id", id),
-        (supabase as any)
-          .from("programacao_adubacao")
-          .select("*")
-          .eq("programacao_id", id),
-      ]);
-      if (cultOrig.error) throw cultOrig.error;
-      if (adubOrig.error) throw adubOrig.error;
-
-      // Create new programacao using target fields and original area/safra
-      const progInsert = await (supabase as any)
-        .from("programacoes")
-        .insert({
-          user_id: user.id,
-          produtor_numerocm,
-          fazenda_idfazenda,
-          area: destAreaName,
-          area_hectares: area_hectares,
-          safra_id: original.data.safra_id || null,
-        })
-        .select()
-        .single();
-      if (progInsert.error) throw progInsert.error;
-
-      const newId = progInsert.data.id;
-
-      // Insert replicated cultivares
-      const cultivaresData = (cultOrig.data || []).map((c: any) => ({
-        user_id: user.id,
-        programacao_id: newId,
-        produtor_numerocm,
-        area: destAreaName,
-        area_hectares: area_hectares,
-        cultivar: c.cultivar,
-        quantidade: 0,
-        unidade: "kg",
-        percentual_cobertura: c.percentual_cobertura,
-        tipo_embalagem: c.tipo_embalagem,
-        tipo_tratamento: c.tipo_tratamento,
-        tratamento_id: null, // Deprecated: agora usamos tabela de junção
-        data_plantio: c.data_plantio || null,
-        populacao_recomendada: c.populacao_recomendada || 0,
-        semente_propria: !!c.semente_propria,
-        referencia_rnc_mapa: c.referencia_rnc_mapa || null,
-        sementes_por_saca: c.sementes_por_saca || 0,
-        // Preserva a safra original na replicação
-        safra: original.data.safra_id || null,
-        porcentagem_salva: 0,
-      }));
-      if (cultivaresData.length > 0) {
-        const cultInsert = await (supabase as any)
-          .from("programacao_cultivares")
-          .insert(cultivaresData)
-          .select();
-        if (cultInsert.error) throw cultInsert.error;
-
-        // Replicar tratamentos da tabela de junção
-        const tratamentosOriginais = await Promise.all(
-          (cultOrig.data || []).map(async (c: any) => {
-            const { data } = await (supabase as any)
-              .from("programacao_cultivares_tratamentos")
-              .select("tratamento_id")
-              .eq("programacao_cultivar_id", c.id);
-            return { originalId: c.id, tratamentos: data || [] };
-          })
-        );
-
-        const tratamentosData = cultInsert.data.flatMap((c: any, idx: number) => {
-          const tratamentos = tratamentosOriginais[idx]?.tratamentos || [];
-          return tratamentos.map((t: any) => ({
-            programacao_cultivar_id: c.id,
-            tratamento_id: t.tratamento_id
-          }));
+      const original = (programacoes || []).find(p => p.id === id);
+      if (!original) throw new Error("Programação não encontrada");
+      const childrenRes = await fetch(`${baseUrl}/programacoes/${id}/children`);
+      if (!childrenRes.ok) throw new Error(`Erro ao carregar filhos: ${childrenRes.status}`);
+      const children = await childrenRes.json();
+      const tratamentos: Record<string, string[]> = children?.tratamentos || {};
+      const defensivos: any[] = children?.defensivos || [];
+      const cultivaresSrc: any[] = children?.cultivares || [];
+      const adubacaoSrc: any[] = children?.adubacao || [];
+      const defensivosMap: Record<string, any[]> = {};
+      defensivos.forEach(d => {
+        const key = d.programacao_cultivar_id;
+        if (!key) return;
+        if (!defensivosMap[key]) defensivosMap[key] = [];
+        defensivosMap[key].push({
+          classe: d.classe,
+          aplicacao: d.aplicacao,
+          defensivo: d.defensivo,
+          dose: d.dose,
+          cobertura: d.cobertura,
+          total: d.total,
+          produto_salvo: !!d.produto_salvo
         });
-
-        if (tratamentosData.length > 0) {
-          const tratResponse = await (supabase as any)
-            .from("programacao_cultivares_tratamentos")
-            .insert(tratamentosData);
-          if (tratResponse.error) throw tratResponse.error;
-        }
-      }
-
-      // Insert replicated adubacao
-      const adubacaoData = (adubOrig.data || []).map((a: any) => ({
-        user_id: user.id,
-        programacao_id: newId,
+      });
+      const destAreaName = area_name || original.area;
+      const payload: CreateProgramacao = {
         produtor_numerocm,
+        fazenda_idfazenda,
         area: destAreaName,
-        formulacao: a.formulacao,
-        dose: a.dose,
-        percentual_cobertura: a.percentual_cobertura,
-        data_aplicacao: a.data_aplicacao || null,
-        responsavel: a.responsavel || null,
-        justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || null,
-        fertilizante_salvo: false,
-        deve_faturar: true,
-        porcentagem_salva: 0,
-        total: null,
-        // Preserva a safra original na replicação
-        safra_id: original.data.safra_id || null,
-      }));
-      if (adubacaoData.length > 0) {
-        const adubInsert = await (supabase as any)
-          .from("programacao_adubacao")
-          .insert(adubacaoData);
-        if (adubInsert.error) throw adubInsert.error;
+        area_hectares,
+        safra_id: original.safra_id || undefined,
+        epoca_id: undefined,
+        talhao_ids: children?.talhoes || [],
+        cultivares: cultivaresSrc.map(c => ({
+          cultivar: c.cultivar,
+          percentual_cobertura: Number(c.percentual_cobertura) || 0,
+          tipo_embalagem: c.tipo_embalagem,
+          tipo_tratamento: c.tipo_tratamento,
+          tratamento_ids: tratamentos[c.id] || [],
+          data_plantio: c.data_plantio || null,
+          populacao_recomendada: Number(c.populacao_recomendada) || 0,
+          semente_propria: !!c.semente_propria,
+          referencia_rnc_mapa: c.referencia_rnc_mapa || null,
+          sementes_por_saca: Number(c.sementes_por_saca) || 0,
+          defensivos_fazenda: c.tipo_tratamento === 'NA FAZENDA' ? (defensivosMap[c.id] || []) : []
+        })),
+        adubacao: adubacaoSrc.map(a => ({
+          formulacao: a.formulacao,
+          dose: Number(a.dose) || 0,
+          percentual_cobertura: Number(a.percentual_cobertura) || 0,
+          data_aplicacao: a.data_aplicacao || null,
+          embalagem: a.embalagem || null,
+          justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || null,
+          fertilizante_salvo: !!a.fertilizante_salvo,
+          deve_faturar: typeof a.deve_faturar === 'boolean' ? a.deve_faturar : true,
+          porcentagem_salva: Number(a.porcentagem_salva) || 0
+        }))
+      };
+      const res = await fetch(`${baseUrl}/programacoes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload as any)
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-
-      return newId;
+      const json = await res.json();
+      return json?.id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });

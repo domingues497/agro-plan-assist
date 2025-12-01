@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+// Migração para API Flask
 import { useToast } from "@/hooks/use-toast";
 
 export const ImportEpocas = () => {
@@ -16,15 +16,18 @@ export const ImportEpocas = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data: { nome: string; descricao: string }) => {
-      const { error } = await supabase
-        .from("epocas")
-        .insert({
-          nome: data.nome,
-          descricao: data.descricao || null,
-          ativa: true,
-        });
-
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/epocas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: data.nome, descricao: data.descricao || null, ativa: true }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-epocas"] });

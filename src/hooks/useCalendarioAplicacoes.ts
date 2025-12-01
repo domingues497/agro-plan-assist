@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+// Migração para API Flask
 
 export type CalendarioAplicacao = {
   id?: string;
@@ -15,13 +15,16 @@ export const useCalendarioAplicacoes = () => {
   return useQuery({
     queryKey: ["calendario-aplicacoes"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("calendario_aplicacoes")
-        .select("*")
-        .order("descricao_classe", { ascending: true });
-      if (error) throw error;
-
-      const rows = (data || []) as CalendarioAplicacao[];
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/calendario_aplicacoes`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      const rows = (json?.items || []) as CalendarioAplicacao[];
 
       // Agrupa aplicações por descrição da classe
       const classes = Array.from(

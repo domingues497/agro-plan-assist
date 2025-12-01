@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+// Migração para API Flask
 
 export type Consultor = {
   id: string;
@@ -14,12 +14,13 @@ export const useConsultores = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ["consultores"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("consultores")
-        .select("*")
-        .order("consultor", { ascending: true });
-      if (error) throw error;
-      return (data || []) as Consultor[];
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/consultores`);
+      if (!res.ok) throw new Error(`Erro ao carregar consultores: ${res.status}`);
+      const json = await res.json();
+      return (json?.items ?? []) as Consultor[];
     },
   });
 

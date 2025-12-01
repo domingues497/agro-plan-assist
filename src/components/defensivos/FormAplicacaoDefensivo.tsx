@@ -651,47 +651,20 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
 
     const clsNorm = normalizeWithoutPlural(cls);
     const grupoNorm = normalizeWithoutPlural(d.grupo || "");
-    
-    // Log detalhado para INSETICIDA
-    if (d.grupo === 'INSETICIDA') {
-      console.log('🐛 Debug INSETICIDA:', {
-        grupo_original: d.grupo,
-        cls_original: cls,
-        clsNorm,
-        grupoNorm,
-        equal: clsNorm === grupoNorm,
-        item: d.item
-      });
-    }
-    
-    // Também tentar match sem remover plural
-    const clsNormOriginal = normalizeText(cls);
-    const grupoNormOriginal = normalizeText(d.grupo || "");
+    const itemPrefixNorm = normalizeWithoutPlural(String(d.item || "").split("-")[0]?.trim() || "");
 
-    // Regra: somente itens cujo grupo == classe selecionada
-    // Tenta match com e sem plural
-    const matchesClasse = 
-      clsNorm === "OUTRO" ? (grupoNorm === "" || grupoNorm === "OUTRO") :
-      (grupoNorm === clsNorm || grupoNormOriginal === clsNormOriginal || grupoNorm === "OUTRO");
-
-    if (matchesClasse && d.grupo === 'INSETICIDA') {
-      console.log('✅ MATCH INSETICIDA:', d.item);
-    }
-
+    const matchesClasse = (grupoNorm && grupoNorm === clsNorm) || (!grupoNorm && itemPrefixNorm === clsNorm);
     if (!matchesClasse) return false;
 
-    // Evitar duplicados na mesma aplicação: se já existe um defensivo com o mesmo "core"
     const apKey = String((selectedAplicacoes[0] || defensivo.alvo || "").trim());
     if (!apKey) return true;
     const existing = (existingByAplicacao[apKey] || [])
       .map((n) => normalizeText(String(n || "").replace(/%/g, "")))
       .filter((n) => n && n !== normalizeText(defensivo.defensivo || ""));
 
-    // Remover prefixo da classe do nome existente para comparar núcleo (ex.: "HERBICIDA DUAL GOLD" -> "DUAL GOLD")
     const clsPrefix = clsNorm + " ";
     const cores = existing.map((n) => (n.startsWith(clsPrefix) ? n.slice(clsPrefix.length).trim() : n));
 
-    // Normalizar item e marca do defensivo atual para comparação
     const itemNorm = normalizeText(d.item || "");
     const marcaNorm = normalizeText(d.marca || "");
 
@@ -702,8 +675,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
     return true;
   });
 
-  console.log('🎲 Filtered catalog length:', filteredCatalog.length);
-  const displayCatalog = filteredCatalog.length > 0 ? filteredCatalog : (defensivosCatalog || []);
+  const displayCatalog = filteredCatalog;
 
   return (
     <Card className="p-4 bg-muted/50">

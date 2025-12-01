@@ -48,31 +48,6 @@ export function ImportProdutores() {
       if (!user) throw new Error("Usuário não autenticado");
 
       let deletedRecords = 0;
-
-      // Limpar tabela se checkbox marcado
-      if (limparAntes) {
-        // Primeiro contar quantos registros existem
-        const { count } = await supabase
-          .from("produtores")
-          .select("*", { count: "exact", head: true });
-        
-        deletedRecords = count || 0;
-
-        // Depois deletar todos
-        const { error: deleteError } = await supabase
-          .from("produtores")
-          .delete()
-          .neq("id", "00000000-0000-0000-0000-000000000000");
-        
-        if (deleteError) {
-          console.error("Erro ao limpar tabela:", deleteError);
-          toast.error("Erro ao limpar tabela");
-          setIsImporting(false);
-          return;
-        }
-        setDeletedRows(deletedRecords);
-        toast.info(`${deletedRecords} registros removidos`);
-      }
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const sheetName = workbook.SheetNames[0];
@@ -104,32 +79,28 @@ export function ImportProdutores() {
 
       setTotalRows(uniquePayload.length);
 
-      const batchSize = 100;
-      let imported = 0;
-      for (let i = 0; i < uniquePayload.length; i += batchSize) {
-        const chunk = uniquePayload.slice(i, i + batchSize);
-        const { error } = await supabase.from("produtores").upsert(chunk, { onConflict: "numerocm" });
-        if (error) {
-          console.error("Erro ao importar chunk de produtores:", error);
-          // Mensagem amigável para erro 21000
-          if (String((error as any).code) === "21000" || String((error as any).message).includes("ON CONFLICT DO UPDATE command cannot affect row a second time")) {
-            toast.error("Arquivo contém entradas duplicadas para o mesmo numerocm no mesmo lote. Revise a planilha.");
-          }
-        } else {
-          imported += chunk.length;
-          setImportedRows(imported);
-        }
-      }
-
-      // Registrar no histórico
-      await supabase.from("import_history").insert({
-        user_id: user.id,
-        tabela_nome: "produtores",
-        registros_importados: imported,
-        registros_deletados: deletedRecords,
-        arquivo_nome: file.name,
-        limpar_antes: limparAntes,
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/produtores/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: uniquePayload,
+          limparAntes,
+          user_id: user.id,
+          arquivo_nome: file.name,
+        }),
       });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      const imported = Number(json?.imported || uniquePayload.length);
+      deletedRecords = Number(json?.deleted || 0);
+      setImportedRows(imported);
+      setDeletedRows(deletedRecords);
 
       toast.success(`Importação de produtores concluída (${imported} de ${uniquePayload.length})`);
       setShowSummary(true);

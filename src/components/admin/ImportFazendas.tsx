@@ -48,29 +48,6 @@ export function ImportFazendas() {
       if (!user) throw new Error("Usuário não autenticado");
 
       let deletedRecords = 0;
-
-      // Limpar tabela se checkbox marcado
-      if (limparAntes) {
-        const { count } = await supabase
-          .from("fazendas")
-          .select("*", { count: "exact", head: true });
-        
-        deletedRecords = count || 0;
-
-        const { error: deleteError } = await supabase
-          .from("fazendas")
-          .delete()
-          .neq("id", "00000000-0000-0000-0000-000000000000");
-        
-        if (deleteError) {
-          console.error("Erro ao limpar tabela:", deleteError);
-          toast.error("Erro ao limpar tabela");
-          setIsImporting(false);
-          return;
-        }
-        setDeletedRows(deletedRecords);
-        toast.info(`${deletedRecords} registros removidos`);
-      }
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const sheetName = workbook.SheetNames[0];
@@ -104,31 +81,28 @@ export function ImportFazendas() {
 
       setTotalRows(uniquePayload.length);
 
-      const batchSize = 100;
-      let imported = 0;
-      for (let i = 0; i < uniquePayload.length; i += batchSize) {
-        const chunk = uniquePayload.slice(i, i + batchSize);
-        const { error } = await supabase.from("fazendas").upsert(chunk, { 
-          onConflict: "numerocm,idfazenda" 
-        });
-        if (error) {
-          console.error("Erro ao importar chunk de fazendas:", error);
-          toast.error(`Erro ao importar: ${error.message}`);
-        } else {
-          imported += chunk.length;
-          setImportedRows(imported);
-        }
-      }
-
-      // Registrar no histórico
-      await supabase.from("import_history").insert({
-        user_id: user.id,
-        tabela_nome: "fazendas",
-        registros_importados: imported,
-        registros_deletados: deletedRecords,
-        arquivo_nome: file.name,
-        limpar_antes: limparAntes,
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/fazendas/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: uniquePayload,
+          limparAntes,
+          user_id: user.id,
+          arquivo_nome: file.name,
+        }),
       });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      const imported = Number(json?.imported || uniquePayload.length);
+      deletedRecords = Number(json?.deleted || 0);
+      setImportedRows(imported);
+      setDeletedRows(deletedRecords);
 
       toast.success(`Importação de fazendas concluída (${imported} de ${uniquePayload.length})`);
       setShowSummary(true);

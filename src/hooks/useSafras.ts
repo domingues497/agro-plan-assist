@@ -33,7 +33,6 @@ export const useSafras = () => {
 
   const createMutation = useMutation({
     mutationFn: async (safra: CreateSafra) => {
-      // Se marcar como padrão, desmarcar outras
       if (safra.is_default) {
         await supabase
           .from("safras")
@@ -61,7 +60,6 @@ export const useSafras = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Safra> & { id: string }) => {
-      // Se marcar como padrão, desmarcar outras
       if (updates.is_default) {
         await supabase
           .from("safras")
