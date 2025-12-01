@@ -1,29 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 export const useAdminRole = () => {
   return useQuery({
     queryKey: ["admin-role"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        return { isAdmin: false };
-      }
-
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error checking admin role:", error);
-        return { isAdmin: false };
-      }
-
-      return { isAdmin: !!data };
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const token = localStorage.getItem("auth_token");
+      if (!token) return { isAdmin: false };
+      const res = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return { isAdmin: false };
+      const json = await res.json();
+      const role = String(json?.user?.role || "consultor").toLowerCase();
+      return { isAdmin: role === "admin" };
     },
   });
 };

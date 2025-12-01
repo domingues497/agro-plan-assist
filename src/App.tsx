@@ -4,8 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Session } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
@@ -18,23 +17,41 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   // Hook de inatividade - desconecta após 5 minutos
   useInactivityLogout();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+    const checkToken = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        if (!token) {
+          setSession(null);
+          setLoading(false);
+          return;
+        }
+        const envUrl = (import.meta as any).env?.VITE_API_URL;
+        const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+        const baseUrl = envUrl || `http://${host}:5000`;
+        const res = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) {
+          localStorage.removeItem("auth_token");
+          setSession(null);
+        } else {
+          const json = await res.json();
+          setSession(json?.user || { token });
+        }
+      } catch (e) {
+        toast({ title: "Erro de autenticação", description: "Falha ao validar sessão.", variant: "destructive" });
+        setSession(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkToken();
   }, []);
 
   if (loading) {

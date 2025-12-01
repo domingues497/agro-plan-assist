@@ -17,6 +17,7 @@ import type { DefensivoItem } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useSafras } from "@/hooks/useSafras";
 import { supabase } from "@/integrations/supabase/client";
+import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 
 type FormAplicacaoDefensivoProps = {
   onSubmit: (data: { produtor_numerocm: string; area: string; defensivos: Omit<DefensivoItem, "id">[] }) => void;
@@ -51,6 +52,9 @@ export const FormAplicacaoDefensivo = ({
   const { safras, defaultSafra } = useSafras();
   const [safraId, setSafraId] = useState<string>("");
   const [openSafra, setOpenSafra] = useState(false);
+  const isUuidLocal = (s?: string | null) => !!s && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(s));
+  const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
+  const { programacoes: adubProgramacoes = [], isLoading: isAdubLoading } = useProgramacaoAdubacao();
   
   const [defensivos, setDefensivos] = useState<Array<Omit<DefensivoItem, "id"> & { tempId: string; total?: number }>>([
     {
@@ -76,8 +80,9 @@ export const FormAplicacaoDefensivo = ({
     if (initialData) {
       setProdutorNumerocm(initialData.produtor_numerocm || "");
       setArea(initialData.area || "");
-      const initialSafraId = initialData.defensivos?.[0]?.safra_id as any;
-      if (initialSafraId) setSafraId(String(initialSafraId));
+      const candidates = (initialData.defensivos || []).map((d) => String((d as any).safra_id || "").trim());
+      const picked = candidates.find((s) => isUuidLocal(s)) || candidates.find((s) => !!s) || "";
+      if (picked) setSafraId(String(picked));
       if (initialData.defensivos && initialData.defensivos.length > 0) {
         setDefensivos(
           initialData.defensivos.map((def) => ({
@@ -93,6 +98,25 @@ export const FormAplicacaoDefensivo = ({
       }
     }
   }, [initialData]);
+
+  // Prefill de safra na edição quando não está salvo em programacao_defensivos
+  useEffect(() => {
+    if (safraId) return;
+    const cm = String(initialData?.produtor_numerocm || "").trim();
+    const a = String(initialData?.area || "").trim();
+    if (!cm || !a) return;
+    const cultSafras = new Set<string>((cultProgramacoes || [])
+      .filter((p) => String(p.produtor_numerocm || "").trim() === cm && String(p.area || "").trim() === a)
+      .map((p) => String(p.safra || "").trim())
+    );
+    const adubSafras = new Set<string>((adubProgramacoes || [])
+      .filter((p: any) => String(p.produtor_numerocm || "").trim() === cm && String(p.area || "").trim() === a)
+      .map((p: any) => String(p.safra_id || "").trim())
+    );
+    const inter = Array.from(cultSafras).filter((s) => !!s && adubSafras.has(s));
+    const choice = inter.find((s) => isUuidLocal(s)) || inter[0] || "";
+    if (choice) setSafraId(choice);
+  }, [safraId, initialData, cultProgramacoes, adubProgramacoes]);
 
   // Ao abrir nova aplicação, selecionar automaticamente a safra padrão do banco
   useEffect(() => {
@@ -224,7 +248,6 @@ export const FormAplicacaoDefensivo = ({
   };
 
   const selectedProdutor = produtores?.find((p) => p.numerocm === produtorNumerocm);
-  const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
 
   const hasCultivarProgram = useMemo(() => {
     if (!produtorNumerocm || !area || !safraId) return false;
@@ -239,51 +262,43 @@ export const FormAplicacaoDefensivo = ({
     );
   }, [cultProgramacoes, produtorNumerocm, area, safraId]);
 
-  // Busca a área programada (soma dos talhões) quando fazenda é selecionada
+  const hasAdubacaoProgram = useMemo(() => {
+    if (!produtorNumerocm || !area || !safraId) return false;
+    const a = String(area || "").trim();
+    const cm = String(produtorNumerocm || "").trim();
+    const s = String(safraId || "").trim();
+    return (adubProgramacoes || []).some(
+      (p: any) =>
+        String(p.produtor_numerocm || "").trim() === cm &&
+        String(p.area || "").trim() === a &&
+        String(p.safra_id || "").trim() === s
+    );
+  }, [adubProgramacoes, produtorNumerocm, area, safraId]);
+
+  // Atualiza a área selecionada com base na fazenda escolhida (usa área cultivável do backend)
   useEffect(() => {
     if (!produtorNumerocm || !area || !safraId) {
       return;
     }
-
-    const fetchAreaProgramada = async () => {
-      try {
-        const fazenda = (fazendas || []).find(f => f.nomefazenda === area);
-        if (!fazenda) return;
-
-        const { data: programacoesData, error: progError } = await supabase
-          .from("programacoes")
-          .select("id")
-          .eq("produtor_numerocm", produtorNumerocm)
-          .eq("fazenda_idfazenda", fazenda.idfazenda)
-          .eq("safra_id", safraId)
-          .maybeSingle();
-
-        if (progError || !programacoesData?.id) return;
-
-        const { data: areaTotalData, error: areaError } = await supabase.rpc('get_programacao_area_total', {
-          programacao_uuid: programacoesData.id
-        });
-        
-        if (!areaError && areaTotalData !== null && areaTotalData !== undefined) {
-          setSelectedAreaHa(Number(areaTotalData));
-        }
-      } catch (error) {
-        console.error("Erro ao buscar área programada:", error);
-      }
-    };
-
-    fetchAreaProgramada();
+    const fazenda = (fazendas || []).find(f => String(f.nomefazenda) === String(area));
+    const ha = Number(fazenda?.area_cultivavel || 0);
+    setSelectedAreaHa(ha);
   }, [produtorNumerocm, area, safraId, fazendas]);
 
   const allowedProdutoresNumerocm = useMemo(() => {
     if (!safraId) return [] as string[];
     const s = String(safraId);
-    const set = new Set<string>((cultProgramacoes || [])
+    const cultSet = new Set<string>((cultProgramacoes || [])
       .filter((p) => String(p.safra || "") === s)
       .map((p) => String(p.produtor_numerocm || ""))
     );
-    return Array.from(set);
-  }, [cultProgramacoes, safraId]);
+    const adubSet = new Set<string>((adubProgramacoes || [])
+      .filter((p: any) => String(p.safra_id || "") === s)
+      .map((p: any) => String(p.produtor_numerocm || ""))
+    );
+    const inter = Array.from(cultSet).filter((cm) => adubSet.has(cm));
+    return inter;
+  }, [cultProgramacoes, adubProgramacoes, safraId]);
 
   const produtoresFiltrados = useMemo(() => {
     if (!safraId) return [] as typeof produtores;
@@ -297,12 +312,18 @@ export const FormAplicacaoDefensivo = ({
     if (safraId && produtorNumerocm) {
       const s = String(safraId);
       const cm = String(produtorNumerocm);
-      (cultProgramacoes || [])
+      const cultAreas = new Set<string>((cultProgramacoes || [])
         .filter((p) => String(p.safra || "") === s && String(p.produtor_numerocm || "") === cm)
-        .forEach((p) => set.add(String(p.area || "")));
+        .map((p) => String(p.area || ""))
+      );
+      const adubAreas = new Set<string>((adubProgramacoes || [])
+        .filter((p: any) => String(p.safra_id || "") === s && String(p.produtor_numerocm || "") === cm)
+        .map((p: any) => String(p.area || ""))
+      );
+      cultAreas.forEach((a) => { if (adubAreas.has(a)) set.add(a); });
     }
     return set;
-  }, [cultProgramacoes, safraId, produtorNumerocm]);
+  }, [cultProgramacoes, adubProgramacoes, safraId, produtorNumerocm]);
 
   const fazendasFiltradas = useMemo(() => {
     if (!safraId || !produtorNumerocm) return [] as NonNullable<typeof fazendas>;
@@ -316,9 +337,9 @@ export const FormAplicacaoDefensivo = ({
       <h3 className="text-lg font-semibold mb-4">{title}</h3>
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Alerta de regra de negócio */}
-        {produtorNumerocm && area && !isCultLoading && !hasCultivarProgram && (
+        {produtorNumerocm && area && !isCultLoading && !isAdubLoading && !(hasCultivarProgram && hasAdubacaoProgram) && (
           <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-            Não é possível cadastrar defensivos antes de registrar a programação de Cultivar para este produtor/fazenda.
+            Não é possível cadastrar defensivos antes de registrar a programação de Cultivar e Adubação para este produtor/fazenda.
           </div>
         )}
         {/* Seção fixa */}
@@ -516,7 +537,7 @@ export const FormAplicacaoDefensivo = ({
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isLoading || (!isCultLoading && !hasCultivarProgram)}>
+          <Button type="submit" disabled={isLoading || !(hasCultivarProgram && hasAdubacaoProgram)}>
             {isLoading ? "Salvando..." : submitLabel}
           </Button>
         </div>

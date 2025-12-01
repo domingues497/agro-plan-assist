@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema
+from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema
 from psycopg2.extras import execute_values
 import uuid
 import time
@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 from urllib.parse import urlsplit
 from urllib.error import URLError, HTTPError
 import threading
+import json as _json
 
 app = Flask(__name__)
 # Abrir CORS para simplificar chamadas do front; sem credenciais
@@ -20,6 +21,7 @@ CORS(app, origins="*", supports_credentials=False)
 try:
     ensure_system_config_schema()
     ensure_defensivos_schema()
+    ensure_aplicacoes_defensivos_schema()
     ensure_fertilizantes_schema()
     ensure_safras_schema()
     ensure_programacao_schema()
@@ -31,6 +33,9 @@ try:
     ensure_produtores_schema()
     ensure_fazendas_schema()
     ensure_talhoes_schema()
+    ensure_cultivares_catalog_schema()
+    ensure_tratamentos_sementes_schema()
+    ensure_cultivares_tratamentos_schema()
 except Exception:
     pass
 
@@ -57,6 +62,7 @@ def list_fazendas():
     ensure_talhoes_schema()
     numerocm = request.args.get("numerocm")
     numerocm_consultor = request.args.get("numerocm_consultor")
+    auth = request.headers.get("Authorization") or ""
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -69,6 +75,38 @@ def list_fazendas():
             )
             params = []
             where = []
+            # RLS-like: filtrar por role e associações
+            role = None
+            user_id = None
+            if auth.lower().startswith("bearer "):
+                try:
+                    payload = verify_jwt(auth.split(" ", 1)[1])
+                    role = (payload.get("role") or "consultor").lower()
+                    user_id = payload.get("user_id")
+                except Exception:
+                    role = None
+            allowed_numerocm = []
+            allowed_fazendas = []
+            if user_id and role in ("gestor", "consultor"):
+                cur.execute("SELECT produtor_numerocm FROM public.user_produtores WHERE user_id = %s", [user_id])
+                allowed_numerocm = [r[0] for r in cur.fetchall()]
+                cur.execute("SELECT fazenda_id FROM public.user_fazendas WHERE user_id = %s", [user_id])
+                allowed_fazendas = [r[0] for r in cur.fetchall()]
+            if role == "consultor":
+                if allowed_numerocm:
+                    where.append("f.numerocm = ANY(%s)")
+                    params.append(allowed_numerocm)
+            elif role == "gestor":
+                if allowed_numerocm or allowed_fazendas:
+                    subconds = []
+                    if allowed_numerocm:
+                        subconds.append("f.numerocm = ANY(%s)")
+                        params.append(allowed_numerocm)
+                    if allowed_fazendas:
+                        subconds.append("f.id = ANY(%s)")
+                        params.append(allowed_fazendas)
+                    where.append("(" + " OR ".join(subconds) + ")")
+            # Admin: sem restrição
             if numerocm:
                 where.append("numerocm = %s")
                 params.append(numerocm)
@@ -744,13 +782,43 @@ def list_programacoes():
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, created_at, updated_at
-                FROM public.programacoes
-                ORDER BY created_at DESC
-                """
+            base = (
+                "SELECT id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, created_at, updated_at "
+                "FROM public.programacoes"
             )
+            auth = request.headers.get("Authorization") or ""
+            role = None
+            user_id = None
+            where = []
+            params = []
+            if auth.lower().startswith("bearer "):
+                try:
+                    payload = verify_jwt(auth.split(" ", 1)[1])
+                    role = (payload.get("role") or "consultor").lower()
+                    user_id = payload.get("user_id")
+                except Exception:
+                    role = None
+            if user_id and role in ("gestor", "consultor"):
+                cur.execute("SELECT produtor_numerocm FROM public.user_produtores WHERE user_id = %s", [user_id])
+                allowed_numerocm = [r[0] for r in cur.fetchall()]
+                cur.execute("SELECT fazenda_id FROM public.user_fazendas WHERE user_id = %s", [user_id])
+                allowed_fazendas = [r[0] for r in cur.fetchall()]
+                if role == "consultor":
+                    if allowed_numerocm:
+                        where.append("produtor_numerocm = ANY(%s)")
+                        params.append(allowed_numerocm)
+                else:
+                    subconds = []
+                    if allowed_numerocm:
+                        subconds.append("produtor_numerocm = ANY(%s)")
+                        params.append(allowed_numerocm)
+                    if allowed_fazendas:
+                        subconds.append("fazenda_idfazenda = ANY(%s)")
+                        params.append(allowed_fazendas)
+                    if subconds:
+                        where.append("(" + " OR ".join(subconds) + ")")
+            sql = base + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY created_at DESC"
+            cur.execute(sql, params)
             rows = cur.fetchall()
             cols = [d[0] for d in cur.description]
             data = [dict(zip(cols, r)) for r in rows]
@@ -1395,6 +1463,311 @@ def get_defensivos():
             cols = [desc[0] for desc in cur.description]
             data = [dict(zip(cols, row)) for row in rows]
             return jsonify({"items": data, "count": len(data)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/cultivares_catalog", methods=["GET"])
+def get_cultivares_catalog():
+    ensure_cultivares_catalog_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT cultivar, cultura, nome_cientifico, created_at, updated_at FROM public.cultivares_catalog ORDER BY cultivar"
+            )
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            items = [dict(zip(cols, r)) for r in rows]
+            return jsonify({"items": items, "count": len(items)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/cultivares_catalog/bulk", methods=["POST"])
+def import_cultivares_catalog():
+    ensure_cultivares_catalog_schema()
+    ensure_import_history_schema()
+    payload = request.get_json(silent=True) or {}
+    limpar = bool(payload.get("limparAntes")) or bool(payload.get("limpar_antes"))
+    items = payload.get("items") or []
+    user_id = payload.get("user_id")
+    arquivo_nome = payload.get("arquivo_nome")
+    pool = get_pool()
+    conn = pool.getconn()
+    deleted = 0
+    imported = 0
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                if limpar:
+                    cur.execute("SELECT COUNT(*) FROM public.cultivares_catalog")
+                    deleted = cur.fetchone()[0] or 0
+                    cur.execute("DELETE FROM public.cultivares_catalog")
+                values = []
+                seen = set()
+                for it in (items or []):
+                    cultivar = (it.get("cultivar") or "").strip().upper()
+                    cultura = (it.get("cultura") or "").strip().upper() or None
+                    nome_cientifico = it.get("nome_cientifico")
+                    if not cultivar:
+                        continue
+                    key = f"{cultivar}|{cultura or ''}"
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    values.append([cultivar, cultura, nome_cientifico])
+                if values:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO public.cultivares_catalog (cultivar, cultura, nome_cientifico)
+                        VALUES %s
+                        ON CONFLICT (cultivar, cultura) DO UPDATE SET
+                          nome_cientifico = EXCLUDED.nome_cientifico,
+                          updated_at = now()
+                        """,
+                        values,
+                    )
+                    imported = len(values)
+                cur.execute(
+                    """
+                    INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    [f"ih{int(time.time()*1000)}", user_id, "cultivares_catalog", imported, deleted, arquivo_nome, limpar]
+                )
+        return jsonify({"ok": True, "imported": imported, "deleted": deleted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/cultivares_catalog/by_key", methods=["PUT"])
+def update_cultivares_by_key():
+    ensure_cultivares_catalog_schema()
+    payload = request.get_json(silent=True) or {}
+    cultivar = (payload.get("cultivar") or "").strip().upper()
+    cultura = (payload.get("cultura") or "").strip().upper() or None
+    set_cultura = payload.get("set_cultura")
+    set_nome_cientifico = payload.get("set_nome_cientifico")
+    if not cultivar:
+        return jsonify({"error": "cultivar obrigatório"}), 400
+    set_parts = []
+    values = []
+    if set_cultura is not None:
+        values.append((str(set_cultura) or "").upper())
+        set_parts.append("cultura = %s")
+    if set_nome_cientifico is not None:
+        values.append(set_nome_cientifico)
+        set_parts.append("nome_cientifico = %s")
+    if not set_parts:
+        return jsonify({"error": "nenhum campo para atualizar"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"UPDATE public.cultivares_catalog SET {', '.join(set_parts)}, updated_at = now() WHERE cultivar = %s AND {( 'cultura IS NULL' if cultura is None else 'cultura = %s' )}",
+                    values + ([cultivar] if cultura is None else [cultivar, cultura])
+                )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/tratamentos_sementes", methods=["GET"])
+def list_tratamentos_sementes():
+    ensure_tratamentos_sementes_schema()
+    cultura = request.args.get("cultura")
+    ativo = request.args.get("ativo")
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            base = "SELECT id, nome, cultura, ativo, created_at, updated_at FROM public.tratamentos_sementes"
+            where = []
+            params = []
+            if cultura:
+                where.append("cultura = %s")
+                params.append(cultura.upper())
+            if ativo is not None:
+                val = str(ativo).strip().lower() in ("1","true","yes","on")
+                where.append("ativo = %s")
+                params.append(val)
+            sql = base + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY nome"
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            items = [dict(zip(cols, r)) for r in rows]
+            return jsonify({"items": items, "count": len(items)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/tratamentos_sementes", methods=["POST"])
+def create_tratamento_semente():
+    ensure_tratamentos_sementes_schema()
+    payload = request.get_json(silent=True) or {}
+    id_val = str(uuid.uuid4())
+    nome = (payload.get("nome") or "").strip()
+    cultura = payload.get("cultura")
+    ativo = bool(payload.get("ativo", True))
+    if not nome:
+        return jsonify({"error": "nome obrigatório"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO public.tratamentos_sementes (id, nome, cultura, ativo) VALUES (%s, %s, %s, %s)",
+                    [id_val, nome, cultura, ativo]
+                )
+        return jsonify({"id": id_val})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/tratamentos_sementes/<id>", methods=["PUT"])
+def update_tratamento_semente(id: str):
+    ensure_tratamentos_sementes_schema()
+    payload = request.get_json(silent=True) or {}
+    nome = payload.get("nome")
+    cultura = payload.get("cultura")
+    ativo = payload.get("ativo")
+    set_parts = []
+    values = []
+    for col, val in [("nome", nome), ("cultura", (str(cultura).upper() if cultura is not None else None)), ("ativo", ativo)]:
+        if val is not None:
+            set_parts.append(f"{col} = %s")
+            values.append(val)
+    if not set_parts:
+        return jsonify({"error": "nenhum campo para atualizar"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"UPDATE public.tratamentos_sementes SET {', '.join(set_parts)}, updated_at = now() WHERE id = %s",
+                    values + [id]
+                )
+        return jsonify({"ok": True, "id": id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/tratamentos_sementes/<id>", methods=["DELETE"])
+def delete_tratamento_semente(id: str):
+    ensure_tratamentos_sementes_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM public.tratamentos_sementes WHERE id = %s", [id])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/cultivares_tratamentos", methods=["GET"])
+def list_cultivares_tratamentos():
+    ensure_cultivares_tratamentos_schema()
+    ensure_tratamentos_sementes_schema()
+    cultivar = request.args.get("cultivar")
+    if not cultivar:
+        return jsonify({"items": [], "count": 0})
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT ts.id, ts.nome, ts.cultura, ts.ativo
+                FROM public.cultivares_tratamentos ct
+                JOIN public.tratamentos_sementes ts ON ts.id = ct.tratamento_id
+                WHERE ct.cultivar = %s AND ts.ativo = true
+                ORDER BY ts.nome
+                """,
+                [cultivar]
+            )
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            items = [dict(zip(cols, r)) for r in rows]
+            return jsonify({"items": items, "count": len(items)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/cultivares_tratamentos/bulk", methods=["POST"])
+def save_cultivares_tratamentos_bulk():
+    ensure_cultivares_tratamentos_schema()
+    payload = request.get_json(silent=True) or {}
+    tratamento_id = (payload.get("tratamento_id") or "").strip()
+    cultivares = payload.get("cultivares") or []
+    if not tratamento_id:
+        return jsonify({"error": "tratamento_id obrigatório"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM public.cultivares_tratamentos WHERE tratamento_id = %s", [tratamento_id])
+                values = []
+                seen = set()
+                for c in cultivares:
+                    val = (str(c) or "").strip().upper()
+                    if not val or val in seen:
+                        continue
+                    seen.add(val)
+                    values.append([val, tratamento_id])
+                if values:
+                    execute_values(
+                        cur,
+                        "INSERT INTO public.cultivares_tratamentos (cultivar, tratamento_id) VALUES %s ON CONFLICT DO NOTHING",
+                        values
+                    )
+        return jsonify({"ok": True, "count": len(values)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/cultivares_tratamentos/set_for_cultivar", methods=["POST"])
+def set_tratamentos_for_cultivar():
+    ensure_cultivares_tratamentos_schema()
+    payload = request.get_json(silent=True) or {}
+    cultivar = (payload.get("cultivar") or "").strip().upper()
+    tratamento_ids = payload.get("tratamento_ids") or []
+    if not cultivar:
+        return jsonify({"error": "cultivar obrigatório"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM public.cultivares_tratamentos WHERE cultivar = %s", [cultivar])
+                values = []
+                seen = set()
+                for tid in tratamento_ids:
+                    val = (str(tid) or "").strip()
+                    if not val or val in seen:
+                        continue
+                    seen.add(val)
+                    values.append([cultivar, val])
+                if values:
+                    execute_values(
+                        cur,
+                        "INSERT INTO public.cultivares_tratamentos (cultivar, tratamento_id) VALUES %s ON CONFLICT DO NOTHING",
+                        values
+                    )
+        return jsonify({"ok": True, "count": len(values)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
     finally:
         pool.putconn(conn)
 
@@ -2104,6 +2477,355 @@ def delete_talhao(id: str):
         with conn:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM public.talhoes WHERE id = %s", [id])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/aplicacoes_defensivos", methods=["GET"])
+def list_aplicacoes_defensivos():
+    ensure_aplicacoes_defensivos_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, user_id, produtor_numerocm, area, created_at, updated_at FROM public.aplicacoes_defensivos ORDER BY created_at DESC")
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            apps = [dict(zip(cols, r)) for r in rows]
+            out = []
+            for a in apps:
+                cur.execute("SELECT id, aplicacao_id, user_id, classe, defensivo, dose, unidade, alvo, produto_salvo, deve_faturar, porcentagem_salva, area_hectares, safra_id, created_at, updated_at FROM public.programacao_defensivos WHERE aplicacao_id = %s ORDER BY created_at", [a["id"]])
+                dcols = [d[0] for d in cur.description]
+                drows = cur.fetchall()
+                defensivos = [dict(zip(dcols, r)) for r in drows]
+                a2 = dict(a)
+                a2["defensivos"] = defensivos
+                out.append(a2)
+            return jsonify({"items": out, "count": len(out)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/aplicacoes_defensivos", methods=["POST"])
+def create_aplicacao_defensivos():
+    ensure_aplicacoes_defensivos_schema()
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get("user_id")
+    produtor_numerocm = payload.get("produtor_numerocm")
+    area = payload.get("area")
+    defensivos = payload.get("defensivos") or []
+    id_val = str(uuid.uuid4())
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO public.aplicacoes_defensivos (id, user_id, produtor_numerocm, area)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [id_val, user_id, produtor_numerocm, area]
+                )
+                for d in defensivos:
+                    cur.execute(
+                        """
+                        INSERT INTO public.programacao_defensivos (id, aplicacao_id, user_id, classe, defensivo, dose, unidade, alvo, produto_salvo, deve_faturar, porcentagem_salva, area_hectares, safra_id)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        """,
+                        [str(uuid.uuid4()), id_val, user_id, d.get("classe"), d.get("defensivo"), d.get("dose"), d.get("unidade"), d.get("alvo"), d.get("produto_salvo"), d.get("deve_faturar"), d.get("porcentagem_salva"), d.get("area_hectares"), d.get("safra_id")]
+                    )
+        return jsonify({"id": id_val})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/aplicacoes_defensivos/<id>", methods=["PUT"])
+def update_aplicacao_defensivos(id: str):
+    ensure_aplicacoes_defensivos_schema()
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get("user_id")
+    produtor_numerocm = payload.get("produtor_numerocm")
+    area = payload.get("area")
+    defensivos = payload.get("defensivos") or []
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE public.aplicacoes_defensivos SET user_id = %s, produtor_numerocm = %s, area = %s, updated_at = now() WHERE id = %s", [user_id, produtor_numerocm, area, id])
+                cur.execute("DELETE FROM public.programacao_defensivos WHERE aplicacao_id = %s", [id])
+                for d in defensivos:
+                    cur.execute(
+                        """
+                        INSERT INTO public.programacao_defensivos (id, aplicacao_id, user_id, classe, defensivo, dose, unidade, alvo, produto_salvo, deve_faturar, porcentagem_salva, area_hectares, safra_id)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        """,
+                        [str(uuid.uuid4()), id, user_id, d.get("classe"), d.get("defensivo"), d.get("dose"), d.get("unidade"), d.get("alvo"), d.get("produto_salvo"), d.get("deve_faturar"), d.get("porcentagem_salva"), d.get("area_hectares"), d.get("safra_id")]
+                    )
+        return jsonify({"ok": True, "id": id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/aplicacoes_defensivos/<id>", methods=["DELETE"])
+def delete_aplicacao_defensivos(id: str):
+    ensure_aplicacoes_defensivos_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM public.aplicacoes_defensivos WHERE id = %s", [id])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+def _b64url_decode(s: str) -> bytes:
+    pad = 4 - (len(s) % 4)
+    if pad and pad != 4:
+        s = s + ("=" * pad)
+    return base64.urlsafe_b64decode(s.encode("ascii"))
+
+def get_auth_secret() -> str:
+    secret = os.environ.get("AUTH_SECRET") or os.environ.get("DEFENSIVOS_SECRET")
+    if not secret:
+        try:
+            cfg = get_config_map()
+            secret = cfg.get("auth_secret") or cfg.get("defensivos_secret") or "dev-secret"
+        except Exception:
+            secret = "dev-secret"
+    return secret
+
+def create_jwt(payload: dict, exp_seconds: int = 7200) -> str:
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = dict(payload or {})
+    payload["exp"] = int(time.time()) + int(exp_seconds)
+    h = _b64url(_json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    p = _b64url(_json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signing = f"{h}.{p}".encode("ascii")
+    sig = hmac.new(get_auth_secret().encode("utf-8"), signing, hashlib.sha256).digest()
+    return f"{h}.{p}.{_b64url(sig)}"
+
+def verify_jwt(token: str) -> dict:
+    try:
+        parts = (token or "").split(".")
+        if len(parts) != 3:
+            raise ValueError("formato inválido")
+        h, p, s = parts
+        signing = f"{h}.{p}".encode("ascii")
+        expected = hmac.new(get_auth_secret().encode("utf-8"), signing, hashlib.sha256).digest()
+        if not hmac.compare_digest(expected, _b64url_decode(s)):
+            raise ValueError("assinatura inválida")
+        payload = _json.loads(_b64url_decode(p))
+        if int(payload.get("exp", 0)) < int(time.time()):
+            raise ValueError("token expirado")
+        return payload
+    except Exception as e:
+        raise ValueError(str(e))
+
+@app.route("/auth/login", methods=["POST"])
+def auth_login():
+    ensure_consultores_schema()
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").lower().strip()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, numerocm_consultor, consultor, email, role, ativo FROM public.consultores WHERE email = %s", [email])
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"error": "email não autorizado"}), 403
+            cols = [d[0] for d in cur.description]
+            item = dict(zip(cols, row))
+            if not bool(item.get("ativo", True)):
+                return jsonify({"error": "usuário inativo"}), 403
+            token = create_jwt({
+                "user_id": item["id"],
+                "email": item["email"],
+                "numerocm_consultor": item["numerocm_consultor"],
+                "nome": item["consultor"],
+                "role": item.get("role", "consultor"),
+            })
+            return jsonify({"token": token, "user": item})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/auth/me", methods=["GET"])
+def auth_me():
+    auth = request.headers.get("Authorization") or ""
+    if auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1]
+    else:
+        return jsonify({"error": "sem token"}), 401
+    try:
+        payload = verify_jwt(token)
+        return jsonify({"user": payload})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 401
+
+@app.route("/user_roles/me", methods=["GET"])
+def user_roles_me():
+    auth = request.headers.get("Authorization") or ""
+    if not auth.lower().startswith("bearer "):
+        return jsonify({"error": "sem token"}), 401
+    try:
+        payload = verify_jwt(auth.split(" ", 1)[1])
+        return jsonify({"role": payload.get("role", "consultor")})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 401
+
+@app.route("/users", methods=["GET"])
+def list_users():
+    ensure_consultores_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, numerocm_consultor, consultor, email, role, ativo, created_at, updated_at FROM public.consultores ORDER BY consultor")
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            items = [dict(zip(cols, r)) for r in rows]
+            return jsonify({"items": items, "count": len(items)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/users/<id>", methods=["PUT"])
+def update_user(id: str):
+    ensure_consultores_schema()
+    payload = request.get_json(silent=True) or {}
+    role = payload.get("role")
+    ativo = payload.get("ativo")
+    if role is None and ativo is None:
+        return jsonify({"error": "nenhum campo"}), 400
+    set_parts = []
+    values = []
+    if role is not None:
+        set_parts.append("role = %s")
+        values.append(role)
+    if ativo is not None:
+        set_parts.append("ativo = %s")
+        values.append(bool(ativo))
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(f"UPDATE public.consultores SET {', '.join(set_parts)}, updated_at = now() WHERE id = %s", values + [id])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/user_produtores", methods=["GET"])
+def list_user_produtores():
+    ensure_consultores_schema()
+    user_id = request.args.get("user_id")
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            if user_id:
+                cur.execute("SELECT id, user_id, produtor_numerocm, created_at FROM public.user_produtores WHERE user_id = %s", [user_id])
+            else:
+                cur.execute("SELECT id, user_id, produtor_numerocm, created_at FROM public.user_produtores")
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            return jsonify({"items": [dict(zip(cols, r)) for r in rows]})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/user_produtores", methods=["POST"])
+def add_user_produtor():
+    ensure_consultores_schema()
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get("user_id")
+    produtor_numerocm = payload.get("produtor_numerocm")
+    if not user_id or not produtor_numerocm:
+        return jsonify({"error": "dados ausentes"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("INSERT INTO public.user_produtores (id, user_id, produtor_numerocm) VALUES (%s,%s,%s)", [str(uuid.uuid4()), user_id, produtor_numerocm])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/user_produtores/<id>", methods=["DELETE"])
+def remove_user_produtor(id: str):
+    ensure_consultores_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM public.user_produtores WHERE id = %s", [id])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/user_fazendas", methods=["GET"])
+def list_user_fazendas():
+    ensure_consultores_schema()
+    user_id = request.args.get("user_id")
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            if user_id:
+                cur.execute("SELECT id, user_id, fazenda_id, created_at FROM public.user_fazendas WHERE user_id = %s", [user_id])
+            else:
+                cur.execute("SELECT id, user_id, fazenda_id, created_at FROM public.user_fazendas")
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            return jsonify({"items": [dict(zip(cols, r)) for r in rows]})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/user_fazendas", methods=["POST"])
+def add_user_fazenda():
+    ensure_consultores_schema()
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get("user_id")
+    fazenda_id = payload.get("fazenda_id")
+    if not user_id or not fazenda_id:
+        return jsonify({"error": "dados ausentes"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("INSERT INTO public.user_fazendas (id, user_id, fazenda_id) VALUES (%s,%s,%s)", [str(uuid.uuid4()), user_id, fazenda_id])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/user_fazendas/<id>", methods=["DELETE"])
+def remove_user_fazenda(id: str):
+    ensure_consultores_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM public.user_fazendas WHERE id = %s", [id])
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 400

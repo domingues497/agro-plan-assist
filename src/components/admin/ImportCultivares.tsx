@@ -36,37 +36,34 @@ export const ImportCultivares = () => {
 
   const fetchCounts = async () => {
     try {
-      // Total (contagem exata sem carregar dados)
-      const total = await supabase
-        .from("cultivares_catalog")
-        .select("*", { count: "exact", head: true });
-
-      // Buscar apenas a coluna cultura para agrupar no cliente
-      const { data: culturas, error } = await supabase
-        .from("cultivares_catalog")
-        .select("cultura");
-
-      if (error) throw error;
-
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/cultivares_catalog`);
+      if (!res.ok) {
+        setCatalogTotal(0);
+        setCultureCounts({});
+        setCatalogSemCultura(0);
+        return;
+      }
+      const json = await res.json();
+      const items = (json?.items || []) as any[];
       const countsMap = new Map<string, number>();
       let nullCount = 0;
-      for (const row of culturas || []) {
-        const c = (row as any).cultura as string | null;
-        if (!c) {
-          nullCount++;
-          continue;
-        }
+      for (const row of items) {
+        const c = row.cultura as string | null;
+        if (!c) { nullCount++; continue; }
         const key = c.toString().toUpperCase().trim();
         countsMap.set(key, (countsMap.get(key) || 0) + 1);
       }
-
-      // Ordenar alfabeticamente por cultura para consistência visual
       const sortedEntries = Array.from(countsMap.entries()).sort(([a], [b]) => a.localeCompare(b));
       setCultureCounts(Object.fromEntries(sortedEntries));
       setCatalogSemCultura(nullCount);
-      setCatalogTotal(total.count || (culturas?.length ?? 0));
+      setCatalogTotal(items.length);
     } catch (e) {
-      console.error("Erro ao carregar contagens de cultivares:", e);
+      setCatalogTotal(0);
+      setCultureCounts({});
+      setCatalogSemCultura(0);
     }
   };
 
@@ -227,54 +224,28 @@ export const ImportCultivares = () => {
       setSkippedRows(skippedEmpty + skippedDuplicate);
 
       // Importar dados únicos em lotes de 500
-      const batchSize = 500;
       const dataArray = Array.from(processedData.values());
       let imported = 0;
       let failedBatches = 0;
       setErrorMessages([]);
-      
-      for (let i = 0; i < dataArray.length; i += batchSize) {
-        const batch = dataArray.slice(i, i + batchSize);
-        
-        const { error } = await supabase
-          .from("cultivares_catalog")
-          .upsert(batch, { 
-            // Garantir que conflitos considerem a combinação cultivar+cultura
-            // Obs.: requer índice único correspondente na tabela para efeito idempotente
-            onConflict: "cultivar,cultura",
-            ignoreDuplicates: false 
-          });
-
-        if (error) {
-          console.warn("Upsert falhou, tentando insert sem conflito (provável ausência de índice único)", error);
-          setErrorMessages((prev) => [...prev, `Upsert erro: ${error.message || error}`]);
-          const { error: insertError } = await supabase
-            .from("cultivares_catalog")
-            .insert(batch);
-
-          if (insertError) {
-            console.error("Erro ao inserir lote:", insertError);
-            setErrorMessages((prev) => [...prev, `Insert erro: ${insertError.message || insertError}`]);
-            failedBatches++;
-          } else {
-            imported += batch.length;
-            setImportedRows(imported);
-          }
-        } else {
-          imported += batch.length;
-          setImportedRows(imported);
-        }
-      }
-
-      // Registrar no histórico
-      await supabase.from("import_history").insert({
-        user_id: user.id,
-        tabela_nome: "cultivares_catalog",
-        registros_importados: imported,
-        registros_deletados: deletedRecords,
-        arquivo_nome: file.name,
-        limpar_antes: limparAntes,
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/cultivares_catalog/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: dataArray, limparAntes, user_id: user.id, arquivo_nome: file.name }),
       });
+      if (!res.ok) {
+        const txt = await res.text();
+        setErrorMessages((prev) => [...prev, txt]);
+      } else {
+        const json = await res.json();
+        imported = Number(json?.imported || dataArray.length);
+        deletedRecords = Number(json?.deleted || 0);
+        setImportedRows(imported);
+        setDeletedRows(deletedRecords);
+      }
 
       const skippedCount = totalRows - dataArray.length;
       console.log(`Importação concluída: ${imported} importados, ${skippedCount} ignorados, ${failedBatches} lotes com erro`);

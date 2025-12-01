@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export type Safra = {
@@ -21,33 +20,35 @@ export const useSafras = () => {
   const { data: safras, isLoading, error } = useQuery({
     queryKey: ["safras"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("safras")
-        .select("*")
-        .order("nome", { ascending: false });
-
-      if (error) throw error;
-      return data as Safra[];
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/safras`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      return (json?.items || []) as Safra[];
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (safra: CreateSafra) => {
-      if (safra.is_default) {
-        await supabase
-          .from("safras")
-          .update({ is_default: false })
-          .neq("id", "00000000-0000-0000-0000-000000000000");
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/safras`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(safra),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-
-      const { data, error } = await supabase
-        .from("safras")
-        .insert(safra)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const json = await res.json();
+      return json;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["safras"] });
@@ -60,22 +61,20 @@ export const useSafras = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Safra> & { id: string }) => {
-      if (updates.is_default) {
-        await supabase
-          .from("safras")
-          .update({ is_default: false })
-          .neq("id", id);
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/safras/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-
-      const { data, error } = await supabase
-        .from("safras")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const json = await res.json();
+      return json;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["safras"] });
@@ -88,12 +87,14 @@ export const useSafras = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("safras")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/safras/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["safras"] });

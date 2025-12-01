@@ -62,11 +62,7 @@ export const useFazendas = (produtorNumerocm?: string) => {
       }
       const json = await res.json();
       const data = (json?.items || []) as any[];
-      const fazendasComArea = data.map((f: any) => ({
-        ...f,
-        area_cultivavel: 0,
-      }));
-      return fazendasComArea as Fazenda[];
+      return data as Fazenda[];
     },
   });
 

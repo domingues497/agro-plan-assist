@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+const isUuid = (s?: string | null) =>
+  !!s && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(s));
 
 export type DefensivoItem = {
   id?: string;
@@ -72,118 +74,47 @@ export const useAplicacoesDefensivos = () => {
   const { data: aplicacoes = [], isLoading, error } = useQuery({
     queryKey: ["aplicacoes-defensivos"],
     queryFn: async () => {
-      const { data: aplicacoesData, error: aplicacoesError } = await supabase
-        .from("aplicacoes_defensivos")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (aplicacoesError) throw aplicacoesError;
-
-      // Carrega mapping local e hidrata produtor_numerocm ausente
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/aplicacoes_defensivos`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      const list = (json?.items || []) as AplicacaoDefensivo[];
       const key = "aplicacoes_defensivos_produtor_map";
       let map: Record<string, string> = {};
       try {
         const raw = localStorage.getItem(key);
         map = raw ? JSON.parse(raw) : {};
       } catch (_) {}
-
-      // Buscar defensivos e hidratar cada aplicação
-      const aplicacoesComDefensivos = await Promise.all(
-        aplicacoesData.map(async (aplicacao) => {
-          const { data: defensivos, error: defensivosError } = await supabase
-            .from("programacao_defensivos")
-            .select("*")
-            .eq("aplicacao_id", aplicacao.id)
-            .order("created_at", { ascending: true });
-
-          if (defensivosError) throw defensivosError;
-
-          let cm = String(aplicacao.produtor_numerocm || "").trim();
-          if (!cm) {
-            const fallback = String(map[aplicacao.id] || "").trim();
-            if (fallback) {
-              cm = fallback;
-              try {
-                await supabase
-                  .from("aplicacoes_defensivos")
-                  .update({ produtor_numerocm: fallback })
-                  .eq("id", aplicacao.id);
-              } catch (_) {
-                // silencioso
-              }
-            }
-          }
-
-          return {
-            ...aplicacao,
-            produtor_numerocm: cm || aplicacao.produtor_numerocm,
-            defensivos: defensivos || [],
-          } as AplicacaoDefensivo;
-        })
-      );
-
-      return aplicacoesComDefensivos as AplicacaoDefensivo[];
+      return list.map((ap) => ({
+        ...ap,
+        produtor_numerocm: String(ap.produtor_numerocm || map[ap.id] || "").trim() || ap.produtor_numerocm,
+      }));
     },
   });
 
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: CreateAplicacaoDefensivo) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      // Create aplicacao
-      const { data: aplicacao, error: aplicacaoError } = await supabase
-        .from("aplicacoes_defensivos")
-        .insert({
-          user_id: user.id,
-          produtor_numerocm: data.produtor_numerocm,
-          area: data.area,
-        })
-        .select()
-        .single();
-
-      if (aplicacaoError) throw aplicacaoError;
-
-      // Create defensivos
-      const defensivosToInsert = data.defensivos.map((def) => ({
-        aplicacao_id: aplicacao.id,
-        user_id: user.id,
-        classe: def.classe || null,
-        defensivo: def.defensivo,
-        dose: def.dose,
-        unidade: def.unidade,
-        alvo: def.alvo,
-        produto_salvo: def.produto_salvo,
-        deve_faturar: def.deve_faturar,
-        porcentagem_salva: def.porcentagem_salva,
-        area_hectares: def.area_hectares,
-        safra_id: def.safra_id,
-      }));
-
-      let { error: defensivosError } = await supabase
-        .from("programacao_defensivos")
-        .insert(defensivosToInsert);
-
-      // Fallback: se coluna 'classe' não existir no banco, reenvia sem a coluna
-      if (defensivosError && String(defensivosError.message || "").toLowerCase().includes("classe")) {
-        const defensivosFallback = defensivosToInsert.map(({ classe, ...rest }) => rest);
-        const { error: fallbackError } = await supabase
-          .from("programacao_defensivos")
-          .insert(defensivosFallback);
-        if (!fallbackError) {
-          toast.info("Classe não persistida (coluna ausente). Migre o banco para salvar a classe.");
-          defensivosError = null as any;
-        } else {
-          defensivosError = fallbackError;
-        }
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/aplicacoes_defensivos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data as any),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-
-      if (defensivosError) throw defensivosError;
-
-      // Persiste vínculo de produtor localmente para edição futura
-      setProdutorMapping(aplicacao.id, data.produtor_numerocm);
-      return aplicacao;
+      const json = await res.json();
+      setProdutorMapping(json?.id, data.produtor_numerocm);
+      return { id: json.id, produtor_numerocm: data.produtor_numerocm, area: data.area, defensivos: data.defensivos } as any;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
@@ -197,63 +128,18 @@ export const useAplicacoesDefensivos = () => {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: { id: string } & CreateAplicacaoDefensivo) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      // Update aplicacao
-      const { error: aplicacaoError } = await supabase
-        .from("aplicacoes_defensivos")
-        .update({
-          produtor_numerocm: data.produtor_numerocm,
-          area: data.area,
-        })
-        .eq("id", id);
-
-      if (aplicacaoError) throw aplicacaoError;
-
-      // Delete existing defensivos
-      await supabase
-        .from("programacao_defensivos")
-        .delete()
-        .eq("aplicacao_id", id);
-
-      // Insert new defensivos
-      const defensivosToInsert = data.defensivos.map((def) => ({
-        aplicacao_id: id,
-        user_id: user.id,
-        classe: def.classe || null,
-        defensivo: def.defensivo,
-        dose: def.dose,
-        unidade: def.unidade,
-        alvo: def.alvo,
-        produto_salvo: def.produto_salvo,
-        deve_faturar: def.deve_faturar,
-        porcentagem_salva: def.porcentagem_salva,
-        area_hectares: def.area_hectares,
-        safra_id: def.safra_id,
-      }));
-
-      let { error: defensivosError } = await supabase
-        .from("programacao_defensivos")
-        .insert(defensivosToInsert);
-
-      // Fallback: se coluna 'classe' não existir no banco, reenvia sem a coluna
-      if (defensivosError && String(defensivosError.message || "").toLowerCase().includes("classe")) {
-        const defensivosFallback = defensivosToInsert.map(({ classe, ...rest }) => rest);
-        const { error: fallbackError } = await supabase
-          .from("programacao_defensivos")
-          .insert(defensivosFallback);
-        if (!fallbackError) {
-          toast.info("Classe não persistida (coluna ausente). Migre o banco para salvar a classe.");
-          defensivosError = null as any;
-        } else {
-          defensivosError = fallbackError;
-        }
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/aplicacoes_defensivos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data as any),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-
-      if (defensivosError) throw defensivosError;
-
-      // Atualiza mapeamento local
       setProdutorMapping(id, data.produtor_numerocm);
     },
     onSuccess: () => {
@@ -268,12 +154,14 @@ export const useAplicacoesDefensivos = () => {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("aplicacoes_defensivos")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/aplicacoes_defensivos/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });

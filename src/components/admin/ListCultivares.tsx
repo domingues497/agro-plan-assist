@@ -47,11 +47,23 @@ export const ListCultivares = () => {
     const originalCultura = editOriginal.cultura;
 
     try {
-      const { error } = await supabase
-        .from("cultivares_catalog")
-        .update({ cultura: editCultura || null, nome_cientifico: editNomeCientifico || null })
-        .eq("cultivar", originalCultivar)
-        .eq("cultura", originalCultura);
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/cultivares_catalog/by_key`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cultivar: originalCultivar,
+          cultura: originalCultura,
+          set_cultura: editCultura || null,
+          set_nome_cientifico: editNomeCientifico || null,
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
 
       if (error) {
         toast.error(error.message);
@@ -110,7 +122,7 @@ export const ListCultivares = () => {
             </TableHeader>
             <TableBody>
               {paged.map((c: any, idx: number) => (
-                <TableRow key={`${c.cod_item}-${idx}`}>
+                <TableRow key={`${String(c.cultivar)}-${String(c.cultura ?? '')}-${idx}`}>
                   <TableCell>{c.cultivar}</TableCell>
                   <TableCell>{c.cultura}</TableCell>
                   <TableCell>{c.nome_cientifico}</TableCell>

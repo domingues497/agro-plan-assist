@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 export type TratamentoSemente = {
   id: string;
@@ -14,19 +13,19 @@ export const useTratamentosSementes = (cultura?: string) => {
   return useQuery({
     queryKey: ["tratamentos-sementes", cultura],
     queryFn: async () => {
-      let query = supabase
-        .from("tratamentos_sementes")
-        .select("*")
-        .eq("ativo", true)
-        .order("nome");
-
-      if (cultura) {
-        query = query.eq("cultura", cultura.toUpperCase());
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const params = new URLSearchParams();
+      params.set("ativo", "true");
+      if (cultura) params.set("cultura", String(cultura).toUpperCase());
+      const res = await fetch(`${baseUrl}/tratamentos_sementes?${params.toString()}`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []) as TratamentoSemente[];
+      const json = await res.json();
+      return (json?.items || []) as TratamentoSemente[];
     },
   });
 };

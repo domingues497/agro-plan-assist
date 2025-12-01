@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutos em milissegundos
@@ -20,27 +19,12 @@ export const useInactivityLogout = () => {
 
   const logout = async () => {
     try {
-      // Limpar timers
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
-
-      // Verificar se ainda há sessão ativa antes de fazer logout
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        toast({
-          title: "Sessão encerrada",
-          description: "Você foi desconectado por inatividade.",
-          variant: "destructive",
-        });
-        
-        await supabase.auth.signOut();
-      }
-      
-      // Limpar storage e redirecionar
+      toast({ title: "Sessão encerrada", description: "Você foi desconectado por inatividade.", variant: "destructive" });
+      localStorage.removeItem('auth_token');
       window.location.replace('/auth');
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
       window.location.replace('/auth');
     }
   };

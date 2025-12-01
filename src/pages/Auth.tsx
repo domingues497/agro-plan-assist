@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sprout } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
@@ -18,11 +17,10 @@ const Auth = () => {
 
   // Redirecionar se já estiver autenticado
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/", { replace: true });
-      }
-    });
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      navigate("/", { replace: true });
+    }
   }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -40,26 +38,7 @@ const Auth = () => {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`
-      }
-    });
-
-    if (error) {
-      toast({
-        title: "Erro ao criar conta",
-        description: error.message,
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Conta criada!",
-        description: "Você já pode fazer login."
-      });
-    }
+    toast({ title: "Cadastro gerenciado", description: "Solicite habilitação ao administrador.", variant: "default" });
     setLoading(false);
   };
 
@@ -78,18 +57,17 @@ const Auth = () => {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+    const res = await fetch(`${baseUrl2}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
-
-    if (error) {
-      toast({
-        title: "Erro ao fazer login",
-        description: error.message,
-        variant: "destructive"
-      });
+    if (!res.ok) {
+      const txt = await res.text();
+      toast({ title: "Erro ao fazer login", description: txt, variant: "destructive" });
     } else {
+      const json = await res.json();
+      localStorage.setItem("auth_token", json?.token);
       navigate("/");
     }
     setLoading(false);

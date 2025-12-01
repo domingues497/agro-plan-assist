@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
@@ -54,34 +53,7 @@ const Dashboard = () => {
   const queryClient = useQueryClient();
 
   // Verificar e preencher numerocm_consultor se estiver vazio
-  useEffect(() => {
-    const preencherConsultor = async () => {
-      if (profile && !profile.numerocm_consultor) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) {
-          const envUrl = (import.meta as any).env?.VITE_API_URL;
-          const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-          const baseUrl = envUrl || `http://${host}:5000`;
-          const res = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(user.email.toLowerCase())}`);
-          if (res.ok) {
-            const json = await res.json();
-            const consultor = json?.item;
-            if (consultor) {
-              await supabase
-                .from("profiles")
-                .update({
-                  numerocm_consultor: consultor.numerocm_consultor,
-                  nome: consultor.consultor,
-                })
-                .eq("user_id", user.id);
-              queryClient.invalidateQueries({ queryKey: ["profile"] });
-            }
-          }
-        }
-      }
-    };
-    preencherConsultor();
-  }, [profile, queryClient]);
+  useEffect(() => {}, []);
 
   // Estados do modal de área removidos - agora gerenciado via talhões
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
@@ -118,12 +90,10 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      // Limpa todo cache de queries/mutações para evitar dados de sessão anterior
+      localStorage.removeItem("auth_token");
       queryClient.clear();
       navigate("/auth", { replace: true });
     } catch (err) {
-      console.error("Erro ao fazer logout", err);
       toast({ title: "Erro ao sair", description: "Tente novamente.", variant: "destructive" });
     }
   };

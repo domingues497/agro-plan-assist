@@ -10,6 +10,7 @@ import { FormAplicacaoDefensivo } from "@/components/defensivos/FormAplicacaoDef
 import { useProdutores } from "@/hooks/useProdutores";
 import { useProgramacoes } from "@/hooks/useProgramacoes";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
+import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -30,6 +31,7 @@ const Defensivos = () => {
   const { data: produtores = [] } = useProdutores();
   const { programacoes = [] } = useProgramacoes();
   const { programacoes: cultProgramacoes = [] } = useProgramacaoCultivares();
+  const { programacoes: adubProgramacoes = [] } = useProgramacaoAdubacao();
 
   const temProgramacoes = programacoes.length > 0;
   const [replicateOpen, setReplicateOpen] = useState(false);
@@ -42,7 +44,6 @@ const Defensivos = () => {
   const [selectedAreaPairs, setSelectedAreaPairs] = useState<Array<{ produtor_numerocm: string; area: string }>>([]);
   const { data: fazendas = [] } = useFazendas(replicateProdutorNumerocm);
 
-  // Produtores que possuem programação de cultivar
   const produtoresComCultivar = useMemo(() => {
     const set = new Set<string>();
     for (const p of cultProgramacoes) {
@@ -52,7 +53,23 @@ const Defensivos = () => {
     return set;
   }, [cultProgramacoes]);
 
-  // Áreas com programação de cultivar por produtor
+  const produtoresComAdubacao = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of adubProgramacoes) {
+      const cm = String(p.produtor_numerocm || "").trim();
+      if (cm) set.add(cm);
+    }
+    return set;
+  }, [adubProgramacoes]);
+
+  const produtoresComCultivarEAdubacao = useMemo(() => {
+    const inter = new Set<string>();
+    for (const cm of produtoresComCultivar) {
+      if (produtoresComAdubacao.has(cm)) inter.add(cm);
+    }
+    return inter;
+  }, [produtoresComCultivar, produtoresComAdubacao]);
+
   const areasCultivarPorProdutor = useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const p of cultProgramacoes) {
@@ -64,6 +81,18 @@ const Defensivos = () => {
     }
     return map;
   }, [cultProgramacoes]);
+
+  const areasAdubacaoPorProdutor = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const p of adubProgramacoes) {
+      const cm = String(p.produtor_numerocm || "").trim();
+      const area = String(p.area || "").trim();
+      if (!cm || !area) continue;
+      if (!map.has(cm)) map.set(cm, new Set<string>());
+      map.get(cm)!.add(area);
+    }
+    return map;
+  }, [adubProgramacoes]);
 
   // Aplicação origem (não deve aparecer como destino)
   const sourceAplicacao = useMemo(() => {
@@ -288,7 +317,7 @@ const Defensivos = () => {
                       <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
                       <CommandGroup>
                         {produtores
-                          .filter((produtor) => produtoresComCultivar.has(String(produtor.numerocm)))
+                          .filter((produtor) => produtoresComCultivarEAdubacao.has(String(produtor.numerocm)))
                           .filter((produtor) => {
                             // Oculta o produtor origem inteiro
                             return !sourceAplicacao || String(produtor.numerocm) !== String(sourceAplicacao.produtor_numerocm);
@@ -345,23 +374,30 @@ const Defensivos = () => {
                       <CommandGroup>
                         {fazendas
                           .filter((f) => {
-                            const allowedAreas = areasCultivarPorProdutor.get(String(replicateProdutorNumerocm));
                             const areaNome = String(f.nomefazenda);
                             const hasArea = Number(f.area_cultivavel || 0) > 0;
-                            const isAllowedByCultivar = !!allowedAreas && allowedAreas.has(areaNome);
-                            // Se houver safra na aplicação origem, garantir que exista programação de cultivar na MESMA safra
-                            const isSameSafraOk = !safraIdAplicacao
+                            const allowedCult = areasCultivarPorProdutor.get(String(replicateProdutorNumerocm));
+                            const allowedAdub = areasAdubacaoPorProdutor.get(String(replicateProdutorNumerocm));
+                            const isAllowedByCultivar = !!allowedCult && allowedCult.has(areaNome);
+                            const isAllowedByAdubacao = !!allowedAdub && allowedAdub.has(areaNome);
+                            const isSameSafraCultOk = !safraIdAplicacao
                               ? true
                               : cultProgramacoes.some((p) =>
                                   String(p.produtor_numerocm) === String(replicateProdutorNumerocm) &&
                                   String(p.area) === areaNome &&
                                   String(p.safra || "") === String(safraIdAplicacao)
                                 );
-                            // Exclui a própria aplicação origem (mesmo produtor + mesma área)
+                            const isSameSafraAdubOk = !safraIdAplicacao
+                              ? true
+                              : adubProgramacoes.some((p: any) =>
+                                  String(p.produtor_numerocm) === String(replicateProdutorNumerocm) &&
+                                  String(p.area) === areaNome &&
+                                  String(p.safra_id || "") === String(safraIdAplicacao)
+                                );
                             const isSourcePair = !!sourceAplicacao &&
                               String(replicateProdutorNumerocm) === String(sourceAplicacao.produtor_numerocm) &&
                               areaNome === String(sourceAplicacao.area);
-                            return isAllowedByCultivar && isSameSafraOk && hasArea && !isSourcePair;
+                            return isAllowedByCultivar && isAllowedByAdubacao && isSameSafraCultOk && isSameSafraAdubOk && hasArea && !isSourcePair;
                           })
                           .map((f) => {
                           const produtorNome = produtores.find(p => p.numerocm === f.numerocm)?.nome || "";

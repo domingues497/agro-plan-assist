@@ -38,6 +38,45 @@ def ensure_defensivos_schema():
     finally:
         pool.putconn(conn)
 
+def ensure_aplicacoes_defensivos_schema():
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.aplicacoes_defensivos (
+                      id TEXT PRIMARY KEY,
+                      user_id TEXT,
+                      produtor_numerocm TEXT,
+                      area TEXT NOT NULL,
+                      created_at TIMESTAMPTZ DEFAULT now(),
+                      updated_at TIMESTAMPTZ DEFAULT now()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS public.programacao_defensivos (
+                      id TEXT PRIMARY KEY,
+                      aplicacao_id TEXT REFERENCES public.aplicacoes_defensivos(id) ON DELETE CASCADE,
+                      user_id TEXT,
+                      classe TEXT,
+                      defensivo TEXT NOT NULL,
+                      dose NUMERIC,
+                      unidade TEXT,
+                      alvo TEXT,
+                      produto_salvo BOOLEAN,
+                      deve_faturar BOOLEAN,
+                      porcentagem_salva NUMERIC,
+                      area_hectares NUMERIC,
+                      safra_id TEXT,
+                      created_at TIMESTAMPTZ DEFAULT now(),
+                      updated_at TIMESTAMPTZ DEFAULT now()
+                    );
+                    """
+                )
+    finally:
+        pool.putconn(conn)
+
 def ensure_fertilizantes_schema():
     pool = get_pool()
     conn = pool.getconn()
@@ -93,8 +132,40 @@ def ensure_consultores_schema():
                       numerocm_consultor TEXT NOT NULL,
                       consultor TEXT NOT NULL,
                       email TEXT NOT NULL UNIQUE,
+                      role TEXT NOT NULL DEFAULT 'consultor',
+                      ativo BOOLEAN NOT NULL DEFAULT true,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
+                    );
+                    """
+                )
+                # Garantir colunas novas em bases existentes
+                try:
+                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'consultor'")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT true")
+                except Exception:
+                    pass
+                # Tabelas de associação
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.user_produtores (
+                      id TEXT PRIMARY KEY,
+                      user_id TEXT NOT NULL,
+                      produtor_numerocm TEXT NOT NULL,
+                      created_at TIMESTAMPTZ DEFAULT now()
+                    );
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.user_fazendas (
+                      id TEXT PRIMARY KEY,
+                      user_id TEXT NOT NULL,
+                      fazenda_id TEXT NOT NULL,
+                      created_at TIMESTAMPTZ DEFAULT now()
                     );
                     """
                 )
@@ -250,6 +321,69 @@ def ensure_talhoes_schema():
                       arrendado BOOLEAN NOT NULL DEFAULT false,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
+                    );
+                    """
+                )
+    finally:
+        pool.putconn(conn)
+
+def ensure_cultivares_catalog_schema():
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.cultivares_catalog (
+                      cultivar TEXT NOT NULL,
+                      cultura TEXT,
+                      nome_cientifico TEXT,
+                      created_at TIMESTAMPTZ DEFAULT now(),
+                      updated_at TIMESTAMPTZ DEFAULT now(),
+                      CONSTRAINT cultivares_catalog_unique UNIQUE (cultivar, cultura)
+                    );
+                    """
+                )
+    finally:
+        pool.putconn(conn)
+
+def ensure_tratamentos_sementes_schema():
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.tratamentos_sementes (
+                      id TEXT PRIMARY KEY,
+                      nome TEXT NOT NULL,
+                      cultura TEXT,
+                      ativo BOOLEAN NOT NULL DEFAULT true,
+                      created_at TIMESTAMPTZ DEFAULT now(),
+                      updated_at TIMESTAMPTZ DEFAULT now(),
+                      CONSTRAINT tratamentos_sementes_unique UNIQUE (nome)
+                    );
+                    """
+                )
+    finally:
+        pool.putconn(conn)
+
+def ensure_cultivares_tratamentos_schema():
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.cultivares_tratamentos (
+                      cultivar TEXT NOT NULL,
+                      tratamento_id TEXT NOT NULL,
+                      created_at TIMESTAMPTZ DEFAULT now(),
+                      updated_at TIMESTAMPTZ DEFAULT now(),
+                      CONSTRAINT cultivares_tratamentos_unique UNIQUE (cultivar, tratamento_id)
                     );
                     """
                 )

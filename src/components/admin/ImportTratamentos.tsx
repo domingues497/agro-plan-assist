@@ -18,24 +18,57 @@ export const ImportTratamentos = () => {
   const { data: tratamentos = [] } = useQuery({
     queryKey: ["admin-tratamentos"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tratamentos_sementes")
-        .select("*")
-        .order("cultura", { ascending: true })
-        .order("nome", { ascending: true });
-      
-      if (error) throw error;
-      return data;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/tratamentos_sementes`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      const json = await res.json();
+      return (json?.items || []) as any[];
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ativo, cultura }: { id: string; ativo?: boolean; cultura?: string | null }) => {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/tratamentos_sementes/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ativo, cultura }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-tratamentos"] });
+      toast({ title: "Tratamento atualizado" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao atualizar tratamento", description: error.message, variant: "destructive" });
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("tratamentos_sementes")
-        .insert({ nome, ativo: true });
-      
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/tratamentos_sementes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome, ativo: true }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-tratamentos"] });
@@ -53,12 +86,14 @@ export const ImportTratamentos = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("tratamentos_sementes")
-        .delete()
-        .eq("id", id);
-      
-      if (error) throw error;
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/tratamentos_sementes/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-tratamentos"] });
@@ -128,7 +163,26 @@ export const ImportTratamentos = () => {
               {tratamentos.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell>{t.nome}</TableCell>
-                  <TableCell>{t.ativo ? "Ativo" : "Inativo"}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <select
+                        defaultValue={t.cultura || ""}
+                        onChange={(e) => updateMutation.mutate({ id: t.id, cultura: e.target.value || null })}
+                        className="border rounded px-2 py-1"
+                      >
+                        <option value="">Sem cultura</option>
+                        <option value="MILHO">MILHO</option>
+                        <option value="SOJA">SOJA</option>
+                      </select>
+                      <Button
+                        variant={t.ativo ? "secondary" : "default"}
+                        onClick={() => updateMutation.mutate({ id: t.id, ativo: !t.ativo })}
+                        disabled={updateMutation.isPending}
+                      >
+                        {t.ativo ? "Desativar" : "Ativar"}
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Button
                       variant="destructive"
