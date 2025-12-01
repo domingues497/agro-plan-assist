@@ -29,11 +29,12 @@ import {
 } from "@/components/ui/select";
 import { Pencil, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const ListUsuarios = () => {
   const { usuarios, isLoading, updateUsuario } = useUsuarios();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -80,21 +81,62 @@ export const ListUsuarios = () => {
 
   const handleCreateUser = async () => {
     try {
-      // Chamar edge function para criar usuário
-      const { data, error } = await supabase.functions.invoke("admin-create-user", {
-        body: {
-          email: newUser.email,
-          password: newUser.senha,
-          nome: newUser.nome,
-          numerocm_consultor: newUser.numerocm_consultor,
-          role: newUser.role,
-        },
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+
+      const importRes = await fetch(`${baseUrl}/consultores/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [
+            {
+              email: (newUser.email || "").toLowerCase(),
+              consultor: newUser.nome,
+              numerocm_consultor: newUser.numerocm_consultor,
+            },
+          ],
+        }),
       });
+      if (!importRes.ok) {
+        const txt = await importRes.text();
+        throw new Error(txt);
+      }
 
-      if (error) throw error;
+      const getRes = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent((newUser.email || "").toLowerCase())}`);
+      if (!getRes.ok) {
+        const txt = await getRes.text();
+        throw new Error(txt);
+      }
+      const getJson = await getRes.json();
+      const item = getJson?.item;
+      const userId = item?.id;
+      if (!userId) throw new Error("Usuário criado, porém não foi possível obter o ID");
 
-      if (data?.error) {
-        throw new Error(data.error);
+      const updRes = await fetch(`${baseUrl}/users/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newUser.role, ativo: true }),
+      });
+      if (!updRes.ok) {
+        const txt = await updRes.text();
+        throw new Error(txt);
+      }
+
+      if ((newUser.senha || "").length >= 6) {
+        const token = localStorage.getItem("auth_token") || "";
+        const passRes = await fetch(`${baseUrl}/users/${userId}/password`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ password: newUser.senha }),
+        });
+        if (!passRes.ok) {
+          const txt = await passRes.text();
+          throw new Error(txt);
+        }
       }
 
       toast({
@@ -110,9 +152,7 @@ export const ListUsuarios = () => {
         numerocm_consultor: "",
         role: "user",
       });
-      
-      // Recarregar lista
-      window.location.reload();
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
     } catch (error: any) {
       toast({
         title: "Erro ao criar usuário",
@@ -121,7 +161,17 @@ export const ListUsuarios = () => {
       });
     }
   };
-
+              <div className="space-y-2">
+                <Label htmlFor="new-senha">Senha (mín. 6 caracteres)</Label>
+                <Input
+                  id="new-senha"
+                  type="password"
+                  value={newUser.senha}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, senha: e.target.value })
+                  }
+                />
+              </div>
   if (isLoading) {
     return <div>Carregando usuários...</div>;
   }
@@ -156,17 +206,7 @@ export const ListUsuarios = () => {
                   }
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-senha">Senha</Label>
-                <Input
-                  id="new-senha"
-                  type="password"
-                  value={newUser.senha}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, senha: e.target.value })
-                  }
-                />
-              </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="new-nome">Nome</Label>
                 <Input

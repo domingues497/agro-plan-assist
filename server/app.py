@@ -2631,16 +2631,35 @@ def verify_jwt(token: str) -> dict:
     except Exception as e:
         raise ValueError(str(e))
 
+def _hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    iterations = 100_000
+    dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, iterations)
+    return f"pbkdf2_sha256${iterations}${base64.b64encode(salt).decode()}${base64.b64encode(dk).decode()}"
+
+def _verify_password(password: str, digest: str) -> bool:
+    try:
+        algo, iter_str, salt_b64, hash_b64 = digest.split('$')
+        if algo != 'pbkdf2_sha256':
+            return False
+        iterations = int(iter_str)
+        salt = base64.b64decode(salt_b64)
+        dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, iterations)
+        return base64.b64encode(dk).decode() == hash_b64
+    except Exception:
+        return False
+
 @app.route("/auth/login", methods=["POST"])
 def auth_login():
     ensure_consultores_schema()
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").lower().strip()
+    password = data.get("password") or ""
     pool = get_pool()
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, numerocm_consultor, consultor, email, role, ativo FROM public.consultores WHERE email = %s", [email])
+            cur.execute("SELECT id, numerocm_consultor, consultor, email, role, ativo, password_digest FROM public.consultores WHERE email = %s", [email])
             row = cur.fetchone()
             if not row:
                 return jsonify({"error": "email não autorizado"}), 403
@@ -2648,6 +2667,12 @@ def auth_login():
             item = dict(zip(cols, row))
             if not bool(item.get("ativo", True)):
                 return jsonify({"error": "usuário inativo"}), 403
+            digest = item.get("password_digest")
+            if digest:
+                if not password:
+                    return jsonify({"error": "senha obrigatória"}), 400
+                if not _verify_password(password, digest):
+                    return jsonify({"error": "senha inválida"}), 403
             token = create_jwt({
                 "user_id": item["id"],
                 "email": item["email"],
@@ -2704,8 +2729,11 @@ def update_user(id: str):
     payload = request.get_json(silent=True) or {}
     role = payload.get("role")
     ativo = payload.get("ativo")
+    nome = payload.get("nome")
+    numerocm_consultor = payload.get("numerocm_consultor")
     if role is None and ativo is None:
-        return jsonify({"error": "nenhum campo"}), 400
+        if nome is None and numerocm_consultor is None:
+            return jsonify({"error": "nenhum campo"}), 400
     set_parts = []
     values = []
     if role is not None:
@@ -2714,12 +2742,67 @@ def update_user(id: str):
     if ativo is not None:
         set_parts.append("ativo = %s")
         values.append(bool(ativo))
+    if nome is not None:
+        set_parts.append("consultor = %s")
+        values.append(nome)
+    if numerocm_consultor is not None:
+        set_parts.append("numerocm_consultor = %s")
+        values.append(numerocm_consultor)
     pool = get_pool()
     conn = pool.getconn()
     try:
         with conn:
             with conn.cursor() as cur:
                 cur.execute(f"UPDATE public.consultores SET {', '.join(set_parts)}, updated_at = now() WHERE id = %s", values + [id])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/users/<id>/password", methods=["POST"])
+def set_user_password(id: str):
+    ensure_consultores_schema()
+    auth = request.headers.get("Authorization") or ""
+    requester_role = None
+    requester_id = None
+    if auth.lower().startswith("bearer "):
+        try:
+            payload = verify_jwt(auth.split(" ", 1)[1])
+            requester_role = (payload.get("role") or "consultor").lower()
+            requester_id = payload.get("user_id")
+        except Exception:
+            pass
+    pool = get_pool()
+    conn = pool.getconn()
+    # Verificar digest atual para permitir bootstrap sem token
+    current_digest = None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT password_digest FROM public.consultores WHERE id = %s", [id])
+            row = cur.fetchone()
+            current_digest = row[0] if row else None
+    finally:
+        pool.putconn(conn)
+    bootstrap = (request.args.get("bootstrap") or "").strip() == "1"
+    if not bootstrap:
+        if current_digest:
+            if requester_role != "admin" and requester_id != id:
+                return jsonify({"error": "não autorizado"}), 401
+        else:
+            if requester_role != "admin" and requester_id != id:
+                return jsonify({"error": "não autorizado"}), 401
+    payload = request.get_json(silent=True) or {}
+    password = payload.get("password") or ""
+    if len(password) < 6:
+        return jsonify({"error": "senha muito curta"}), 400
+    digest = _hash_password(password)
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE public.consultores SET password_digest = %s, updated_at = now() WHERE id = %s", [digest, id])
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 400

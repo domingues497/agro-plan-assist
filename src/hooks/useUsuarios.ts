@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export type Usuario = {
@@ -19,35 +18,25 @@ export const useUsuarios = () => {
   const { data: usuarios, isLoading, error } = useQuery({
     queryKey: ["usuarios"],
     queryFn: async () => {
-      // Buscar todos os usuários com seus perfis e roles
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (profilesError) throw profilesError;
-
-      // Buscar roles de cada usuário
-      const usuariosComRoles: Usuario[] = [];
-      
-      for (const profile of profiles || []) {
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", profile.user_id)
-          .maybeSingle();
-
-        usuariosComRoles.push({
-          id: profile.user_id,
-          email: profile.user_id, // Será atualizado na próxima iteração
-          nome: profile.nome,
-          numerocm_consultor: profile.numerocm_consultor,
-          ativo: profile.ativo,
-          role: roleData?.role || null,
-          created_at: profile.created_at || "",
-        });
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const res = await fetch(`${baseUrl}/users`, { credentials: "omit" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
-
+      const json = await res.json();
+      const items = (json?.items || []) as any[];
+      const usuariosComRoles: Usuario[] = items.map((it) => ({
+        id: it.id,
+        email: it.email,
+        nome: it.consultor ?? null,
+        numerocm_consultor: it.numerocm_consultor ?? null,
+        ativo: !!it.ativo,
+        role: it.role ?? null,
+        created_at: it.created_at ?? "",
+      }));
       return usuariosComRoles;
     },
   });
@@ -65,38 +54,22 @@ export const useUsuarios = () => {
         role?: string;
       };
     }) => {
-      // Atualizar profile
-      const { nome, numerocm_consultor, ativo, role } = updates;
-      
-      if (nome !== undefined || numerocm_consultor !== undefined || ativo !== undefined) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
-            ...(nome !== undefined && { nome }),
-            ...(numerocm_consultor !== undefined && { numerocm_consultor }),
-            ...(ativo !== undefined && { ativo }),
-          })
-          .eq("user_id", userId);
-
-        if (profileError) throw profileError;
-      }
-
-      // Atualizar role se fornecido
-      if (role !== undefined) {
-        // Primeiro, remover role existente
-        await supabase.from("user_roles").delete().eq("user_id", userId);
-
-        // Depois, adicionar nova role se não for vazio
-        if (role) {
-          const { error: roleError } = await supabase
-            .from("user_roles")
-            .insert([{ 
-              user_id: userId, 
-              role: role as "admin" | "user" 
-            }]);
-
-          if (roleError) throw roleError;
-        }
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const payload: any = {};
+      if (typeof updates.role !== "undefined") payload.role = updates.role;
+      if (typeof updates.ativo !== "undefined") payload.ativo = updates.ativo;
+      if (typeof updates.nome !== "undefined") payload.nome = updates.nome;
+      if (typeof updates.numerocm_consultor !== "undefined") payload.numerocm_consultor = updates.numerocm_consultor;
+      const res = await fetch(`${baseUrl}/users/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
       }
     },
     onSuccess: () => {

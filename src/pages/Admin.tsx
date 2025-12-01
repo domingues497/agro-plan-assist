@@ -1,13 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 // Removido layout em abas; migrado para sidebar com grupos
-import { toast } from "sonner";
 import { ImportCultivares } from "@/components/admin/ImportCultivares";
 import { ListCultivares } from "@/components/admin/ListCultivares";
 import { ImportFertilizantes } from "@/components/admin/ImportFertilizantes";
@@ -38,12 +36,8 @@ import { ListEpocas } from "@/components/admin/ListEpocas";
 import { GerenciarGestores } from "@/components/admin/GerenciarGestores";
 import { SystemConfig } from "@/components/admin/SystemConfig";
 
-const ADMIN_PASSWORD = "Co0p@gr!#0la";
-
 export default function Admin() {
   const navigate = useNavigate();
-  const [password, setPassword] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { data: roleData, isLoading } = useAdminRole();
   const [selected, setSelected] = useState<string>("cultivares");
   const [openGroups, setOpenGroups] = useState<{ produtos: boolean; pessoas: boolean; gerais: boolean }>({
@@ -51,47 +45,6 @@ export default function Admin() {
     pessoas: true,
     gerais: true,
   });
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth");
-      }
-    };
-    checkAuth();
-  }, [navigate]);
-
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      // Call edge function to verify password and grant admin role
-      const { data, error } = await supabase.functions.invoke('admin-auth', {
-        body: { password }
-      });
-
-      if (error) {
-        console.error("Error calling admin-auth:", error);
-        toast.error("Erro ao verificar senha");
-        return;
-      }
-
-      if (data?.error) {
-        toast.error(data.error);
-        return;
-      }
-
-      setIsAuthenticated(true);
-      toast.success("Acesso autorizado!");
-      
-      // Invalidate the query to refresh admin status
-      window.location.reload();
-    } catch (error) {
-      console.error("Error in handlePasswordSubmit:", error);
-      toast.error("Erro ao processar autenticação");
-    }
-  };
 
   if (isLoading) {
     return (
@@ -101,30 +54,16 @@ export default function Admin() {
     );
   }
 
-  if (!isAuthenticated && !roleData?.isAdmin) {
+  if (!roleData?.isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Acesso Administrativo</CardTitle>
-            <CardDescription>Digite a senha para acessar a área administrativa</CardDescription>
+            <CardTitle>Acesso Restrito</CardTitle>
+            <CardDescription>Seu perfil não possui permissão de administrador.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Digite a senha de admin"
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                Entrar
-              </Button>
-            </form>
+            <Button variant="outline" onClick={() => navigate("/")}>Voltar ao Dashboard</Button>
           </CardContent>
         </Card>
       </div>

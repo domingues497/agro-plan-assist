@@ -148,6 +148,10 @@ def ensure_consultores_schema():
                     cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT true")
                 except Exception:
                     pass
+                try:
+                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS password_digest TEXT")
+                except Exception:
+                    pass
                 # Tabelas de associação
                 cur.execute(
                     """
