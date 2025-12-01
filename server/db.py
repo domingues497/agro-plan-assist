@@ -529,14 +529,19 @@ def ensure_programacao_schema():
                       programacao_id TEXT REFERENCES public.programacoes(id) ON DELETE CASCADE,
                       talhao_id TEXT,
                       safra_id TEXT,
+                      fazenda_idfazenda TEXT,
                       created_at TIMESTAMPTZ DEFAULT now()
                     );
 
                     -- Garantir coluna e índice único para evitar duas programações por talhão na mesma safra
                     ALTER TABLE public.programacao_talhoes ADD COLUMN IF NOT EXISTS safra_id TEXT;
+                    ALTER TABLE public.programacao_talhoes ADD COLUMN IF NOT EXISTS fazenda_idfazenda TEXT;
                     CREATE UNIQUE INDEX IF NOT EXISTS programacao_talhoes_unique_talhao_safra
                       ON public.programacao_talhoes (talhao_id, safra_id)
                       WHERE safra_id IS NOT NULL;
+                    CREATE UNIQUE INDEX IF NOT EXISTS programacao_talhoes_unique_fazenda_talhao_safra
+                      ON public.programacao_talhoes (fazenda_idfazenda, talhao_id, safra_id)
+                      WHERE safra_id IS NOT NULL AND fazenda_idfazenda IS NOT NULL;
                     """
                 )
     finally:

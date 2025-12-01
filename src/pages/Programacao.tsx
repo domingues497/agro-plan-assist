@@ -11,6 +11,7 @@ import { useProdutores } from "@/hooks/useProdutores";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
+import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -30,6 +31,27 @@ export default function Programacao() {
   const { programacoes: cultivaresList = [] } = useProgramacaoCultivares();
   const { programacoes: adubacaoList = [] } = useProgramacaoAdubacao();
   const { data: cultivaresCatalog = [] } = useCultivaresCatalog();
+  const { aplicacoes: aplicacoesDef = [] } = useAplicacoesDefensivos();
+
+  const areasSafrasComDefensivo = useMemo(() => {
+    const set = new Set<string>();
+    for (const ap of aplicacoesDef) {
+      const area = String(ap.area || "").trim();
+      const defs = (ap.defensivos || []) as any[];
+      for (const d of defs) {
+        const s = String(d?.safra_id || "").trim();
+        if (area && s) set.add(`${area}|${s}`);
+      }
+    }
+    return set;
+  }, [aplicacoesDef]);
+
+  const isDeleteBlocked = (p: any) => {
+    const area = String(p?.area || "").trim();
+    const safra = String(p?.safra_id || "").trim();
+    if (!area || !safra) return false;
+    return areasSafrasComDefensivo.has(`${area}|${safra}`);
+  };
 
   // Replicação
   const [replicateOpen, setReplicateOpen] = useState(false);
@@ -273,7 +295,8 @@ export default function Programacao() {
                       variant="outline"
                       size="icon"
                       onClick={() => deleteProgramacao(prog.id)}
-                      title="Excluir"
+                      disabled={isDeleteBlocked(prog)}
+                      title={isDeleteBlocked(prog) ? "Exclusão bloqueada: há defensivos para esta fazenda/safra" : "Excluir"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

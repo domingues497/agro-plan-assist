@@ -948,16 +948,21 @@ def create_programacao():
                 if safra_id and talhao_ids:
                     cur.execute(
                         """
-                        SELECT pt.talhao_id
+                        SELECT pt.talhao_id, t.nome
                         FROM public.programacoes p
                         JOIN public.programacao_talhoes pt ON pt.programacao_id = p.id
-                        WHERE p.safra_id = %s AND pt.talhao_id = ANY(%s)
+                        LEFT JOIN public.talhoes t ON t.id = pt.talhao_id
+                        WHERE p.safra_id = %s AND p.fazenda_idfazenda = %s AND pt.talhao_id = ANY(%s)
                         """,
-                        [safra_id, talhao_ids],
+                        [safra_id, fazenda_idfazenda, talhao_ids],
                     )
                     rows_conf = cur.fetchall()
                     if rows_conf:
-                        return jsonify({"error": "talhao já possui programação nesta safra", "talhoes": [r[0] for r in rows_conf]}), 400
+                        return jsonify({
+                            "error": "talhao já possui programação nesta safra",
+                            "talhoes": [r[0] for r in rows_conf],
+                            "talhoes_nomes": [r[1] for r in rows_conf if r[1] is not None]
+                        }), 400
                 cur.execute(
                     """
                     INSERT INTO public.programacoes (id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id)
@@ -1018,10 +1023,10 @@ def create_programacao():
                 for tid in talhao_ids:
                     cur.execute(
                         """
-                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id)
-                        VALUES (%s, %s, %s, %s)
+                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
+                        VALUES (%s, %s, %s, %s, %s)
                         """,
-                        [f"pt{int(time.time()*1000)}", prog_id, tid, safra_id]
+                        [f"pt{int(time.time()*1000)}", prog_id, tid, safra_id, fazenda_idfazenda]
                     )
         return jsonify({"id": prog_id})
     except Exception as e:
@@ -1037,6 +1042,39 @@ def delete_programacao(id: str):
     try:
         with conn:
             with conn.cursor() as cur:
+                cur.execute("SELECT produtor_numerocm, area, safra_id FROM public.programacoes WHERE id = %s", [id])
+                row = cur.fetchone()
+                if not row:
+                    return jsonify({"error": "programacao nao encontrada"}), 404
+                produtor_numerocm, area, safra_id = row[0], row[1], row[2]
+                if safra_id and area:
+                    cur.execute(
+                        """
+                        SELECT COUNT(*)
+                        FROM public.programacao_defensivos pd
+                        JOIN public.aplicacoes_defensivos ad ON ad.id = pd.aplicacao_id
+                        WHERE ad.area = %s AND pd.safra_id = %s
+                        """,
+                        [area, safra_id],
+                    )
+                    cnt = (cur.fetchone() or [0])[0] or 0
+                    if cnt > 0:
+                        cur.execute(
+                            """
+                            SELECT t.nome
+                            FROM public.programacao_talhoes pt
+                            LEFT JOIN public.talhoes t ON t.id = pt.talhao_id
+                            WHERE pt.programacao_id = %s
+                            """,
+                            [id],
+                        )
+                        talhoes_nomes = [r[0] for r in cur.fetchall() if r and r[0]]
+                        return jsonify({
+                            "error": "programacao_defensivos_existente",
+                            "message": "Não é possível excluir: existem defensivos cadastrados para esta fazenda/safra",
+                            "talhoes_nomes": talhoes_nomes,
+                            "count": cnt,
+                        }), 400
                 cur.execute("DELETE FROM public.programacoes WHERE id = %s", [id])
         return jsonify({"ok": True})
     except Exception as e:
@@ -1095,16 +1133,21 @@ def update_programacao(id: str):
                 if safra_id and talhao_ids:
                     cur.execute(
                         """
-                        SELECT pt.talhao_id
+                        SELECT pt.talhao_id, t.nome
                         FROM public.programacoes p
                         JOIN public.programacao_talhoes pt ON pt.programacao_id = p.id
-                        WHERE p.safra_id = %s AND pt.talhao_id = ANY(%s) AND p.id <> %s
+                        LEFT JOIN public.talhoes t ON t.id = pt.talhao_id
+                        WHERE p.safra_id = %s AND p.fazenda_idfazenda = %s AND pt.talhao_id = ANY(%s) AND p.id <> %s
                         """,
-                        [safra_id, talhao_ids, id],
+                        [safra_id, fazenda_idfazenda, talhao_ids, id],
                     )
                     rows_conf = cur.fetchall()
                     if rows_conf:
-                        return jsonify({"error": "talhao já possui programação nesta safra", "talhoes": [r[0] for r in rows_conf]}), 400
+                        return jsonify({
+                            "error": "talhao já possui programação nesta safra",
+                            "talhoes": [r[0] for r in rows_conf],
+                            "talhoes_nomes": [r[1] for r in rows_conf if r[1] is not None]
+                        }), 400
                 cur.execute(
                     """
                     UPDATE public.programacoes
@@ -1169,10 +1212,10 @@ def update_programacao(id: str):
                 for tid in talhao_ids:
                     cur.execute(
                         """
-                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id)
-                        VALUES (%s, %s, %s, %s)
+                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
+                        VALUES (%s, %s, %s, %s, %s)
                         """,
-                        [f"pt{int(time.time()*1000)}", id, tid, safra_id]
+                        [f"pt{int(time.time()*1000)}", id, tid, safra_id, fazenda_idfazenda]
                     )
         return jsonify({"ok": True, "id": id})
     except Exception as e:

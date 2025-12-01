@@ -126,12 +126,17 @@ export const useProgramacoes = () => {
       try {
         const data = JSON.parse(raw);
         if (data?.error === "talhao já possui programação nesta safra") {
-          const talhoes = Array.isArray(data?.talhoes) ? data.talhoes.join(", ") : "";
+          const nomes = Array.isArray(data?.talhoes_nomes) && data.talhoes_nomes.length > 0
+            ? data.talhoes_nomes.join(", ")
+            : undefined;
+          const ids = Array.isArray(data?.talhoes) ? data.talhoes.join(", ") : "";
           toast({
             title: "Conflito de Programação",
-            description: talhoes
-              ? `Os talhões ${talhoes} já possuem programação na safra selecionada.`
-              : "Já existe uma programação para ao menos um dos talhões na safra selecionada.",
+            description: nomes
+              ? `Os talhões ${nomes} já possuem programação na safra selecionada.`
+              : (ids
+                  ? `Os talhões ${ids} já possuem programação na safra selecionada.`
+                  : "Já existe uma programação para ao menos um dos talhões na safra selecionada."),
             variant: "destructive",
           });
           return;
@@ -151,17 +156,39 @@ export const useProgramacoes = () => {
       const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const baseUrl = envUrl || `http://${host}:5000`;
       const res = await fetch(`${baseUrl}/programacoes/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(`Erro ao excluir programação: ${res.status}`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
       toast({ title: "Programação excluída com sucesso!" });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      const raw = error?.message || String(error);
+      try {
+        const data = JSON.parse(raw);
+        if (data?.error === "programacao_defensivos_existente") {
+          const nomes = Array.isArray(data?.talhoes_nomes) && data.talhoes_nomes.length > 0
+            ? data.talhoes_nomes.join(", ")
+            : undefined;
+          const count = Number(data?.count || 0);
+          toast({
+            title: "Exclusão bloqueada",
+            description: nomes
+              ? `Existem ${count} registros de defensivos para esta fazenda/safra.
+Talhões: ${nomes}.`
+              : `Existem ${count} registros de defensivos para esta fazenda/safra.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch {}
       toast({
         title: "Erro ao excluir programação",
-        description: error.message,
-        variant: "destructive"
+        description: raw,
+        variant: "destructive",
       });
     }
   });
@@ -197,12 +224,17 @@ export const useProgramacoes = () => {
       try {
         const data = JSON.parse(raw);
         if (data?.error === "talhao já possui programação nesta safra") {
-          const talhoes = Array.isArray(data?.talhoes) ? data.talhoes.join(", ") : "";
+          const nomes = Array.isArray(data?.talhoes_nomes) && data.talhoes_nomes.length > 0
+            ? data.talhoes_nomes.join(", ")
+            : undefined;
+          const ids = Array.isArray(data?.talhoes) ? data.talhoes.join(", ") : "";
           toast({
             title: "Conflito de Programação",
-            description: talhoes
-              ? `Os talhões ${talhoes} já possuem programação na safra selecionada.`
-              : "Já existe uma programação para ao menos um dos talhões na safra selecionada.",
+            description: nomes
+              ? `Os talhões ${nomes} já possuem programação na safra selecionada.`
+              : (ids
+                  ? `Os talhões ${ids} já possuem programação na safra selecionada.`
+                  : "Já existe uma programação para ao menos um dos talhões na safra selecionada."),
             variant: "destructive",
           });
           return;
@@ -305,12 +337,17 @@ export const useProgramacoes = () => {
       try {
         const data = JSON.parse(raw);
         if (data?.error === "talhao já possui programação nesta safra") {
-          const talhoes = Array.isArray(data?.talhoes) ? data.talhoes.join(", ") : "";
+          const nomes = Array.isArray(data?.talhoes_nomes) && data.talhoes_nomes.length > 0
+            ? data.talhoes_nomes.join(", ")
+            : undefined;
+          const ids = Array.isArray(data?.talhoes) ? data.talhoes.join(", ") : "";
           toast({
             title: "Conflito de Programação",
-            description: talhoes
-              ? `Os talhões ${talhoes} já possuem programação na safra selecionada.`
-              : "Já existe uma programação para ao menos um dos talhões na safra selecionada.",
+            description: nomes
+              ? `Os talhões ${nomes} já possuem programação na safra selecionada.`
+              : (ids
+                  ? `Os talhões ${ids} já possuem programação na safra selecionada.`
+                  : "Já existe uma programação para ao menos um dos talhões na safra selecionada."),
             variant: "destructive",
           });
           return;
