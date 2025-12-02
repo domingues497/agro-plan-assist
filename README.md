@@ -1,130 +1,84 @@
-# Welcome to your Lovable project
+# Agro Plan Assist
 
-> AVISO: Este diretório é uma cópia antiga. O desenvolvimento está centralizado no diretório raiz `../`.
+Aplicação web para planejamento de sementes, fertilizantes e controle de defensivos.
 
-Para desenvolver e executar a aplicação, utilize o README do diretório raiz e rode os comandos a partir de `c:\projetos\projeto_lovable\agro-plan-assist`.
+Frontend em React/Vite e backend em Flask, com banco de dados PostgreSQL.
 
-## Project info
+## Tecnologias
 
-**URL**: https://lovable.dev/projects/f7deb657-6563-48cc-82f2-fabdd72fc8dc
+- Vite, React, TypeScript, Tailwind, shadcn-ui
+- Flask (API) com `flask-cors`
+- PostgreSQL via `psycopg2-binary`
 
-## Centralização do Projeto
+## Pré-requisitos
 
-- Todo o desenvolvimento e execução ficam centralizados neste diretório raiz.
-- A antiga subpasta `agro-plan-assist/` foi removida deste repositório.
-- `.env` e `supabase/config.toml` aqui no raiz estão alinhados ao mesmo projeto Supabase remoto.
+- Node.js 18+ e npm
+- Python 3.11+ e pip
+- PostgreSQL (local ou remoto)
 
-## How can I edit this code?
+## Ambiente de desenvolvimento
 
-There are several ways of editing your application.
+1. Frontend
+   - Instalar dependências: `npm install`
+   - Rodar em desenvolvimento: `npm run dev` (porta `5173`)
+   - Visualizar build: `npm run build` e `npm run preview`
 
-**Use Lovable**
+2. Backend (API Flask)
+   - Criar ambiente virtual: `python -m venv venv`
+   - Instalar dependências: `./venv/Scripts/pip install -r server/requirements.txt`
+   - Configurar conexão com PostgreSQL via variáveis de ambiente:
+     - `AGROPLAN_DB_NAME` (padrão `agroplan_assist`)
+     - `AGROPLAN_DB_USER` (padrão `agroplan_user`)
+     - `AGROPLAN_DB_PASS` (padrão `agroplan_pass`)
+     - `AGROPLAN_DB_HOST` (padrão `localhost`)
+     - `AGROPLAN_DB_PORT` (padrão `5432`)
+   - Iniciar API: `./venv/Scripts/python.exe server/app.py` (porta `5000`)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/f7deb657-6563-48cc-82f2-fabdd72fc8dc) and start prompting.
+## Variáveis do frontend
 
-Changes made via Lovable will be committed automatically to this repo.
+- `VITE_API_URL` (opcional): URL base da API. Se não definido, usa o host atual e porta `5000`.
+- `VITE_HMR_HOST` (opcional): host público do HMR quando usando proxy reverso.
 
-**Use your preferred IDE**
+## Proxy reverso (desenvolvimento interno)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Encaminhar o domínio para o dev server (`192.168.x.x:5173`) e rotear chamadas da API para a Flask (`127.0.0.1:5000`).
+- Garantir suporte a WebSocket/HMR no proxy e cabeçalhos de upgrade.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Scripts úteis
 
-Follow these steps:
+- `npm run dev` — inicia o frontend
+- `npm run build` — gera build de produção
+- `npm run preview` — serve o build gerado
+- `npm run lint` — checa o código do frontend
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Observações
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- O backend cria/garante automaticamente o schema necessário no PostgreSQL ao iniciar.
+- Ports padrão: frontend `5173`, API `5000`. Ajuste conforme necessário.
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Regras de Negócio
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+- Exclusividade de Programação por talhão e safra (mesma fazenda)
+  - Ao criar/atualizar uma Programação, nenhum dos talhões selecionados pode já estar vinculado a outra Programação na mesma safra da mesma fazenda.
+  - Bloqueio na API com erro 400 e retorno dos nomes dos talhões em conflito; o frontend exibe mensagem amigável.
+  - Restrição garantida por índice único em `programacao_talhoes (fazenda_idfazenda, talhao_id, safra_id)`.
 
-**Edit a file directly in GitHub**
+- Exclusão bloqueada quando há defensivos
+  - Não é permitido excluir uma Programação se existirem registros de defensivos para a mesma fazenda/área e safra.
+  - O botão de excluir fica desabilitado quando detectado; a API também bloqueia e retorna erro 400 com quantidade de defensivos e nomes dos talhões.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- Cadastro de defensivos condicionado à Programação de Cultivar
+  - Somente é possível cadastrar aplicações de defensivos se existir Programação de Cultivar para o produtor e fazenda na safra selecionada.
 
-**Use GitHub Codespaces**
+- Regras de defensivos na fazenda
+  - O mesmo produto não pode ser repetido sem marcar a flag "Produto salvo" no item anterior.
+  - Cálculo do total por item: `dose × área(ha) × cobertura(%)`.
+  - Quando possível, a classe é inferida pela aplicação/"alvo"; cada item persiste `safra_id`.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- Replicação de defensivos
+  - Replicação só permite destinos que possuam Programação de Cultivar e Adubação na mesma safra.
+  - O par origem (produtor/fazenda da aplicação selecionada) não é listado como destino.
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/f7deb657-6563-48cc-82f2-fabdd72fc8dc) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
-
-## Arquitetura de Dados (Supabase)
-
-Este projeto utiliza Supabase para autenticação, banco de dados e regras de segurança (RLS). Para executar localmente:
-
-1. Configure as variáveis no `.env` do frontend:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_PUBLISHABLE_KEY`
-   - `VITE_SUPABASE_PROJECT_ID` (opcional)
-2. Certifique-se de aplicar as migrações do diretório `supabase/migrations` no seu projeto Supabase.
-3. Inicie o frontend com `npm run dev` (porta padrão `5173`).
-
-Observação: O backend Oracle foi removido do repositório por não ser necessário ao funcionamento padrão. Caso precise dele, recupere-o de um commit anterior.
-
-## Flags de Funcionalidade
-
-Para controlar a exibição dos cards de resumo no Dashboard ("Cultivares ativos", "Adubações" e "Defensivos") sem alterar código, utilize a variável de ambiente abaixo:
-
-- `VITE_DASHBOARD_SUMMARY_ENABLED`
-  - `true`: mostra os cards
-  - `false`: oculta os cards
-
-Exemplo no arquivo `.env`:
-
-```
-VITE_DASHBOARD_SUMMARY_ENABLED=false
-```
-
-Altere para `true` quando quiser visualizar os cards.
-## Geração automática dos tipos do Supabase
-
-Para manter `src/integrations/supabase/types.ts` sincronizado com seu projeto:
-
-- Pré-requisitos: instalar o CLI do Supabase e autenticar.
-
-### Opção A — projeto vinculado (recomendado)
-
-1. Faça login: `supabase login`
-2. Vincule o projeto: `supabase link --project-ref kndaphgvedudbbmikqye`
-3. Gere os tipos: `npm run types:gen:linked`
-
-### Opção B — usando o `project_id`
-
-1. Faça login: `supabase login`
-2. Gere os tipos: `npm run types:gen`
-
-Os scripts sobreescrevem o arquivo `src/integrations/supabase/types.ts`.
+- Pré-requisitos para Programação
+  - Programação exige fazenda/área cadastrada e `safra_id` definido.
+  - Talhões associados a uma Programação pertencem à fazenda informada e respeitam a restrição de exclusividade por safra.

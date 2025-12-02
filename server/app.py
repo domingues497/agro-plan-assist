@@ -139,17 +139,21 @@ def list_fazendas():
                     role = None
             allowed_numerocm = []
             allowed_fazendas = []
+            allowed_consultores = []
             if user_id and role in ("gestor", "consultor"):
                 cur.execute("SELECT produtor_numerocm FROM public.user_produtores WHERE user_id = %s", [user_id])
                 allowed_numerocm = [r[0] for r in cur.fetchall()]
                 cur.execute("SELECT fazenda_id FROM public.user_fazendas WHERE user_id = %s", [user_id])
                 allowed_fazendas = [r[0] for r in cur.fetchall()]
+                if role == "gestor":
+                    cur.execute("SELECT numerocm_consultor FROM public.gestor_consultores WHERE user_id = %s", [user_id])
+                    allowed_consultores = [r[0] for r in cur.fetchall()]
             if role == "consultor":
                 if allowed_numerocm:
                     where.append("f.numerocm = ANY(%s)")
                     params.append(allowed_numerocm)
             elif role == "gestor":
-                if allowed_numerocm or allowed_fazendas:
+                if allowed_numerocm or allowed_fazendas or allowed_consultores:
                     subconds = []
                     if allowed_numerocm:
                         subconds.append("f.numerocm = ANY(%s)")
@@ -157,6 +161,9 @@ def list_fazendas():
                     if allowed_fazendas:
                         subconds.append("f.id = ANY(%s)")
                         params.append(allowed_fazendas)
+                    if allowed_consultores:
+                        subconds.append("f.numerocm_consultor = ANY(%s)")
+                        params.append(allowed_consultores)
                     where.append("(" + " OR ".join(subconds) + ")")
             # Admin: sem restrição
             if numerocm:
@@ -383,19 +390,54 @@ def delete_justificativa(id: str):
 def list_produtores():
     ensure_produtores_schema()
     numerocm_consultor = request.args.get("numerocm_consultor")
+    auth = request.headers.get("Authorization") or ""
     pool = get_pool()
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
+            base = "SELECT id, numerocm, nome, numerocm_consultor, consultor, created_at, updated_at FROM public.produtores"
+            params = []
+            where = []
+            role = None
+            user_id = None
+            if auth.lower().startswith("bearer "):
+                try:
+                    payload = verify_jwt(auth.split(" ", 1)[1])
+                    role = (payload.get("role") or "consultor").lower()
+                    user_id = payload.get("user_id")
+                except Exception:
+                    role = None
+            allowed_numerocm = []
+            allowed_consultores = []
+            if user_id and role in ("gestor", "consultor"):
+                cur.execute("SELECT produtor_numerocm FROM public.user_produtores WHERE user_id = %s", [user_id])
+                allowed_numerocm = [r[0] for r in cur.fetchall()]
+                if role == "gestor":
+                    cur.execute("SELECT numerocm_consultor FROM public.gestor_consultores WHERE user_id = %s", [user_id])
+                    allowed_consultores = [r[0] for r in cur.fetchall()]
+            if role == "consultor":
+                if allowed_numerocm:
+                    where.append("numerocm = ANY(%s)")
+                    params.append(allowed_numerocm)
+                else:
+                    # sem associação: devolve lista vazia para consultor
+                    where.append("1=0")
+            elif role == "gestor":
+                if allowed_numerocm or allowed_consultores:
+                    subconds = []
+                    if allowed_numerocm:
+                        subconds.append("numerocm = ANY(%s)")
+                        params.append(allowed_numerocm)
+                    if allowed_consultores:
+                        subconds.append("numerocm_consultor = ANY(%s)")
+                        params.append(allowed_consultores)
+                    where.append("(" + " OR ".join(subconds) + ")")
+            # Admin: sem restrição
             if numerocm_consultor:
-                cur.execute(
-                    "SELECT id, numerocm, nome, numerocm_consultor, consultor, created_at, updated_at FROM public.produtores WHERE numerocm_consultor = %s ORDER BY nome",
-                    [numerocm_consultor]
-                )
-            else:
-                cur.execute(
-                    "SELECT id, numerocm, nome, numerocm_consultor, consultor, created_at, updated_at FROM public.produtores ORDER BY nome"
-                )
+                where.append("numerocm_consultor = %s")
+                params.append(numerocm_consultor)
+            sql = base + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY nome"
+            cur.execute(sql, params)
             rows = cur.fetchall()
             cols = [d[0] for d in cur.description]
             items = [dict(zip(cols, r)) for r in rows]
