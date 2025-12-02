@@ -2206,7 +2206,8 @@ def sync_fertilizantes_test():
             body = ""
         return jsonify({"error": "HTTPError", "status": e.code, "details": body or str(e)}), 502
     except URLError as e:
-        return jsonify({"error": "URLError", "details": getattr(e, 'reason', str(e))}), 502
+        details = str(getattr(e, 'reason', e))
+        return jsonify({"error": "URLError", "details": details}), 502
 
 @app.route("/defensivos/<cod_item>", methods=["PUT"])
 def update_defensivo(cod_item: str):
@@ -2265,19 +2266,21 @@ def upsert_config_bulk():
         return jsonify({"error": "config_key obrigatório"}), 400
     upsert_config_items(items)
     return jsonify({"ok": True, "imported": len(items)})
-def _b64url(data: bytes) -> bytes:
-    return base64.urlsafe_b64encode(data).rstrip(b"=")
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
 
 def _make_jwt(client_id: str, exp_ts: int, secret: str, audience: str | None = None) -> str:
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {"client_id": client_id, "exp": int(exp_ts)}
+    if audience is not None and str(audience).strip():
+        payload["aud"] = str(audience).strip()
     h = _b64url(json.dumps(header, separators=(",", ":")).encode("utf-8"))
     p = _b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    to_sign = h + b"." + p
-    sig = hmac.new(secret.encode("utf-8"), to_sign, hashlib.sha256).digest()
+    to_sign_str = h + "." + p
+    sig = hmac.new(secret.encode("utf-8"), to_sign_str.encode("utf-8"), hashlib.sha256).digest()
     s = _b64url(sig)
-    return (to_sign + b"." + s).decode("utf-8")
+    return to_sign_str + "." + s
 
 @app.route("/defensivos/sync", methods=["GET", "POST", "OPTIONS"])
 def sync_defensivos():
@@ -2385,18 +2388,30 @@ def sync_defensivos():
 @app.route("/defensivos/sync/test", methods=["GET"])
 def sync_defensivos_test():
     ensure_system_config_schema()
-    cfg = get_config_map(["api_defensivos_url"])
+    cfg = get_config_map(["api_defensivos_url", "api_defensivos_client_id", "api_defensivos_secret", "api_defensivos_exp", "api_defensivos_aud"])
     url = (cfg.get("api_defensivos_url") or "").strip()
+    client_id = cfg.get("api_defensivos_client_id") or ""
+    secret = cfg.get("api_defensivos_secret") or ""
+    exp = cfg.get("api_defensivos_exp") or ""
+    aud = cfg.get("api_defensivos_aud") or None
     if not url:
         return jsonify({"error": "Config api_defensivos_url ausente"}), 400
+    if not client_id or not secret or not exp:
+        return jsonify({"error": "Config JWT ausente (client_id/secret/exp)"}), 400
     try:
-        req = Request(url, headers={"Accept": "application/json"})
+        token = _make_jwt(client_id, int(str(exp)), secret, aud)
+        req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
         with urlopen(req, timeout=15) as resp:
             return jsonify({"status": resp.status, "ok": True})
     except HTTPError as e:
-        return jsonify({"error": "HTTPError", "status": e.code}), 502
+        try:
+            body = e.read().decode("utf-8")
+        except Exception:
+            body = ""
+        return jsonify({"error": "HTTPError", "status": e.code, "details": body or str(e)}), 502
     except URLError as e:
-        return jsonify({"error": "URLError", "details": getattr(e, 'reason', str(e))}), 502
+        details = str(getattr(e, 'reason', e))
+        return jsonify({"error": "URLError", "details": details}), 502
 
 def run_sync_defensivos(limpar: bool = False):
     ensure_system_config_schema()
@@ -2599,12 +2614,12 @@ def list_talhoes():
                 id_list = [s for s in str(ids).split(",") if s]
                 # não existe prepare para lista; usar ANY com array
                 cur.execute(
-                    "SELECT id, fazenda_id, nome, area, arrendado, created_at, updated_at FROM public.talhoes WHERE fazenda_id = ANY(%s) ORDER BY nome",
+                    "SELECT t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.created_at, t.updated_at, EXISTS (SELECT 1 FROM public.programacao_talhoes pt WHERE pt.talhao_id = t.id) AS tem_programacao FROM public.talhoes t WHERE t.fazenda_id = ANY(%s) ORDER BY t.nome",
                     (id_list,)
                 )
             elif fazenda_id:
                 cur.execute(
-                    "SELECT id, fazenda_id, nome, area, arrendado, created_at, updated_at FROM public.talhoes WHERE fazenda_id = %s ORDER BY nome",
+                    "SELECT t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.created_at, t.updated_at, EXISTS (SELECT 1 FROM public.programacao_talhoes pt WHERE pt.talhao_id = t.id) AS tem_programacao FROM public.talhoes t WHERE t.fazenda_id = %s ORDER BY t.nome",
                     [fazenda_id]
                 )
             else:
@@ -2684,6 +2699,16 @@ def delete_talhao(id: str):
     try:
         with conn:
             with conn.cursor() as cur:
+                # Verifica se o talhão está vinculado a alguma programação de sementes/adubação
+                cur.execute(
+                    "SELECT COUNT(*) FROM public.programacao_talhoes WHERE talhao_id = %s",
+                    [id]
+                )
+                used_count = cur.fetchone()[0] or 0
+                if used_count > 0:
+                    return jsonify({
+                        "error": "Talhão não pode ser excluído: existe programação vinculada (sementes/adubação)."
+                    }), 400
                 cur.execute("DELETE FROM public.talhoes WHERE id = %s", [id])
         return jsonify({"ok": True})
     except Exception as e:

@@ -66,6 +66,8 @@ export default function Programacao() {
   // Gerenciar talhões
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
   const [fazendaParaTalhoes, setFazendaParaTalhoes] = useState<{ id: string; nome: string } | null>(null);
+  const [openGerenciarSelector, setOpenGerenciarSelector] = useState(false);
+  const [onlyFazendasComTalhao, setOnlyFazendasComTalhao] = useState(false);
 
   const temAreasCadastradas = fazendas.length > 0;
 
@@ -93,12 +95,63 @@ export default function Programacao() {
             <h1 className="text-3xl font-bold">Programação</h1>
             <p className="text-muted-foreground">Planejamento de sementes e fertilizantes</p>
           </div>
-          <Button 
-            onClick={() => setShowForm(true)}
-            disabled={!temAreasCadastradas}
-          >
-            Nova Programação
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => setShowForm(true)}
+              disabled={!temAreasCadastradas}
+            >
+              Nova Programação
+            </Button>
+            <Popover open={openGerenciarSelector} onOpenChange={setOpenGerenciarSelector}>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  Gerenciar Talhões
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[420px] p-0">
+                <div className="flex items-center justify-between px-3 py-2 border-b">
+                  <label className="text-sm flex items-center gap-2">
+                    <Checkbox
+                      checked={onlyFazendasComTalhao}
+                      onCheckedChange={(c) => setOnlyFazendasComTalhao(!!c)}
+                      className="h-4 w-4"
+                    />
+                    Somente com talhão
+                  </label>
+                </div>
+                <Command>
+                  <CommandInput placeholder="Buscar fazenda..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma fazenda encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {fazendas
+                        .filter((f: any) => !onlyFazendasComTalhao || Number(f.area_cultivavel || 0) > 0)
+                        .map((f: any) => (
+                          <CommandItem
+                            key={`${f.id}`}
+                            value={`${f.numerocm} ${f.nomefazenda}`}
+                            onSelect={() => {
+                              setFazendaParaTalhoes({ id: f.id, nome: f.nomefazenda });
+                              setGerenciarTalhoesOpen(true);
+                              setOpenGerenciarSelector(false);
+                            }}
+                          >
+                            <span className="flex items-center gap-2">
+                              <span>{f.numerocm} / {f.nomefazenda}</span>
+                              {Number(f.area_cultivavel || 0) > 0 ? (
+                                <span className="ml-2 text-xs text-muted-foreground">({Number(f.area_cultivavel || 0)} ha)</span>
+                              ) : (
+                                <Badge variant="secondary" className="text-xs">sem área(há)</Badge>
+                              )}
+                            </span>
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         {!temAreasCadastradas && (

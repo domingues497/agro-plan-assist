@@ -79,9 +79,8 @@ export const ImportFertilizantes = () => {
         processedData.set(normalizedItem, fertilizanteData);
       }
 
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
 
       const items = Array.from(processedData.values());
 
@@ -100,7 +99,7 @@ export const ImportFertilizantes = () => {
 
       // Opcional: manter histórico no Supabase se desejado (não obrigatório para PostgreSQL)
 
-      toast.success(`Importação concluída! ${importedRows} registros únicos de ${totalRows} linhas processadas`);
+      toast.success(`Importação concluída! ${imported} registros únicos de ${totalRows} linhas processadas`);
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);
@@ -115,21 +114,31 @@ export const ImportFertilizantes = () => {
   const checkApiConnectivity = async () => {
     setApiStatus('checking');
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
-      const res = await fetch(`${baseUrl}/fertilizantes/sync/test`);
-      if (!res.ok) {
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
+      const resHealth = await fetch(`${baseUrl}/health`);
+      if (!resHealth.ok) throw new Error('backend-offline');
+      const resTest = await fetch(`${baseUrl}/fertilizantes/sync/test`);
+      if (!resTest.ok) {
+        let detail = '';
+        try {
+          const j = await resTest.json();
+          detail = j?.error ? `Detalhes: ${j.error}${j.status ? ` (status ${j.status})` : ''}` : '';
+        } catch {
+          const t = await resTest.text().catch(() => '');
+          detail = t ? `Detalhes: ${t}` : '';
+        }
         setApiStatus('offline');
-        toast.error('API Flask não está acessível. Verifique /fertilizantes/sync/test e system_config.');
+        toast.error(`API Flask não está acessível. Verifique /fertilizantes/sync/test e system_config. ${detail}`);
         return false;
       }
       setApiStatus('online');
-      toast.success('API está acessível!');
+      toast.success('Backend e API externa acessíveis.');
       return true;
     } catch (error) {
       setApiStatus('offline');
-      toast.error('Não foi possível conectar à API externa.');
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error(`Não foi possível conectar: ${msg}`);
       return false;
     }
   };
@@ -152,9 +161,8 @@ export const ImportFertilizantes = () => {
       toast.loading('⏳ Conectando à API externa e processando dados...', {
         description: 'Este processo pode levar alguns minutos.'
       });
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/fertilizantes/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -162,8 +170,17 @@ export const ImportFertilizantes = () => {
       });
       toast.dismiss();
       if (!res.ok) {
-        const txt = await res.text();
-        toast.error('❌ Erro ao sincronizar via API', { description: txt });
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json().catch(() => null);
+          const msg = j?.error || 'Erro ao sincronizar via API';
+          const details = j?.details ? ` Detalhes: ${j.details}` : '';
+          const status = j?.status ? ` (status ${j.status})` : '';
+          toast.error(`${msg}${status}${details}`);
+        } else {
+          const t = await res.text().catch(() => '');
+          toast.error(`Erro ao sincronizar via API (HTTP ${res.status}). ${t}`);
+        }
         return;
       }
       const data = await res.json();

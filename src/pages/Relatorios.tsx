@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, ArrowLeft, Download } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
+import { useSafras } from "@/hooks/useSafras";
 
 const parseNumber = (value: unknown): number => {
   const numeric = Number(value);
@@ -16,12 +17,26 @@ const Relatorios = () => {
   const { programacoes: cultivares } = useProgramacaoCultivares();
   const { programacoes: adubacoes } = useProgramacaoAdubacao();
   const { aplicacoes: defensivos } = useAplicacoesDefensivos();
+  const { safras = [] } = useSafras() as any;
+  const [safraFilter, setSafraFilter] = useState<string>("");
 
   const cultivaresList = cultivares ?? [];
   const adubacoesList = adubacoes ?? [];
   const defensivosList = defensivos ?? [];
 
   const resumo = useMemo(() => {
+    const filterCult = (cultivaresList || []).filter((item) => {
+      if (!safraFilter) return true;
+      return String(item.safra || "").trim() === safraFilter;
+    });
+    const filterAdub = (adubacoesList || []).filter((item) => {
+      if (!safraFilter) return true;
+      return String(item.safra_id || "").trim() === safraFilter;
+    });
+    const filterDef = (defensivosList || []).map((ap) => ({
+      ...ap,
+      defensivos: (ap.defensivos || []).filter((d) => !safraFilter || String(d.safra_id || "").trim() === safraFilter),
+    })).filter((ap) => ap.defensivos.length > 0 || !safraFilter);
     const totalQuantidade = cultivaresList.reduce(
       (acc, item) => acc + parseNumber(item.quantidade),
       0
@@ -36,13 +51,13 @@ const Relatorios = () => {
       return acc;
     }, 0);
 
-    const totalAdubacao = adubacoesList.reduce(
+    const totalAdubacao = filterAdub.reduce(
       (acc, item) => acc + parseNumber(item.total),
       0
     );
 
-    const totalDefensivo = defensivosList.reduce((acc, aplicacao) => {
-      const somaAplicacao = aplicacao.defensivos.reduce(
+    const totalDefensivo = filterDef.reduce((acc, aplicacao) => {
+      const somaAplicacao = (aplicacao.defensivos || []).reduce(
         (sum, def) => sum + parseNumber(def.dose),
         0
       );
@@ -58,16 +73,89 @@ const Relatorios = () => {
     });
 
     return {
-      cultivares: cultivaresList.length,
+      cultivares: filterCult.length,
       quantidadeSementes: totalQuantidade,
       hectares: totalHectares,
-      adubacoes: adubacoesList.length,
+      adubacoes: filterAdub.length,
       volumeAdubacao: totalAdubacao,
-      defensivos: defensivosList.length,
+      defensivos: filterDef.length,
       volumeDefensivo: totalDefensivo,
       safras: Array.from(safras),
     };
-  }, [cultivaresList, adubacoesList, defensivosList]);
+  }, [cultivaresList, adubacoesList, defensivosList, safraFilter, safras]);
+
+  const downloadCsv = (filename: string, headers: string[], rows: Array<Record<string, any>>) => {
+    const escape = (v: any) => {
+      const s = String(v ?? "");
+      if (s.includes(";") || s.includes("\n") || s.includes("\"")) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    };
+    const csv = [headers.join(";")]
+      .concat(rows.map((r) => headers.map((h) => escape(r[h])).join(";")))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportCultivaresCsv = () => {
+    const headers = ["produtor_numerocm", "area", "area_hectares", "cultivar", "quantidade", "percentual_cobertura", "tipo_embalagem", "tipo_tratamento", "safra"];
+    const rows = (cultivaresList || [])
+      .filter((i) => !safraFilter || String(i.safra || "").trim() === safraFilter)
+      .map((i: any) => ({
+        produtor_numerocm: i.produtor_numerocm,
+        area: i.area,
+        area_hectares: i.area_hectares,
+        cultivar: i.cultivar,
+        quantidade: i.quantidade,
+        percentual_cobertura: i.percentual_cobertura,
+        tipo_embalagem: i.tipo_embalagem,
+        tipo_tratamento: i.tipo_tratamento,
+        safra: i.safra,
+      }));
+    downloadCsv(`cultivares_${safraFilter || 'todas'}.csv`, headers, rows);
+  };
+
+  const exportAdubacaoCsv = () => {
+    const headers = ["produtor_numerocm", "area", "formulacao", "dose", "percentual_cobertura", "total", "safra_id"];
+    const rows = (adubacoesList || [])
+      .filter((i) => !safraFilter || String(i.safra_id || "").trim() === safraFilter)
+      .map((i: any) => ({
+        produtor_numerocm: i.produtor_numerocm,
+        area: i.area,
+        formulacao: i.formulacao,
+        dose: i.dose,
+        percentual_cobertura: i.percentual_cobertura,
+        total: i.total,
+        safra_id: i.safra_id,
+      }));
+    downloadCsv(`adubacao_${safraFilter || 'todas'}.csv`, headers, rows);
+  };
+
+  const exportDefensivosCsv = () => {
+    const headers = ["produtor_numerocm", "area", "classe", "defensivo", "dose", "unidade", "alvo", "safra_id"];
+    const rows = (defensivosList || []).flatMap((ap: any) =>
+      (ap.defensivos || [])
+        .filter((d: any) => !safraFilter || String(d.safra_id || "").trim() === safraFilter)
+        .map((d: any) => ({
+          produtor_numerocm: ap.produtor_numerocm,
+          area: ap.area,
+          classe: d.classe,
+          defensivo: d.defensivo,
+          dose: d.dose,
+          unidade: d.unidade,
+          alvo: d.alvo,
+          safra_id: d.safra_id,
+        }))
+    );
+    downloadCsv(`defensivos_${safraFilter || 'todas'}.csv`, headers, rows);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,7 +178,20 @@ const Relatorios = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-foreground">Relatorios consolidados</h2>
-          <p className="text-muted-foreground">Visualize dados consolidados via Supabase</p>
+          <p className="text-muted-foreground">Visualize dados consolidados filtrando por safra</p>
+          <div className="mt-3">
+            <label className="text-sm mr-2">Safra</label>
+            <select
+              className="border rounded h-8 px-2 text-sm"
+              value={safraFilter}
+              onChange={(e) => setSafraFilter(e.target.value)}
+            >
+              <option value="">Todas</option>
+              {(safras || []).map((s: any) => (
+                <option key={s.id} value={String(s.id)}>{s.nome}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -110,7 +211,7 @@ const Relatorios = () => {
                 <span className="font-semibold">{resumo.hectares.toFixed(2)} ha</span>
               </div>
             </div>
-            <Button className="w-full" variant="outline">
+            <Button className="w-full" variant="outline" onClick={exportCultivaresCsv}>
               <Download className="mr-2 h-4 w-4" />
               Exportar CSV
             </Button>
@@ -128,9 +229,9 @@ const Relatorios = () => {
                 <span className="font-semibold">{resumo.volumeAdubacao.toFixed(2)}</span>
               </div>
             </div>
-            <Button className="w-full" variant="outline">
+            <Button className="w-full" variant="outline" onClick={exportAdubacaoCsv}>
               <Download className="mr-2 h-4 w-4" />
-              Exportar PDF
+              Exportar CSV
             </Button>
           </Card>
 
@@ -146,9 +247,9 @@ const Relatorios = () => {
                 <span className="font-semibold">{resumo.volumeDefensivo.toFixed(2)}</span>
               </div>
             </div>
-            <Button className="w-full" variant="outline">
+            <Button className="w-full" variant="outline" onClick={exportDefensivosCsv}>
               <Download className="mr-2 h-4 w-4" />
-              Exportar Excel
+              Exportar CSV
             </Button>
           </Card>
 
@@ -172,7 +273,7 @@ const Relatorios = () => {
                 ))
               )}
             </div>
-            <Button className="w-full" variant="outline">
+            <Button className="w-full" variant="outline" onClick={() => exportCultivaresCsv()}>
               <Download className="mr-2 h-4 w-4" />
               Exportar resumo
             </Button>
@@ -184,4 +285,3 @@ const Relatorios = () => {
 };
 
 export default Relatorios;
-

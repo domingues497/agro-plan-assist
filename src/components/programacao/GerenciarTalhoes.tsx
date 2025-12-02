@@ -161,31 +161,36 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, open, onOpenChange }:
               talhoes.map((talhao) => (
                 <Card key={talhao.id} className="p-3 flex items-center justify-between">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{talhao.nome}</p>
-                      {talhao.arrendado && (
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded">Arrendado</span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{Number(talhao.area).toFixed(2)} ha</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{talhao.nome}</p>
+                    {talhao.arrendado && (
+                      <span className="text-xs bg-muted px-2 py-0.5 rounded">Arrendado</span>
+                    )}
+                    {(talhao as any).tem_programacao && (
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Com Programação</span>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString(), arrendado: talhao.arrendado })}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleExcluir(talhao.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </Card>
+                  <p className="text-sm text-muted-foreground">{Number(talhao.area).toFixed(2)} ha</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString(), arrendado: talhao.arrendado })}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleExcluir(talhao.id)}
+                    disabled={(talhao as any).tem_programacao}
+                    title={(talhao as any).tem_programacao ? "Talhão com programação não pode ser excluído" : undefined}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
               ))
             )}
           </div>

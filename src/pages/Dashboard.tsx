@@ -15,8 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const Dashboard = () => {
   const {
@@ -59,21 +60,32 @@ const Dashboard = () => {
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [fazendaSelecionada, setFazendaSelecionada] = useState<{ id: string; nome: string } | null>(null);
+  const [searchProdutor, setSearchProdutor] = useState<string>("");
+  const [onlyComTalhao, setOnlyComTalhao] = useState<boolean>(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [editNome, setEditNome] = useState("");
+  const [editCmConsultor, setEditCmConsultor] = useState("");
+  const [editEmail, setEditEmail] = useState("");
 
   const produtoresDisponiveis = useMemo(() => {
-    // Usa produtores já filtrados por RLS conforme role (consultor/gestor/admin)
-    return allProdutores;
-  }, [allProdutores]);
+    const q = searchProdutor.trim().toLowerCase();
+    return allProdutores.filter((p: any) => {
+      if (!q) return true;
+      const nome = String(p.nome || "").toLowerCase();
+      const cm = String(p.numerocm || "").toLowerCase();
+      return nome.includes(q) || cm.includes(q);
+    });
+  }, [allProdutores, searchProdutor]);
 
   const fazendasPorProdutor = useMemo(() => {
     const grouped: Record<string, typeof allFazendas> = {};
     produtoresDisponiveis.forEach((produtor) => {
       grouped[produtor.numerocm] = allFazendas.filter(
-        (f) => f.numerocm === produtor.numerocm
+        (f: any) => f.numerocm === produtor.numerocm && (!onlyComTalhao || Number(f.area_cultivavel || 0) > 0)
       );
     });
     return grouped;
-  }, [produtoresDisponiveis, allFazendas]);
+  }, [produtoresDisponiveis, allFazendas, onlyComTalhao]);
 
   // Área agora é calculada pelos talhões - modal de edição removido
 
@@ -99,6 +111,18 @@ const Dashboard = () => {
     }
   };
 
+  const openProfile = () => {
+    setEditNome(String(profile?.nome || ""));
+    setEditCmConsultor(String(profile?.numerocm_consultor || ""));
+    setEditEmail(String((profile as any)?.email || ""));
+    setNewPassword("");
+    setProfileOpen(true);
+  };
+
+  const handleSaveProfile = () => {
+    updateProfile({ nome: editNome });
+  };
+
   const { data: roleData } = useAdminRole();
 
   return (
@@ -119,6 +143,7 @@ const Dashboard = () => {
                   </Button>
                 </Link>
               )}
+              <Button variant="outline" size="sm" onClick={openProfile}>Perfil</Button>
               <Button variant="outline" size="sm" onClick={handleLogout}>Sair</Button>
             </div>
           </div>
@@ -131,6 +156,8 @@ const Dashboard = () => {
           <h2 className="text-3xl font-bold text-foreground mb-2">Dashboard</h2>
           <p className="text-muted-foreground">Gerencie programacoes agricolas e cultivos</p>
         </div>
+
+        
 
         {showSummaryCards && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
@@ -172,35 +199,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        <Card className="p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold text-lg">Meu Perfil</h3>
-              <p className="text-sm text-muted-foreground">{profile?.nome || "Usuário"}</p>
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="new-password">Alterar minha senha</Label>
-              <Input
-                id="new-password"
-                type="password"
-                placeholder="Nova senha"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                variant="default"
-                onClick={() => changePassword(newPassword)}
-                disabled={!newPassword || newPassword.length < 6}
-              >
-                Definir senha
-              </Button>
-            </div>
-          </div>
-        </Card>
+        
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Link to="/programacao">
@@ -244,6 +243,22 @@ const Dashboard = () => {
                 <p className="text-sm text-muted-foreground">Cadastre e edite os talhões das suas fazendas</p>
               </div>
             </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm">Produtor</Label>
+              <Input
+                value={searchProdutor}
+                onChange={(e) => setSearchProdutor(e.target.value)}
+                placeholder="Buscar por nome ou CM"
+                className="w-[240px]"
+              />
+            </div>
+            <label className="text-sm flex items-center gap-2">
+              <Checkbox checked={onlyComTalhao} onCheckedChange={(c) => setOnlyComTalhao(!!c)} className="h-4 w-4" />
+              Somente fazendas com talhão
+            </label>
           </div>
 
           {produtoresDisponiveis.length === 0 ? (
@@ -304,9 +319,53 @@ const Dashboard = () => {
           onOpenChange={setGerenciarTalhoesOpen}
         />
       )}
+
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Perfil</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} placeholder="Seu nome" />
+            </div>
+            <div className="space-y-2">
+              <Label>CM Consultor</Label>
+              <Input value={editCmConsultor} disabled readOnly placeholder="Ex: 123456" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input value={editEmail} disabled readOnly placeholder="seu@email.com" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="new-password">Alterar minha senha</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="Nova senha"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <Button
+                  variant="default"
+                  onClick={() => changePassword(newPassword)}
+                  disabled={!newPassword || newPassword.length < 6}
+                >
+                  Definir
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProfileOpen(false)}>Fechar</Button>
+            <Button onClick={handleSaveProfile}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 export default Dashboard;
-

@@ -8,6 +8,7 @@ export type Talhao = {
   arrendado: boolean;
   created_at: string;
   updated_at: string;
+  tem_programacao?: boolean;
 };
 
 export const useTalhoes = (fazendaId?: string) => {

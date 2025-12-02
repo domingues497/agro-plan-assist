@@ -6,6 +6,7 @@ export type Profile = {
   user_id: string;
   numerocm_consultor: string | null;
   nome: string | null;
+  email: string | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -34,7 +35,8 @@ export const useProfile = () => {
         id: user.id,
         user_id: user.id,
         numerocm_consultor: user.numerocm_consultor ?? null,
-        nome: user.consultor ?? null,
+        nome: user.nome ?? null,
+        email: user.email ?? null,
         created_at: user.created_at ?? null,
         updated_at: user.updated_at ?? null,
       };
@@ -51,8 +53,7 @@ export const useProfile = () => {
       const id = (profile as any)?.id;
       if (!id) throw new Error("Usuário não autenticado");
       const body: any = {};
-      if (typeof updates.nome !== "undefined") body.consultor = updates.nome;
-      if (typeof updates.numerocm_consultor !== "undefined") body.numerocm_consultor = updates.numerocm_consultor;
+      if (typeof updates.nome !== "undefined") body.nome = updates.nome;
       const res = await fetch(`${baseUrl}/users/${id}`, {
         method: "PUT",
         headers: {

@@ -30,8 +30,6 @@ export const ImportDefensivos = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isSyncingApi, setIsSyncingApi] = useState(false);
   const [apiStatus, setApiStatus] = useState<'idle' | 'checking' | 'online' | 'offline'>('idle');
-  const baseEnv = (import.meta as any).env?.VITE_API_URL || '';
-  const [apiUrl, setApiUrl] = useState<string>(baseEnv);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -42,16 +40,31 @@ export const ImportDefensivos = () => {
   const checkApiConnectivity = async () => {
     setApiStatus('checking');
     try {
-      const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1';
-      const baseUrl = apiUrl || `http://${host}:5000`;
-      const res = await fetch(`${baseUrl}/health`);
-      if (!res.ok) throw new Error('offline');
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
+      const resHealth = await fetch(`${baseUrl}/health`);
+      if (!resHealth.ok) throw new Error('backend-offline');
+      const resTest = await fetch(`${baseUrl}/defensivos/sync/test`);
+      if (!resTest.ok) {
+        let detail = '';
+        try {
+          const j = await resTest.json();
+          detail = j?.error ? `Detalhes: ${j.error}${j.status ? ` (status ${j.status})` : ''}` : '';
+        } catch {
+          const t = await resTest.text().catch(() => '');
+          detail = t ? `Detalhes: ${t}` : '';
+        }
+        setApiStatus('offline');
+        toast.error(`Configuração ou conectividade da API externa falhou. ${detail}`);
+        return false;
+      }
       setApiStatus('online');
-      toast.success('API está acessível!');
+      toast.success('Backend e API externa acessíveis.');
       return true;
-    } catch {
+    } catch (e) {
       setApiStatus('offline');
-      toast.error('Não foi possível conectar à API Flask.');
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Não foi possível conectar: ${msg}`);
       return false;
     }
   };
@@ -70,8 +83,8 @@ export const ImportDefensivos = () => {
     try {
       let deletedRecords = 0;
 
-      const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1';
-      const baseUrl = apiUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -115,7 +128,7 @@ export const ImportDefensivos = () => {
       const imported = Number(j?.imported || 0);
       setImportedRows(imported);
 
-      toast.success(`Importação concluída! ${importedRows} registros únicos de ${totalRows} linhas processadas`);
+      toast.success(`Importação concluída! ${imported} registros únicos de ${totalRows} linhas processadas`);
       setShowSummary(true);
       setFile(null);
       setLimparAntes(false);
@@ -142,8 +155,8 @@ export const ImportDefensivos = () => {
     });
 
     try {
-      const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1';
-      const baseUrl = apiUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       toast.loading('⏳ Conectando à API externa e processando dados...', { description: 'Este processo pode levar alguns minutos.' });
       const res = await fetch(`${baseUrl}/defensivos/sync`, {
         method: 'POST',
@@ -152,8 +165,17 @@ export const ImportDefensivos = () => {
       });
       toast.dismiss();
       if (!res.ok) {
-        const j = await res.json().catch(() => null);
-        toast.error(j?.error || 'Erro ao sincronizar via API externa');
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json().catch(() => null);
+          const msg = j?.error || 'Erro ao sincronizar via API externa';
+          const details = j?.details ? ` Detalhes: ${j.details}` : '';
+          const status = j?.status ? ` (status ${j.status})` : '';
+          toast.error(`${msg}${status}${details}`);
+        } else {
+          const t = await res.text().catch(() => '');
+          toast.error(`Erro ao sincronizar via API externa (HTTP ${res.status}). ${t}`);
+        }
         return;
       }
       const j = await res.json();
