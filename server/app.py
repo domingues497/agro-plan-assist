@@ -3045,7 +3045,9 @@ def upload_talhao_kml(id: str):
                         id,
                     ],
                 )
-        return jsonify({"ok": True, "id": id, "filename": filename})
+                cur.execute("SELECT kml_text IS NOT NULL, kml_name FROM public.talhoes WHERE id = %s", [id])
+                row = cur.fetchone() or (False, None)
+                return jsonify({"ok": True, "id": id, "filename": filename, "has_kml": bool(row[0]), "kml_name": row[1]})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
     finally:

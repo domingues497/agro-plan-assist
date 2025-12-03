@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useProfile } from "@/hooks/useProfile";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const ImportCultivares = () => {
   const [isImporting, setIsImporting] = useState(false);
@@ -36,6 +37,11 @@ export const ImportCultivares = () => {
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const { data: adminRole } = useAdminRole();
   const { profile } = useProfile();
+  const [openNew, setOpenNew] = useState(false);
+  const [savingNew, setSavingNew] = useState(false);
+  const [newCultivar, setNewCultivar] = useState("");
+  const [newCultura, setNewCultura] = useState("");
+  const [newNomeCientifico, setNewNomeCientifico] = useState("");
 
   const fetchCounts = async () => {
     try {
@@ -238,10 +244,78 @@ export const ImportCultivares = () => {
     }
   };
 
+  const handleCreateNew = async () => {
+    const cultivar = newCultivar.trim();
+    const cultura = newCultura.trim();
+    const nome_cientifico = newNomeCientifico.trim();
+    if (!cultivar) {
+      toast.error("Informe o nome da cultivar");
+      return;
+    }
+    const isAdmin = !!adminRole?.isAdmin;
+    if (!isAdmin) {
+      toast.error("Apenas administradores podem cadastrar cultivares.");
+      return;
+    }
+    setSavingNew(true);
+    try {
+      const envUrl = (import.meta as any).env?.VITE_API_URL;
+      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const baseUrl = envUrl || `http://${host}:5000`;
+      const item = {
+        cultivar: cultivar.toUpperCase(),
+        cultura: cultura ? cultura.toUpperCase() : null,
+        nome_cientifico: nome_cientifico || null,
+      };
+      // Verificar duplicidade no catálogo atual
+      try {
+        const listRes = await fetch(`${baseUrl}/cultivares_catalog`);
+        if (listRes.ok) {
+          const listJson = await listRes.json().catch(() => ({ items: [] }));
+          const items = (listJson?.items || []) as any[];
+          const exists = items.some((it) => {
+            const ci = String(it.cultivar || "").toUpperCase().trim();
+            const cu = (it.cultura == null ? null : String(it.cultura).toUpperCase().trim());
+            return ci === item.cultivar && cu === item.cultura;
+          });
+          if (exists) {
+            toast.error("Essa combinação de cultivar e cultura já existe no catálogo");
+            setSavingNew(false);
+            return;
+          }
+        }
+      } catch {}
+      const res = await fetch(`${baseUrl}/cultivares_catalog/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: [item], limparAntes: false, user_id: profile?.id, arquivo_nome: null }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      toast.success("Cultivar cadastrada com sucesso");
+      setOpenNew(false);
+      setNewCultivar("");
+      setNewCultura("");
+      setNewNomeCientifico("");
+      await fetchCounts();
+    } catch (e: any) {
+      toast.error(e?.message || String(e));
+    } finally {
+      setSavingNew(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Importar Cultivares</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Importar Cultivares</CardTitle>
+          <Button onClick={() => setOpenNew(true)}>
+            Nova Cultivar
+          </Button>
+        </div>
         <CardDescription>
           Faça upload de uma planilha Excel (.xlsx ou .xls) com as colunas: CULTIVAR, CULTURA, NOME_CIENTIFICO (opcional)
         </CardDescription>
@@ -313,6 +387,35 @@ export const ImportCultivares = () => {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={openNew} onOpenChange={setOpenNew}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cadastrar nova cultivar</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Cultivar *</Label>
+              <Input value={newCultivar} onChange={(e) => setNewCultivar(e.target.value)} placeholder="Ex: 5950 PRO"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Cultura</Label>
+              <Input value={newCultura} onChange={(e) => setNewCultura(e.target.value)} placeholder="Ex: MILHO"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome científico (opcional)</Label>
+              <Input value={newNomeCientifico} onChange={(e) => setNewNomeCientifico(e.target.value)} placeholder="Ex: Zea mays"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setOpenNew(false)} disabled={savingNew}>Cancelar</Button>
+              <Button onClick={handleCreateNew} disabled={savingNew}>{savingNew ? "Salvando..." : "Salvar"}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showSummary} onOpenChange={setShowSummary}>
         <AlertDialogContent>

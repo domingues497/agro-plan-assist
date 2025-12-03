@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2, Plus, Pencil } from "lucide-react";
+import { Trash2, Plus, Pencil, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { useTalhoes } from "@/hooks/useTalhoes";
@@ -28,8 +28,10 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
   const queryClient = useQueryClient();
   const mapRef = useRef<HTMLDivElement | null>(null);
   const leafletReadyRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [geoPreview, setGeoPreview] = useState<any | null>(null);
   const [pendingKml, setPendingKml] = useState<any | null>(null);
+  const [selectedKmlName, setSelectedKmlName] = useState<string | null>(null);
 
   const handleSalvar = async () => {
     if (!editando) return;
@@ -166,6 +168,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
   }, [editando?.id]);
 
   const handleUploadKml = async (file: File) => {
+    setSelectedKmlName(file.name || null);
     if (!file.name.toLowerCase().endsWith(".kml")) {
       toast.error("Formato inválido: selecione um arquivo .kml");
       return;
@@ -288,6 +291,9 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              nome: editando.nome,
+              area: parseFloat(editando.area || "0") || undefined,
+              arrendado: editando.arrendado,
               kml_name: file.name,
               kml_text: text,
               geojson: parsed.geojson,
@@ -305,7 +311,34 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
           }
           toast.success("KML processado e salvo (fallback)");
         } else {
-          toast.success("KML importado");
+          const js = await res.json().catch(() => ({} as any));
+          if (!js?.has_kml) {
+            const putRes = await fetch(`${baseUrl}/talhoes/${editando.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                nome: editando.nome,
+                area: parseFloat(editando.area || "0") || undefined,
+                arrendado: editando.arrendado,
+                kml_name: file.name,
+                kml_text: text,
+                geojson: parsed.geojson,
+                centroid_lat: parsed.centroid_lat,
+                centroid_lng: parsed.centroid_lng,
+                bbox_min_lat: parsed.min_lat,
+                bbox_min_lng: parsed.min_lng,
+                bbox_max_lat: parsed.max_lat,
+                bbox_max_lng: parsed.max_lng,
+              }),
+            });
+            if (!putRes.ok) {
+              const txt = await putRes.text();
+              throw new Error(txt || "Falha ao salvar geometria (PUT)");
+            }
+            toast.success("KML salvo (verificação)");
+          } else {
+            toast.success("KML importado");
+          }
         }
         await refetch();
       } else {
@@ -436,26 +469,28 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleSalvar} size="sm">
-                    Salvar
-                  </Button>
-                  <Button onClick={() => { setEditando(null); setPendingKml(null); }} variant="outline" size="sm">
-                    Cancelar
-                  </Button>
-                </div>
                 {editando && (
                   <div className="mt-4 space-y-2">
                     <Label>Importar KML da área</Label>
-                    <input
-                      type="file"
-                      accept=".kml,application/vnd.google-earth.kml+xml"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handleUploadKml(f);
-                        e.currentTarget.value = "";
-                      }}
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".kml,application/vnd.google-earth.kml+xml"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleUploadKml(f);
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                      <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="h-4 w-4 mr-2" /> Selecionar arquivo KML
+                      </Button>
+                      {selectedKmlName && (
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded">{selectedKmlName}</span>
+                      )}
+                    </div>
                     {(() => {
                       const t = editando?.id ? talhoes.find((tt) => tt.id === editando.id) : null;
                       const hasKml = !!(t as any)?.kml_name;
@@ -479,66 +514,72 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
                       <div className="text-sm text-muted-foreground">Preview do mapa</div>
                       <div ref={mapRef} style={{ height: 280 }} className="rounded border overflow-hidden" />
                     </div>
+                    <div className="mt-3 flex justify-end gap-2">
+                      <Button onClick={handleSalvar} size="sm">
+                        Salvar
+                      </Button>
+                      <Button onClick={() => { setEditando(null); setPendingKml(null); }} variant="outline" size="sm">
+                        Cancelar
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
             </Card>
           )}
 
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-            {talhoes.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhum talhão cadastrado
-              </p>
-            ) : (
-              talhoes.map((talhao) => (
-                <Card key={talhao.id} className="p-3 flex items-center justify-between">
-                  <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{talhao.nome}</p>
-                    {talhao.arrendado && (
-                      <span className="text-xs bg-muted px-2 py-0.5 rounded">Arrendado</span>
-                    )}
-                    {(talhao as any).tem_programacao_safra && (
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Com Programação nesta safra</span>
-                    )}
-                    {((talhao as any).safras_todas || ((talhao as any).allowed_safras || []).length === 0) ? (
-                      <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: Todas</span>
-                    ) : (
-                      <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: {((talhao as any).allowed_safras || []).length}</span>
-                    )}
+          {!editando && (
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {talhoes.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhum talhão cadastrado
+                </p>
+              ) : (
+                talhoes.map((talhao) => (
+                  <Card key={talhao.id} className="p-3 flex items-center justify-between">
+                    <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{talhao.nome}</p>
+                      {talhao.arrendado && (
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded">Arrendado</span>
+                      )}
+                      {(talhao as any).tem_programacao_safra && (
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Com Programação nesta safra</span>
+                      )}
+                      {((talhao as any).safras_todas || ((talhao as any).allowed_safras || []).length === 0) ? (
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: Todas</span>
+                      ) : (
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: {((talhao as any).allowed_safras || []).length}</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{Number(talhao.area).toFixed(2)} ha</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">{Number(talhao.area).toFixed(2)} ha</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString(), arrendado: talhao.arrendado, safras_todas: Boolean((talhao as any).safras_todas), safras_sel: [ ...(((talhao as any).allowed_safras || []) as string[]) ] })}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleExcluir(talhao.id)}
-                    disabled={(talhao as any).tem_programacao}
-                    title={(talhao as any).tem_programacao ? "Talhão com programação não pode ser excluído" : undefined}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-              ))
-            )}
-          </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString(), arrendado: talhao.arrendado, safras_todas: Boolean((talhao as any).safras_todas), safras_sel: [ ...(((talhao as any).allowed_safras || []) as string[]) ] })}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleExcluir(talhao.id)}
+                      disabled={(talhao as any).tem_programacao}
+                      title={(talhao as any).tem_programacao ? "Talhão com programação não pode ser excluído" : undefined}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </Card>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fechar
-          </Button>
-        </DialogFooter>
+        
       </DialogContent>
     </Dialog>
   );
