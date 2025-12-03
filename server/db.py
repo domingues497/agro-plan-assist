@@ -363,27 +363,33 @@ def ensure_talhoes_schema():
                     );
                     """
                 )
-                try:
-                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS safras_todas BOOLEAN NOT NULL DEFAULT true")
-                except Exception:
-                    pass
-                # Columns for KML/GeoJSON storage
-                for ddl in [
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS kml_name TEXT",
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS kml_uploaded_at TIMESTAMPTZ",
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS kml_text TEXT",
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS geojson TEXT",
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS centroid_lat NUMERIC",
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS centroid_lng NUMERIC",
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS bbox_min_lat NUMERIC",
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS bbox_min_lng NUMERIC",
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS bbox_max_lat NUMERIC",
-                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS bbox_max_lng NUMERIC",
-                ]:
-                    try:
-                        cur.execute(ddl)
-                    except Exception:
-                        pass
+                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'talhoes'")
+                cols = {r[0] for r in cur.fetchall()}
+                if "safras_todas" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN safras_todas BOOLEAN")
+                    cur.execute("UPDATE public.talhoes SET safras_todas = true WHERE safras_todas IS NULL")
+                    cur.execute("ALTER TABLE public.talhoes ALTER COLUMN safras_todas SET DEFAULT true")
+                    cur.execute("ALTER TABLE public.talhoes ALTER COLUMN safras_todas SET NOT NULL")
+                if "kml_name" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN kml_name TEXT")
+                if "kml_uploaded_at" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN kml_uploaded_at TIMESTAMPTZ")
+                if "kml_text" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN kml_text TEXT")
+                if "geojson" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN geojson TEXT")
+                if "centroid_lat" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN centroid_lat NUMERIC")
+                if "centroid_lng" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN centroid_lng NUMERIC")
+                if "bbox_min_lat" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN bbox_min_lat NUMERIC")
+                if "bbox_min_lng" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN bbox_min_lng NUMERIC")
+                if "bbox_max_lat" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN bbox_max_lat NUMERIC")
+                if "bbox_max_lng" not in cols:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN bbox_max_lng NUMERIC")
                 cur.execute(
                     """
                     CREATE TABLE IF NOT EXISTS public.talhao_safras (
