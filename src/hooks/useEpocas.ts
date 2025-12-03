@@ -14,9 +14,8 @@ export const useEpocas = () => {
   return useQuery({
     queryKey: ["epocas"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/epocas?ativas=true`);
       if (!res.ok) {
         const txt = await res.text();

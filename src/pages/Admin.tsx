@@ -35,6 +35,7 @@ import { ImportEpocas } from "@/components/admin/ImportEpocas";
 import { ListEpocas } from "@/components/admin/ListEpocas";
 import { GerenciarGestores } from "@/components/admin/GerenciarGestores";
 import { SystemConfig } from "@/components/admin/SystemConfig";
+import { EmbalagensConfig } from "@/components/admin/EmbalagensConfig";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -194,6 +195,14 @@ export default function Admin() {
               {openGroups.gerais && (
                 <div className="mt-1 ml-3 space-y-1">
                   <Button
+                    variant={selected === "embalagens" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("embalagens")}
+                  >
+                    Embalagens
+                  </Button>
+                  <Button
                     variant={selected === "config" ? "secondary" : "ghost"}
                     className="w-full justify-start"
                     size="sm"
@@ -340,6 +349,7 @@ export default function Admin() {
             </>
           )}
           {selected === "usuarios" && <ListUsuarios />}
+          {selected === "embalagens" && <EmbalagensConfig />}
           {selected === "config" && <SystemConfig />}
           {selected === "gestores" && <GerenciarGestores />}
           {selected === "replicar" && <ReplicarSafras />}

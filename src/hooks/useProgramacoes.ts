@@ -17,7 +17,7 @@ export interface ItemCultivar {
   cultivar: string;
   cultura?: string;
   percentual_cobertura: number;
-  tipo_embalagem: "BAG 5000K" | "SACAS 200K";
+  tipo_embalagem: string;
   tipo_tratamento: "NÃO" | "NA FAZENDA" | "INDUSTRIAL";
   tratamento_id?: string;
   // Suporte a múltiplos tratamentos selecionados na UI; persistimos o primeiro
@@ -74,9 +74,8 @@ export const useProgramacoes = () => {
   const { data: programacoes, isLoading } = useQuery({
     queryKey: ['programacoes-list'],
     queryFn: async (): Promise<Programacao[]> => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/programacoes`, {
         credentials: "omit",
@@ -90,9 +89,8 @@ export const useProgramacoes = () => {
 
   const createMutation = useMutation({
     mutationFn: async (newProgramacao: CreateProgramacao) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
 
       const totalCultivares = newProgramacao.cultivares.reduce(
         (sum, item) => sum + item.percentual_cobertura, 0
@@ -157,9 +155,8 @@ export const useProgramacoes = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/programacoes/${id}`, { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
@@ -201,9 +198,8 @@ Talhões: ${nomes}.`
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: { id: string } & CreateProgramacao) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const totalCultivares = data.cultivares.reduce((sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0);
       if (Math.abs(totalCultivares - 100) > 0.1) {
         throw new Error("O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)");
@@ -257,9 +253,8 @@ Talhões: ${nomes}.`
 
   const replicateMutation = useMutation({
     mutationFn: async ({ id, produtor_numerocm, fazenda_idfazenda, area_hectares, area_name }: { id: string; produtor_numerocm: string; fazenda_idfazenda: string; area_hectares: number; area_name?: string }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       if (!area_hectares || Number(area_hectares) <= 0) {
         throw new Error("A fazenda selecionada não possui área preenchida");
       }

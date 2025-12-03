@@ -20,6 +20,7 @@ import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useTalhoes } from "@/hooks/useTalhoes";
 import { useEpocas } from "@/hooks/useEpocas";
+import { useSystemConfig } from "@/hooks/useSystemConfig";
 import { Plus, Trash2, Settings } from "lucide-react";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 import { Badge } from "@/components/ui/badge";
@@ -58,13 +59,14 @@ type CultivarRowProps = {
   // cultivaresDistinct mantido por compatibilidade, mas filtragem passa a usar o catálogo completo
   cultivaresDistinct: Array<{ cultivar: string | null }>;
   cultivaresCatalog: Array<{ cultivar: string | null; cultura: string | null; nome_cientifico: string | null }>;
+  embalagensCultivar: Array<{ id: string; nome: string; cultura?: string | null }>;
   canRemove: boolean;
   areaHectares: number;
   onChange: (index: number, field: keyof ItemCultivar, value: any) => void;
   onRemove: (index: number) => void;
 };
 
-function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRemove, areaHectares, onChange, onRemove }: CultivarRowProps) {
+function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embalagensCultivar, canRemove, areaHectares, onChange, onRemove }: CultivarRowProps) {
   const { toast } = useToast();
   const [culturaSelecionada, setCulturaSelecionada] = useState<string>(item.cultura || "");
   
@@ -206,7 +208,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
   return (
     <div className="space-y-3 p-3 md:p-4 border rounded-lg">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-        <div className="space-y-2">
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1 sm:col-span-1">
           <Label>Cultura</Label>
           <Select 
             value={culturaSelecionada} 
@@ -230,7 +232,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
           </Select>
         </div>
         
-        <div className="space-y-2 sm:col-span-2 lg:col-span-2 xl:col-span-2">
+        <div className="space-y-2 sm:col-span-2 lg:col-span-1 xl:col-span-1">
           <Label>Cultivar</Label>
           <Select 
             value={item.cultivar} 
@@ -250,24 +252,34 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Tipo Embalagem</Label>
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>Embalagem</Label>
           <div className="flex gap-2">
             <Select value={item.tipo_embalagem} onValueChange={(value) => onChange(index, "tipo_embalagem", value)}>
               <SelectTrigger className="flex-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="BAG 5000K">BAG 5000K</SelectItem>
-                <SelectItem value="SACAS 200K">SACAS 200K</SelectItem>
+                {item.tipo_embalagem && !(embalagensCultivar || []).some((e) => e.nome === item.tipo_embalagem) && (
+                  <SelectItem value={item.tipo_embalagem}>{item.tipo_embalagem}</SelectItem>
+                )}
+                {(embalagensCultivar || [])
+                  .filter((e) => {
+                    const ec = String(e?.cultura || "").trim();
+                    const cc = String(culturaSelecionada || "").trim();
+                    return !ec || (cc && ec === cc);
+                  })
+                  .map((e) => (
+                    <SelectItem key={e.id} value={e.nome}>{e.nome}</SelectItem>
+                  ))}
               </SelectContent>
             </Select>
 
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>Tipo Tratamento</Label>
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>Tratamento</Label>
           <Select
             value={item.tipo_tratamento}
             onValueChange={(value) => {
@@ -291,7 +303,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
           </Select>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
           <Label>Data provável de plantio</Label>
           <Input
             type="date"
@@ -300,7 +312,18 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
           />
         </div>
 
-        <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>Sementes por M2</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={item.populacao_recomendada ?? ""}
+            onChange={(e) => onChange(index, "populacao_recomendada", parseFloat(e.target.value) || 0)}
+            placeholder="Ex: 28.5"
+          />
+        </div>
+
+        <div className="space-y-2 sm:col-span-2 lg:col-span-1 xl:col-span-1">
           <Label>% Cobertura</Label>
           <div className="flex gap-2">
             <Input
@@ -538,6 +561,17 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const { safras = [], defaultSafra } = useSafras();
   const { data: justificativas = [] } = useJustificativasAdubacao();
   const { data: epocas = [] } = useEpocas();
+  const { data: systemConfig = [] } = useSystemConfig();
+
+  const embalagensRaw = (systemConfig || []).find((c) => c.config_key === "embalagens_catalog")?.config_value || "[]";
+  const embalagens = useMemo(() => {
+    try {
+      const parsed = JSON.parse(embalagensRaw || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }, [embalagensRaw]);
+  const embalagensCultivar = useMemo(() => (embalagens || []).filter((e: any) => (e?.ativo ?? true) && Array.isArray(e?.scopes) && e.scopes.includes("CULTIVAR")), [embalagens]);
+  const embalagensFertilizantes = useMemo(() => (embalagens || []).filter((e: any) => (e?.ativo ?? true) && Array.isArray(e?.scopes) && e.scopes.includes("FERTILIZANTE")), [embalagens]);
 
   // Normaliza valores vindos do banco para o enum do select
   const normalizeTipoTratamento = (s?: string): ItemCultivar["tipo_tratamento"] => {
@@ -589,7 +623,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           cultivar: "",
           percentual_cobertura: 0,
           tipo_embalagem: "BAG 5000K" as const,
-          tipo_tratamento: "NÃO" as const
+          tipo_tratamento: "NÃO" as const,
+          populacao_recomendada: 0
         }]
   );
 
@@ -640,13 +675,17 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => {
       const tipo = normalizeTipoTratamento((c as any).tipo_tratamento);
       const base: ItemCultivar & { uiId: string } = { ...(c as ItemCultivar), tipo_tratamento: tipo, uiId: makeUiId() };
+      base.data_plantio = normalizeDateInput((c as any).data_plantio);
       if (tipo === "NÃO") {
         (base as any).tratamento_ids = [];
         (base as any).tratamento_id = undefined;
       }
       return base;
     }));
-    if (Array.isArray(initialData.adubacao)) setItensAdubacao(initialData.adubacao as ItemAdubacao[]);
+    if (Array.isArray(initialData.adubacao)) setItensAdubacao((initialData.adubacao as ItemAdubacao[]).map((a: any) => ({
+      ...a,
+      data_aplicacao: normalizeDateInput(a?.data_aplicacao)
+    })));
     // Detecta caso de "não fazer adubação" quando há apenas justificativa sem formulação
     if (Array.isArray(initialData.adubacao)) {
       const temFormulacao = initialData.adubacao.some((a) => !!(a as ItemAdubacao).formulacao);
@@ -1059,6 +1098,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 index={index}
                 cultivaresDistinct={cultivaresDistinct}
                 cultivaresCatalog={cultivares}
+                embalagensCultivar={embalagensCultivar}
           canRemove={itensCultivar.length > 1}
           areaHectares={Number(areaHectares) || 0}
           onChange={handleCultivarChange}
@@ -1184,8 +1224,12 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Big Bag">Big Bag</SelectItem>
-                        <SelectItem value="Saca">Saca</SelectItem>
+                        {item.embalagem && !(embalagensFertilizantes || []).some((e: any) => e.nome === item.embalagem) && (
+                          <SelectItem value={item.embalagem}>{item.embalagem}</SelectItem>
+                        )}
+                        {(embalagensFertilizantes || []).map((e: any) => (
+                          <SelectItem key={e.id} value={e.nome}>{e.nome}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1266,3 +1310,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     </Card>
   );
 };
+  const normalizeDateInput = (s?: string | null) => {
+    if (!s) return "";
+    const t = String(s);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+    const m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    const d = new Date(t);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    return "";
+  };

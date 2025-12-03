@@ -20,10 +20,9 @@ export const useSafras = () => {
   const { data: safras, isLoading, error } = useQuery({
     queryKey: ["safras"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
-      const res = await fetch(`${baseUrl}/safras`);
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/safras`, { credentials: "omit" });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
@@ -35,11 +34,11 @@ export const useSafras = () => {
 
   const createMutation = useMutation({
     mutationFn: async (safra: CreateSafra) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/safras`, {
         method: "POST",
+        credentials: "omit",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(safra),
       });
@@ -61,11 +60,11 @@ export const useSafras = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Safra> & { id: string }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/safras/${encodeURIComponent(id)}`, {
         method: "PUT",
+        credentials: "omit",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
       });
@@ -87,10 +86,9 @@ export const useSafras = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
-      const res = await fetch(`${baseUrl}/safras/${encodeURIComponent(id)}`, { method: "DELETE" });
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/safras/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "omit" });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
