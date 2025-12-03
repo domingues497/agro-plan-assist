@@ -16,6 +16,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { useFazendas } from "@/hooks/useFazendas";
+import { useProfile } from "@/hooks/useProfile";
+import { useAdminRole } from "@/hooks/useAdminRole";
+import { useConsultores } from "@/hooks/useConsultores";
 import { toast } from "sonner";
 import {
   Accordion,
@@ -43,6 +46,13 @@ const Defensivos = () => {
   const [openReplicateFazendaPopover, setOpenReplicateFazendaPopover] = useState(false);
   const [selectedAreaPairs, setSelectedAreaPairs] = useState<Array<{ produtor_numerocm: string; area: string }>>([]);
   const { data: fazendas = [] } = useFazendas(replicateProdutorNumerocm);
+  const { profile } = useProfile();
+  const { data: adminRole } = useAdminRole();
+  const { data: consultores = [] } = useConsultores();
+  const isAdmin = !!adminRole?.isAdmin;
+  const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
+  const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
+  const canEditDefensivos = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
 
   const produtoresComCultivar = useMemo(() => {
     const set = new Set<string>();
@@ -182,6 +192,7 @@ const Defensivos = () => {
               area: editing.area,
               defensivos: editing.defensivos,
             }}
+            readOnly={isConsultor && !canEditDefensivos}
             onSubmit={(data) => {
               update({ id: editing.id, ...data });
               setEditing(null);
@@ -209,11 +220,26 @@ const Defensivos = () => {
                           <Shield className="h-5 w-5 text-primary" />
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg">{aplicacao.produtor_numerocm} - {produtores.find(p => p.numerocm === aplicacao.produtor_numerocm)?.nome || ""} </h3>
-                            {aplicacao.produtor_numerocm && (
-                              <p className="text-sm text-muted-foreground">
-                                 {aplicacao.area}
-                              </p>
-                            )}
+                            {(() => {
+                              const defs = (aplicacao.defensivos || []) as any[];
+                              const safraId = (() => {
+                                const d = defs.find((it: any) => it && it.safra_id);
+                                return String(d?.safra_id || "").trim();
+                              })();
+                              const progMatch = (programacoes || []).find((p: any) => {
+                                const sameProd = String(p.produtor_numerocm) === String(aplicacao.produtor_numerocm);
+                                const sameArea = String(p.area) === String(aplicacao.area);
+                                const safraOk = safraId ? String(p.safra_id || "") === safraId : true;
+                                return sameProd && sameArea && safraOk;
+                              });
+                              const areaHa = Number(progMatch?.area_hectares || 0);
+                              return (
+                                <p className="text-sm text-muted-foreground">
+                                  {aplicacao.area}
+                                  {areaHa > 0 ? ` (${areaHa.toFixed(2)} ha)` : ""}
+                                </p>
+                              );
+                            })()}
                             <p className="text-xs text-muted-foreground">
                               {aplicacao.defensivos.length} defensivo(s) programado(s)
                             </p>
@@ -255,6 +281,61 @@ const Defensivos = () => {
                         <span className="text-sm font-medium">Ver defensivos aplicados</span>
                       </AccordionTrigger>
                       <AccordionContent className="px-6 pb-6">
+                        {(() => {
+                          const defs = aplicacao.defensivos || [];
+                          const calcTotal = (d: any) => {
+                            const dose = Number(d?.dose || 0);
+                            const area = Number(d?.area_hectares || 0);
+                            const cobertura = Math.min(100, Math.max(0, Number(d?.porcentagem_salva ?? 100))) / 100;
+                            const t = typeof d?.total === "number" ? Number(d.total) : dose * area * cobertura;
+                            return isNaN(t) ? 0 : t;
+                          };
+                          const classeMap = new Map<string, { count: number; total: number }>();
+                          const aplicMap = new Map<string, { count: number; total: number }>();
+                          for (const d of defs) {
+                            const total = calcTotal(d);
+                            const cls = String(d?.classe || "").trim() || "Sem classe";
+                            const ap = String(d?.alvo || "").trim() || "Sem aplicação";
+                            const c = classeMap.get(cls) || { count: 0, total: 0 };
+                            c.count += 1;
+                            c.total += total;
+                            classeMap.set(cls, c);
+                            const a = aplicMap.get(ap) || { count: 0, total: 0 };
+                            a.count += 1;
+                            a.total += total;
+                            aplicMap.set(ap, a);
+                          }
+                          const classeArr = Array.from(classeMap.entries()).map(([nome, info]) => ({ nome, ...info })).sort((x, y) => x.nome.localeCompare(y.nome));
+                          const aplicArr = Array.from(aplicMap.entries()).map(([nome, info]) => ({ nome, ...info })).sort((x, y) => x.nome.localeCompare(y.nome));
+                          return (
+                            <div className="grid gap-3 mb-3 md:grid-cols-2">
+                              <Card className="p-4 bg-muted/50">
+                                <h4 className="text-sm font-semibold mb-2">Resumo por classe</h4>
+                                <div className="space-y-1">
+                                  {classeArr.map((r) => (
+                                    <div key={r.nome} className="flex items-center justify-between text-sm">
+                                      <span className="text-muted-foreground">{r.nome}</span>
+                                      <span className="font-semibold">{r.count} • {r.total.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                  {classeArr.length === 0 && (<p className="text-sm text-muted-foreground">Sem dados</p>)}
+                                </div>
+                              </Card>
+                              <Card className="p-4 bg-muted/50">
+                                <h4 className="text-sm font-semibold mb-2">Resumo por aplicação</h4>
+                                <div className="space-y-1">
+                                  {aplicArr.map((r) => (
+                                    <div key={r.nome} className="flex items-center justify-between text-sm">
+                                      <span className="text-muted-foreground">{r.nome}</span>
+                                      <span className="font-semibold">{r.count} • {r.total.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                  {aplicArr.length === 0 && (<p className="text-sm text-muted-foreground">Sem dados</p>)}
+                                </div>
+                              </Card>
+                            </div>
+                          );
+                        })()}
                         <div className="grid gap-3 pt-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                           {aplicacao.defensivos.map((def, idx) => (
                             <div key={def.id || idx} className="bg-muted/50 p-4 rounded-md">
@@ -264,21 +345,25 @@ const Defensivos = () => {
                                   <Badge variant="secondary" className="text-xs">Produto Salvo</Badge>
                                 )}
                               </div>
-                              <div className="grid gap-5 text-sm">
-                                <p>
-                                  <span className="text-muted-foreground">Dose:</span>{" "}
-                                  {def.dose} {def.unidade}
+                              <div className="text-sm">
+                                <p className="truncate">
+                                  <span className="text-muted-foreground">Dose:</span> {def.dose} {def.unidade}
+                                  {def.alvo ? (
+                                    <>
+                                      {" "}• <span className="text-muted-foreground">Alvo:</span> {def.alvo}
+                                    </>
+                                  ) : null}
+                                  {def.produto_salvo && def.porcentagem_salva > 0 ? (
+                                    <>
+                                      {" "}• <span className="text-muted-foreground">% Salva:</span> {def.porcentagem_salva}%
+                                    </>
+                                  ) : null}
+                                  {" "}• <span className="text-muted-foreground">Total:</span> {(
+                                    typeof def.total === "number"
+                                      ? Number(def.total)
+                                      : (Number(def.dose || 0) * Number(def.area_hectares || 0) * (Math.min(100, Math.max(0, Number(def.porcentagem_salva ?? 100))) / 100))
+                                  ).toFixed(2)}
                                 </p>
-                                {def.alvo && (
-                                  <p>
-                                    <span className="text-muted-foreground">Alvo:</span> {def.alvo}
-                                  </p>
-                                )}
-                                {def.produto_salvo && def.porcentagem_salva > 0 && (
-                                  <p>
-                                    <span className="text-muted-foreground">% Salva:</span> {def.porcentagem_salva}%
-                                  </p>
-                                )}
                               </div>
                             </div>
                           ))}

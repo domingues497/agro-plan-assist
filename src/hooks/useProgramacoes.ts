@@ -77,7 +77,11 @@ export const useProgramacoes = () => {
       const envUrl = (import.meta as any).env?.VITE_API_URL;
       const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const baseUrl = envUrl || `http://${host}:5000`;
-      const res = await fetch(`${baseUrl}/programacoes`, { credentials: "omit" });
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/programacoes`, {
+        credentials: "omit",
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (!res.ok) throw new Error(`Erro ao carregar programações: ${res.status}`);
       const json = await res.json();
       return (json?.items ?? []) as Programacao[];
@@ -102,9 +106,10 @@ export const useProgramacoes = () => {
         user_id: undefined,
         ...newProgramacao,
       } as any;
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/programacoes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -155,7 +160,8 @@ export const useProgramacoes = () => {
       const envUrl = (import.meta as any).env?.VITE_API_URL;
       const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const baseUrl = envUrl || `http://${host}:5000`;
-      const res = await fetch(`${baseUrl}/programacoes/${id}`, { method: "DELETE" });
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/programacoes/${id}`, { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
@@ -202,9 +208,10 @@ Talhões: ${nomes}.`
       if (Math.abs(totalCultivares - 100) > 0.1) {
         throw new Error("O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)");
       }
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/programacoes/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(data as any)
       });
       if (!res.ok) {
@@ -258,7 +265,8 @@ Talhões: ${nomes}.`
       }
       const original = (programacoes || []).find(p => p.id === id);
       if (!original) throw new Error("Programação não encontrada");
-      const childrenRes = await fetch(`${baseUrl}/programacoes/${id}/children`);
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const childrenRes = await fetch(`${baseUrl}/programacoes/${id}/children`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!childrenRes.ok) throw new Error(`Erro ao carregar filhos: ${childrenRes.status}`);
       const children = await childrenRes.json();
       const tratamentos: Record<string, string[]> = children?.tratamentos || {};
@@ -316,7 +324,7 @@ Talhões: ${nomes}.`
       };
       const res = await fetch(`${baseUrl}/programacoes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(payload as any)
       });
       if (!res.ok) {

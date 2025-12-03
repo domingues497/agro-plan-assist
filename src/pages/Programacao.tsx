@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, Trash2, Pencil, Copy, Check, ChevronsUpDown, Settings } from "lucide-react";
 import { useProgramacoes } from "@/hooks/useProgramacoes";
+import { useProfile } from "@/hooks/useProfile";
+import { useAdminRole } from "@/hooks/useAdminRole";
+import { useConsultores } from "@/hooks/useConsultores";
 import { FormProgramacao } from "@/components/programacao/FormProgramacao";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useProdutores } from "@/hooks/useProdutores";
@@ -19,6 +22,7 @@ import { cn, safeRandomUUID } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
+import { useSafras } from "@/hooks/useSafras";
 
 export default function Programacao() {
   const [showForm, setShowForm] = useState(false);
@@ -32,6 +36,14 @@ export default function Programacao() {
   const { programacoes: adubacaoList = [] } = useProgramacaoAdubacao();
   const { data: cultivaresCatalog = [] } = useCultivaresCatalog();
   const { aplicacoes: aplicacoesDef = [] } = useAplicacoesDefensivos();
+  const { profile } = useProfile();
+  const { data: adminRole } = useAdminRole();
+  const { data: consultores = [] } = useConsultores();
+  const isAdmin = !!adminRole?.isAdmin;
+  const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
+  const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
+  const canEditProgramacao = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
+  const { defaultSafra } = useSafras();
 
   const areasSafrasComDefensivo = useMemo(() => {
     const set = new Set<string>();
@@ -176,6 +188,7 @@ export default function Programacao() {
           <FormProgramacao
             title="Editar Programação"
             submitLabel={isUpdating ? "Salvando..." : "Salvar alterações"}
+            readOnly={isConsultor && !canEditProgramacao}
             initialData={{
               produtor_numerocm: editing.produtor_numerocm,
               fazenda_idfazenda: editing.fazenda_idfazenda,
@@ -258,7 +271,13 @@ export default function Programacao() {
                           </h3>
                           <p className="flex items-center gap-2">
                             <span className="font-medium">Fazenda:</span>
-                            <span>{fazenda?.nomefazenda || "—"}</span>
+                            <span>
+                              {fazenda?.nomefazenda || "—"}
+                              {(() => {
+                                const ha = Number(prog.area_hectares || fazenda?.area_cultivavel || 0);
+                                return ha > 0 ? ` (${ha.toFixed(2)} ha)` : "";
+                              })()}
+                            </span>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -568,6 +587,7 @@ export default function Programacao() {
       <GerenciarTalhoes
         fazendaId={fazendaParaTalhoes.id}
         fazendaNome={fazendaParaTalhoes.nome}
+        safraId={defaultSafra?.id}
         open={gerenciarTalhoesOpen}
         onOpenChange={setGerenciarTalhoesOpen}
       />

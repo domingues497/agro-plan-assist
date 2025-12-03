@@ -35,6 +35,7 @@ interface FormProgramacaoProps {
   title?: string;
   submitLabel?: string;
   initialData?: Partial<CreateProgramacao>;
+  readOnly?: boolean;
 }
 
 // Tipo para defensivo dentro da cultivar
@@ -522,7 +523,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, canRe
   );
 }
 
-export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initialData }: FormProgramacaoProps) => {
+export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initialData, readOnly = false }: FormProgramacaoProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile } = useProfile();
@@ -530,7 +531,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const isAdmin = !!adminRole?.isAdmin;
   const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
   const { data: produtores = [] } = useProdutores();
-  const { data: fazendas = [] } = useFazendas();
+  const [safraId, setSafraId] = useState(initialData?.safra_id || "");
+  const { data: fazendas = [] } = useFazendas(undefined, safraId);
   const { data: cultivares = [] } = useCultivaresCatalog();
   const { data: fertilizantes = [] } = useFertilizantesCatalog();
   const { safras = [], defaultSafra } = useSafras();
@@ -573,7 +575,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const [fazendaIdfazenda, setFazendaIdfazenda] = useState(initialData?.fazenda_idfazenda || "");
   const [area, setArea] = useState(initialData?.area || "");
   const [areaHectares, setAreaHectares] = useState(String(initialData?.area_hectares || ""));
-  const [safraId, setSafraId] = useState(initialData?.safra_id || "");
   const [epocaId, setEpocaId] = useState((initialData as any)?.epoca_id || "");
   const [talhaoIds, setTalhaoIds] = useState<string[]>([]);
   const [naoFazerAdubacao, setNaoFazerAdubacao] = useState(false);
@@ -606,7 +607,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   
   // Busca os talhões da fazenda selecionada
   const fazendaSelecionadaId = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda)?.id;
-  const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaId);
+  const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaId, safraId);
 
   // Seleciona automaticamente a safra padrão, se disponível
   useEffect(() => {
@@ -701,6 +702,12 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     setTalhaoIds([]);
     setAreaHectares("");
   }, [fazendaIdfazenda, fazendaFiltrada]);
+
+  useEffect(() => {
+    if (isLoadingInitialData.current) return;
+    setTalhaoIds([]);
+    setAreaHectares("");
+  }, [safraId]);
 
   // Calcula automaticamente a área total dos talhões selecionados
   useEffect(() => {
@@ -893,8 +900,14 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
         {title && (
           <h2 className="text-xl sm:text-2xl font-bold mb-2">{title}</h2>
         )}
+        {readOnly && (
+          <div className="p-3 rounded-md bg-muted text-muted-foreground text-sm">
+            Edição bloqueada para consultores. Solicite liberação ao administrador.
+          </div>
+        )}
+        <fieldset disabled={readOnly} className={readOnly ? "opacity-60" : ""}>
         
-        {/* Seção Produtor/Fazenda/Safra */}
+        {/* Seção Produtor/Safra/Fazenda */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Produtor</Label>
@@ -906,6 +919,22 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 {produtores.map((p) => (
                   <SelectItem key={p.numerocm} value={p.numerocm}>
                     {p.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Safra</Label>
+            <Select value={safraId} onValueChange={setSafraId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a safra" />
+              </SelectTrigger>
+              <SelectContent>
+                {(safras || []).filter((s) => s.ativa).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.nome}{s.is_default ? " (Padrão)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -928,7 +957,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 </Button>
               )}
             </div>
-            <Select value={fazendaIdfazenda} onValueChange={setFazendaIdfazenda} disabled={!produtorNumerocm}>
+            <Select value={fazendaIdfazenda} onValueChange={setFazendaIdfazenda} disabled={!produtorNumerocm || !safraId}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a fazenda" />
               </SelectTrigger>
@@ -994,21 +1023,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Safra</Label>
-            <Select value={safraId} onValueChange={setSafraId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a safra" />
-              </SelectTrigger>
-              <SelectContent>
-                {(safras || []).filter((s) => s.ativa).map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.nome}{s.is_default ? " (Padrão)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="space-y-2">
             <Label>Época</Label>
@@ -1227,12 +1241,14 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
         </div>
 
+        </fieldset>
+
         {/* Botões de ação */}
         <div className="flex flex-col sm:flex-row gap-3 pt-6">
           <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
             Cancelar
           </Button>
-          <Button type="submit" className="w-full sm:w-auto">
+          <Button type="submit" className="w-full sm:w-auto" disabled={readOnly}>
             {submitLabel || "Salvar Programação"}
           </Button>
         </div>
@@ -1242,6 +1258,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
         <GerenciarTalhoes
           fazendaId={fazendaSelecionadaId}
           fazendaNome={fazendaFiltrada.find(f => f.id === fazendaSelecionadaId)?.nomefazenda || ""}
+          safraId={safraId}
           open={gerenciarTalhoesOpen}
           onOpenChange={setGerenciarTalhoesOpen}
         />

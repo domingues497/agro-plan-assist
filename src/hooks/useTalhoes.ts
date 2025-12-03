@@ -6,14 +6,25 @@ export type Talhao = {
   nome: string;
   area: number;
   arrendado: boolean;
+  safras_todas?: boolean;
+  allowed_safras?: string[];
+  kml_name?: string | null;
+  kml_uploaded_at?: string | null;
+  geojson?: any;
+  centroid_lat?: number | null;
+  centroid_lng?: number | null;
+  bbox_min_lat?: number | null;
+  bbox_min_lng?: number | null;
+  bbox_max_lat?: number | null;
+  bbox_max_lng?: number | null;
   created_at: string;
   updated_at: string;
   tem_programacao?: boolean;
 };
 
-export const useTalhoes = (fazendaId?: string) => {
+export const useTalhoes = (fazendaId?: string, safraId?: string) => {
   return useQuery({
-    queryKey: ["talhoes", fazendaId],
+    queryKey: ["talhoes", fazendaId, safraId],
     queryFn: async () => {
       // Se não houver fazendaId, retornar array vazio ao invés de buscar todos
       if (!fazendaId) {
@@ -21,13 +32,21 @@ export const useTalhoes = (fazendaId?: string) => {
       }
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/talhoes?fazenda_id=${encodeURIComponent(fazendaId)}`);
+      const params = new URLSearchParams({ fazenda_id: String(fazendaId) });
+      if (safraId) params.set("safra_id", String(safraId));
+      const res = await fetch(`${baseUrl}/talhoes?${params.toString()}`);
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
       }
       const json = await res.json();
-      return (json?.items || []) as Talhao[];
+      const items = (json?.items || []) as any[];
+      items.forEach((t) => {
+        if (typeof t.geojson === "string" && t.geojson) {
+          try { t.geojson = JSON.parse(t.geojson); } catch {}
+        }
+      });
+      return items as Talhao[];
     },
     enabled: !!fazendaId,
   });

@@ -32,6 +32,18 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          var hasHash = window.location.hash && window.location.hash.length > 1;
+          var path = window.location.pathname || "/";
+          if (!hasHash && path !== "/") {
+            var newUrl = window.location.origin + "/#" + path + (window.location.search || "") + (window.location.hash || "");
+            window.location.replace(newUrl);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

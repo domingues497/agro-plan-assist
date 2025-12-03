@@ -74,6 +74,11 @@ def ensure_aplicacoes_defensivos_schema():
                     );
                     """
                 )
+                # Garantir coluna numerocm_consultor para segregação por consultor
+                try:
+                    cur.execute("ALTER TABLE public.programacao_defensivos ADD COLUMN IF NOT EXISTS numerocm_consultor TEXT")
+                except Exception:
+                    pass
     finally:
         pool.putconn(conn)
 
@@ -342,8 +347,51 @@ def ensure_talhoes_schema():
                       nome TEXT NOT NULL,
                       area NUMERIC NOT NULL,
                       arrendado BOOLEAN NOT NULL DEFAULT false,
+                      safras_todas BOOLEAN NOT NULL DEFAULT true,
+                      kml_name TEXT,
+                      kml_uploaded_at TIMESTAMPTZ,
+                      kml_text TEXT,
+                      geojson TEXT,
+                      centroid_lat NUMERIC,
+                      centroid_lng NUMERIC,
+                      bbox_min_lat NUMERIC,
+                      bbox_min_lng NUMERIC,
+                      bbox_max_lat NUMERIC,
+                      bbox_max_lng NUMERIC,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
+                    );
+                    """
+                )
+                try:
+                    cur.execute("ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS safras_todas BOOLEAN NOT NULL DEFAULT true")
+                except Exception:
+                    pass
+                # Columns for KML/GeoJSON storage
+                for ddl in [
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS kml_name TEXT",
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS kml_uploaded_at TIMESTAMPTZ",
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS kml_text TEXT",
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS geojson TEXT",
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS centroid_lat NUMERIC",
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS centroid_lng NUMERIC",
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS bbox_min_lat NUMERIC",
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS bbox_min_lng NUMERIC",
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS bbox_max_lat NUMERIC",
+                    "ALTER TABLE public.talhoes ADD COLUMN IF NOT EXISTS bbox_max_lng NUMERIC",
+                ]:
+                    try:
+                        cur.execute(ddl)
+                    except Exception:
+                        pass
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.talhao_safras (
+                      id TEXT PRIMARY KEY,
+                      talhao_id TEXT NOT NULL REFERENCES public.talhoes(id) ON DELETE CASCADE,
+                      safra_id TEXT NOT NULL,
+                      created_at TIMESTAMPTZ DEFAULT now(),
+                      CONSTRAINT talhao_safras_unique UNIQUE (talhao_id, safra_id)
                     );
                     """
                 )
@@ -463,6 +511,7 @@ def ensure_programacao_schema():
                       produtor_numerocm TEXT,
                       area TEXT,
                       area_hectares NUMERIC,
+                      numerocm_consultor TEXT,
                       cultivar TEXT,
                       quantidade NUMERIC,
                       unidade TEXT,
@@ -509,6 +558,7 @@ def ensure_programacao_schema():
                       user_id TEXT,
                       produtor_numerocm TEXT,
                       area TEXT,
+                      numerocm_consultor TEXT,
                       formulacao TEXT,
                       dose NUMERIC,
                       percentual_cobertura NUMERIC,
@@ -544,6 +594,15 @@ def ensure_programacao_schema():
                       WHERE safra_id IS NOT NULL AND fazenda_idfazenda IS NOT NULL;
                     """
                 )
+                # Garantir colunas em bases existentes
+                try:
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS numerocm_consultor TEXT")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.programacao_adubacao ADD COLUMN IF NOT EXISTS numerocm_consultor TEXT")
+                except Exception:
+                    pass
     finally:
         pool.putconn(conn)
 

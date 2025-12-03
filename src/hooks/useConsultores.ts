@@ -8,6 +8,7 @@ export type Consultor = {
   email: string;
   created_at: string | null;
   updated_at: string | null;
+  pode_editar_programacao?: boolean;
 };
 
 export const useConsultores = () => {

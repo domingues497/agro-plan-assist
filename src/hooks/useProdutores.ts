@@ -38,17 +38,21 @@ export const useProdutores = () => {
       }
 
       let url = `${baseUrl}/produtores`;
+      let cmConsultor: string | undefined;
+      let consultorNome: string | undefined;
       if (!isAdmin && !isGestor) {
-        let cmConsultor: string | undefined;
         let email: string | undefined;
         const meRes = await fetch(`${baseUrl}/auth/me`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
         if (meRes.ok) {
           const meJson = await meRes.json();
           cmConsultor = meJson?.user?.numerocm_consultor as string | undefined;
+          consultorNome = (meJson?.user?.nome || undefined) as string | undefined;
           email = (meJson?.user?.email || "") as string;
         }
         if (!cmConsultor && email) {
-          const byEmailRes = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(String(email).toLowerCase())}`);
+          const byEmailRes = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(String(email).toLowerCase())}`,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+          );
           if (byEmailRes.ok) {
             const json = await byEmailRes.json();
             cmConsultor = json?.item?.numerocm_consultor as string | undefined;
@@ -63,7 +67,27 @@ export const useProdutores = () => {
         throw new Error(txt);
       }
       const json = await res.json();
-      return (json?.items || []) as Produtor[];
+      let items = (json?.items || []) as Produtor[];
+
+      // Fallback: se consultor estiver logado e não retornar nada, obter todos e filtrar client-side por numerocm_consultor (case-insensitive)
+      if ((!isAdmin && !isGestor) && (!items || items.length === 0)) {
+        const resAll = await fetch(`${baseUrl}/produtores`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (resAll.ok) {
+          const jsonAll = await resAll.json();
+          const arr = (jsonAll?.items || []) as Produtor[];
+          if (cmConsultor) {
+            const cmLower = String(cmConsultor).toLowerCase();
+            items = arr.filter((p) => String(p.numerocm_consultor || "").toLowerCase() === cmLower);
+          } else if (consultorNome) {
+            const nomeLower = String(consultorNome).toLowerCase();
+            items = arr.filter((p) => String(p.consultor || "").toLowerCase() === nomeLower);
+          } else {
+            items = arr;
+          }
+        }
+      }
+
+      return items;
     },
   });
 

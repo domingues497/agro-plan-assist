@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 // Migração para API Flask
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -38,6 +39,7 @@ export const ListConsultores = () => {
   const [editRow, setEditRow] = useState<any | null>(null);
   const [editConsultor, setEditConsultor] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editPodeEditar, setEditPodeEditar] = useState<boolean>(false);
   const qc = useQueryClient();
 
   const filtered = useMemo(() => {
@@ -96,6 +98,7 @@ export const ListConsultores = () => {
     setEditRow(row);
     setEditConsultor(row.consultor ?? "");
     setEditEmail(row.email ?? "");
+    setEditPodeEditar(!!row.pode_editar_programacao);
   };
 
   const onSaveEdit = async () => {
@@ -107,7 +110,7 @@ export const ListConsultores = () => {
       const res = await fetch(`${baseUrl}/consultores/${editRow.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ consultor: editConsultor, email: editEmail })
+        body: JSON.stringify({ consultor: editConsultor, email: editEmail, pode_editar_programacao: !!editPodeEditar })
       });
       if (!res.ok) throw new Error(`Erro ao atualizar consultor: ${res.status}`);
       toast.success("Consultor atualizado");
@@ -164,6 +167,7 @@ export const ListConsultores = () => {
                   <button className="flex items-center gap-1" onClick={() => toggleSort("email")}>Email {sortKey === "email" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
                   </button>
                 </TableHead>
+                <TableHead className="w-[160px]">Edição liberada</TableHead>
                 <TableHead className="w-[120px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -173,6 +177,12 @@ export const ListConsultores = () => {
                   <TableCell>{c.numerocm_consultor}</TableCell>
                   <TableCell>{c.consultor}</TableCell>
                   <TableCell>{c.email}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={!!c.pode_editar_programacao} disabled id={`flag-${c.id}`} />
+                      <Label htmlFor={`flag-${c.id}`} className="text-xs text-muted-foreground">{c.pode_editar_programacao ? "Sim" : "Não"}</Label>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={() => onOpenEdit(c)}>
@@ -187,7 +197,7 @@ export const ListConsultores = () => {
               ))}
               {paged.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
+                  <TableCell colSpan={5} className="text-muted-foreground">Nenhum resultado encontrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -228,10 +238,14 @@ export const ListConsultores = () => {
                 <Label>Nome</Label>
                 <Input value={editConsultor} onChange={(e) => setEditConsultor(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <Label>Email</Label>
-                <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
-              </div>
+            <div className="space-y-1">
+              <Label>Email</Label>
+              <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="pode-editar" checked={editPodeEditar} onCheckedChange={(c) => setEditPodeEditar(!!c)} />
+              <Label htmlFor="pode-editar" className="cursor-pointer">Liberar edição de programações</Label>
+            </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditRow(null)}>Cancelar</Button>

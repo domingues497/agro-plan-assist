@@ -16,6 +16,7 @@ import { useFazendas } from "@/hooks/useFazendas";
 import type { DefensivoItem } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useSafras } from "@/hooks/useSafras";
+import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 
 type FormAplicacaoDefensivoProps = {
@@ -29,6 +30,7 @@ type FormAplicacaoDefensivoProps = {
   };
   title?: string;
   submitLabel?: string;
+  readOnly?: boolean;
 };
 
 export const FormAplicacaoDefensivo = ({
@@ -38,6 +40,7 @@ export const FormAplicacaoDefensivo = ({
   initialData,
   title = "Nova Aplicação de Defensivos",
   submitLabel = "Salvar aplicação",
+  readOnly = false,
 }: FormAplicacaoDefensivoProps) => {
   const { data: produtores } = useProdutores();
   const { data: defensivosCatalog } = useDefensivosCatalog();
@@ -49,6 +52,7 @@ export const FormAplicacaoDefensivo = ({
   const { data: fazendas } = useFazendas(produtorNumerocm);
   const [selectedAreaHa, setSelectedAreaHa] = useState<number>(0);
   const { safras, defaultSafra } = useSafras();
+  const { aplicacoes = [] } = useAplicacoesDefensivos();
   const [safraId, setSafraId] = useState<string>("");
   const [openSafra, setOpenSafra] = useState(false);
   const isUuidLocal = (s?: string | null) => !!s && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(s));
@@ -198,6 +202,7 @@ export const FormAplicacaoDefensivo = ({
   const existingByAplicacao = useMemo(() => {
     const map: Record<string, string[]> = {};
     defensivos.forEach((d) => {
+      if ((d as any).produto_salvo) return;
       const ap = (d.aplicacoes && d.aplicacoes[0]) || d.alvo || "";
       const key = String(ap || "").trim();
       const name = String(d.defensivo || "").trim();
@@ -223,6 +228,17 @@ export const FormAplicacaoDefensivo = ({
     // Regra de negócio: bloquear se não existir programação de cultivar para produtor/fazenda
     if (!hasCultivarProgram) {
       alert("Não é possível cadastrar defensivos antes de registrar a programação de Cultivar para este produtor/fazenda.");
+      return;
+    }
+
+    // Bloqueio: não permitir duplicidade produtor/fazenda/safra já existente
+    const exists = (aplicacoes || []).some((ap: any) =>
+      String(ap.produtor_numerocm || "") === String(produtorNumerocm || "") &&
+      String(ap.area || "") === String(area || "") &&
+      ((ap.defensivos || []) as any[]).some((d: any) => String(d?.safra_id || "") === String(safraId || ""))
+    );
+    if (exists) {
+      alert("Já existe aplicação de defensivos para este Produtor/Fazenda nesta Safra.");
       return;
     }
 
@@ -327,9 +343,20 @@ export const FormAplicacaoDefensivo = ({
   const fazendasFiltradas = useMemo(() => {
     if (!safraId || !produtorNumerocm) return [] as NonNullable<typeof fazendas>;
     const base = (fazendas || []);
-    const filtered = base.filter((f) => allowedAreasSet.has(String(f.nomefazenda)));
+    const s = String(safraId);
+    const cm = String(produtorNumerocm);
+    const usedAreas = new Set<string>();
+    for (const ap of (aplicacoes || [])) {
+      if (String(ap.produtor_numerocm || "") !== cm) continue;
+      const areaName = String(ap.area || "");
+      const defs = (ap.defensivos || []) as any[];
+      if (defs.some((d) => String(d?.safra_id || "") === s)) {
+        usedAreas.add(areaName);
+      }
+    }
+    const filtered = base.filter((f) => allowedAreasSet.has(String(f.nomefazenda)) && !usedAreas.has(String(f.nomefazenda)));
     return filtered;
-  }, [fazendas, allowedAreasSet, safraId, produtorNumerocm]);
+  }, [fazendas, allowedAreasSet, safraId, produtorNumerocm, aplicacoes]);
 
   return (
     <Card className="p-6 mb-6">
@@ -342,6 +369,12 @@ export const FormAplicacaoDefensivo = ({
           </div>
         )}
         {/* Seção fixa */}
+        {readOnly && (
+          <div className="p-3 rounded-md bg-muted text-muted-foreground text-sm">
+            Edição bloqueada para consultores. Solicite liberação ao administrador.
+          </div>
+        )}
+        <fieldset disabled={readOnly} className={readOnly ? "opacity-60" : ""}>
         <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-12">
           <div className="space-y-2 md:col-span-1 lg:col-span-1">
             <Label>Safra *</Label>
@@ -494,12 +527,12 @@ export const FormAplicacaoDefensivo = ({
 
           <div className="space-y-2 lg:col-span-2">
             <Label>Área cultivável (ha)</Label>
-            <Input
-              type="number"
-              value={selectedAreaHa ? selectedAreaHa.toFixed(2) : "0.00"}
-              disabled
-              className="bg-muted"
-            />
+          <Input
+            type="number"
+            value={Number(selectedAreaHa || 0).toFixed(2)}
+            disabled
+            className="bg-muted"
+          />
           </div>
 
 
@@ -511,7 +544,7 @@ export const FormAplicacaoDefensivo = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-base font-semibold">Defensivos aplicados</Label>
-            <Button type="button" onClick={handleAddDefensivo} size="sm" variant="outline">
+            <Button type="button" onClick={handleAddDefensivo} size="sm" variant="outline" disabled={readOnly}>
               <Plus className="mr-2 h-4 w-4" />
               Adicionar defensivo
             </Button>
@@ -531,12 +564,13 @@ export const FormAplicacaoDefensivo = ({
             />
           ))}
         </div>
+        </fieldset>
 
         <div className="flex gap-2 justify-end pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isLoading || !(hasCultivarProgram && hasAdubacaoProgram)}>
+          <Button type="submit" disabled={readOnly || isLoading || !(hasCultivarProgram && hasAdubacaoProgram)}>
             {isLoading ? "Salvando..." : submitLabel}
           </Button>
         </div>
@@ -675,6 +709,8 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
 
     const matchesClasse = (grupoNorm && grupoNorm === clsNorm) || (!grupoNorm && itemPrefixNorm === clsNorm);
     if (!matchesClasse) return false;
+
+    if ((defensivo as any).produto_salvo) return true;
 
     const apKey = String((selectedAplicacoes[0] || defensivo.alvo || "").trim());
     if (!apKey) return true;

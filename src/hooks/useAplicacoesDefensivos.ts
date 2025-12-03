@@ -77,7 +77,8 @@ export const useAplicacoesDefensivos = () => {
       const envUrl = (import.meta as any).env?.VITE_API_URL;
       const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const baseUrl = envUrl || `http://${host}:5000`;
-      const res = await fetch(`${baseUrl}/aplicacoes_defensivos`);
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/aplicacoes_defensivos`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
@@ -103,9 +104,10 @@ export const useAplicacoesDefensivos = () => {
       const envUrl = (import.meta as any).env?.VITE_API_URL;
       const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const baseUrl = envUrl || `http://${host}:5000`;
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(data as any),
       });
       if (!res.ok) {
@@ -131,9 +133,10 @@ export const useAplicacoesDefensivos = () => {
       const envUrl = (import.meta as any).env?.VITE_API_URL;
       const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const baseUrl = envUrl || `http://${host}:5000`;
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(data as any),
       });
       if (!res.ok) {
@@ -157,7 +160,8 @@ export const useAplicacoesDefensivos = () => {
       const envUrl = (import.meta as any).env?.VITE_API_URL;
       const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const baseUrl = envUrl || `http://${host}:5000`;
-      const res = await fetch(`${baseUrl}/aplicacoes_defensivos/${id}`, { method: "DELETE" });
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/aplicacoes_defensivos/${id}`, { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
