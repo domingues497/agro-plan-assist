@@ -9,6 +9,7 @@ import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ListDefensivos = () => {
   const { data = [], isLoading, error } = useDefensivosCatalog();
@@ -55,7 +56,7 @@ export const ListDefensivos = () => {
     if (!editOriginal) return;
     const { cod_item } = editOriginal;
     try {
-      const baseUrl = (import.meta as any).env?.VITE_API_URL || "http://127.0.0.1:5000";
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/defensivos/${encodeURIComponent(cod_item)}`,
         {
           method: "PUT",

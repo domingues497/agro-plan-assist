@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export type UserProdutor = {
   id: string;
@@ -16,9 +17,7 @@ export const useUserProdutores = (userId?: string) => {
     queryKey: ["user-produtores", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/user_produtores?user_id=${encodeURIComponent(userId)}`);
       if (!res.ok) {
         const txt = await res.text();
@@ -32,9 +31,7 @@ export const useUserProdutores = (userId?: string) => {
 
   const addProdutor = useMutation({
     mutationFn: async ({ userId, produtorNumerocm }: { userId: string; produtorNumerocm: string; }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/user_produtores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,9 +62,7 @@ export const useUserProdutores = (userId?: string) => {
 
   const removeProdutor = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/user_produtores/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const txt = await res.text();

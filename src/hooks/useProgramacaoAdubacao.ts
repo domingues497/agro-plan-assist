@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export type ProgramacaoAdubacao = {
   id: string;
@@ -58,9 +59,7 @@ export const useProgramacaoAdubacao = () => {
   const { data: programacoes, isLoading, error } = useQuery({
     queryKey: ["programacao-adubacao"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/programacao_adubacao`);
       if (!res.ok) throw new Error(`Erro ao carregar adubação: ${res.status}`);
       const json = await res.json();
@@ -98,9 +97,7 @@ export const useProgramacaoAdubacao = () => {
 
   const createMutation = useMutation({
     mutationFn: async (programacao: CreateProgramacaoAdubacao) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/programacao_adubacao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -125,9 +122,7 @@ export const useProgramacaoAdubacao = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<ProgramacaoAdubacao> & { id: string }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/programacao_adubacao/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -169,9 +164,7 @@ export const useProgramacaoAdubacao = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/programacao_adubacao/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Erro ao excluir adubação: ${res.status}`);
     },
@@ -188,9 +181,7 @@ export const useProgramacaoAdubacao = () => {
 
   const duplicateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const original = programacoes?.find((p) => p.id === id);
       if (!original) throw new Error("Adubação não encontrada");
       const { id: _, created_at, updated_at, ...duplicateData } = original as any;

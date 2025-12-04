@@ -30,6 +30,7 @@ import {
 import { Pencil, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ListUsuarios = () => {
   const { usuarios, isLoading, updateUsuario } = useUsuarios();
@@ -82,9 +83,7 @@ export const ListUsuarios = () => {
 
   const handleCreateUser = async () => {
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
 
       const importRes = await fetch(`${baseUrl}/consultores/import`, {
         method: "POST",
@@ -170,9 +169,7 @@ export const ListUsuarios = () => {
         toast({ title: "Senha muito curta", description: "Use ao menos 6 caracteres.", variant: "destructive" });
         return;
       }
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const token = localStorage.getItem("auth_token") || "";
       const res = await fetch(`${baseUrl}/users/${editingUser.id}/password`, {
         method: "POST",

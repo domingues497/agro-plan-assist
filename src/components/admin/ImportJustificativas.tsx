@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ImportJustificativas = () => {
   const { toast } = useToast();
@@ -16,9 +17,7 @@ export const ImportJustificativas = () => {
   const { data: justificativas = [] } = useQuery({
     queryKey: ["admin-justificativas"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/justificativas_adubacao`);
       if (!res.ok) {
         const txt = await res.text();
@@ -31,9 +30,7 @@ export const ImportJustificativas = () => {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/justificativas_adubacao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,9 +57,7 @@ export const ImportJustificativas = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/justificativas_adubacao/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const txt = await res.text();

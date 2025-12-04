@@ -8,6 +8,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export function ImportTalhoes() {
   const [file, setFile] = useState<File | null>(null);
@@ -33,9 +34,7 @@ export function ImportTalhoes() {
     setProgress(0);
 
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       if (!token) {
         toast.error("Usuário não autenticado");

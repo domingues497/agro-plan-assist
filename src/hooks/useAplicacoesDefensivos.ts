@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getApiBaseUrl } from "@/lib/utils";
 import { toast } from "sonner";
 
 const isUuid = (s?: string | null) =>
@@ -74,9 +75,7 @@ export const useAplicacoesDefensivos = () => {
   const { data: aplicacoes = [], isLoading, error } = useQuery({
     queryKey: ["aplicacoes-defensivos"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
@@ -101,9 +100,7 @@ export const useAplicacoesDefensivos = () => {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: CreateAplicacaoDefensivo) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos`, {
         method: "POST",
@@ -130,9 +127,7 @@ export const useAplicacoesDefensivos = () => {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: { id: string } & CreateAplicacaoDefensivo) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos/${id}`, {
         method: "PUT",
@@ -157,9 +152,7 @@ export const useAplicacoesDefensivos = () => {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos/${id}`, { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {

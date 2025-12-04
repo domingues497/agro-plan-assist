@@ -17,6 +17,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export function ImportConsultores() {
   const [file, setFile] = useState<File | null>(null);
@@ -80,9 +81,7 @@ export function ImportConsultores() {
 
       setTotalRows(uniquePayload.length);
 
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/consultores/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

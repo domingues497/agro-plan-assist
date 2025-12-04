@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ListEpocas = () => {
   const { toast } = useToast();
@@ -21,9 +22,7 @@ export const ListEpocas = () => {
   const { data: epocas, isLoading } = useQuery({
     queryKey: ["admin-epocas"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/epocas`);
       if (!res.ok) {
         const txt = await res.text();
@@ -36,9 +35,7 @@ export const ListEpocas = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/epocas/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const txt = await res.text();

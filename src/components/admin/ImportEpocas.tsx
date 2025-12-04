@@ -7,6 +7,7 @@ import { Plus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 // Migração para API Flask
 import { useToast } from "@/hooks/use-toast";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ImportEpocas = () => {
   const [nome, setNome] = useState("");
@@ -16,9 +17,7 @@ export const ImportEpocas = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data: { nome: string; descricao: string }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/epocas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

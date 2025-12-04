@@ -22,7 +22,10 @@ export const useSafras = () => {
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/safras`, { credentials: "omit" });
+      const host = typeof window !== "undefined" ? window.location.hostname : "";
+      const useApiSubpath = /coopagricola\.coop\.br$/i.test(host);
+      const pathSafras = useApiSubpath ? "/api/safras" : "/safras";
+      const res = await fetch(`${baseUrl}${pathSafras}`, { credentials: "omit" });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
@@ -36,7 +39,10 @@ export const useSafras = () => {
     mutationFn: async (safra: CreateSafra) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/safras`, {
+      const host = typeof window !== "undefined" ? window.location.hostname : "";
+      const useApiSubpath = /coopagricola\.coop\.br$/i.test(host);
+      const pathSafras = useApiSubpath ? "/api/safras" : "/safras";
+      const res = await fetch(`${baseUrl}${pathSafras}`, {
         method: "POST",
         credentials: "omit",
         headers: { "Content-Type": "application/json" },
@@ -62,7 +68,10 @@ export const useSafras = () => {
     mutationFn: async ({ id, ...updates }: Partial<Safra> & { id: string }) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/safras/${encodeURIComponent(id)}`, {
+      const host = typeof window !== "undefined" ? window.location.hostname : "";
+      const useApiSubpath = /coopagricola\.coop\.br$/i.test(host);
+      const pathSafras = useApiSubpath ? "/api/safras" : "/safras";
+      const res = await fetch(`${baseUrl}${pathSafras}/${encodeURIComponent(id)}`, {
         method: "PUT",
         credentials: "omit",
         headers: { "Content-Type": "application/json" },
@@ -88,7 +97,10 @@ export const useSafras = () => {
     mutationFn: async (id: string) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/safras/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "omit" });
+      const host = typeof window !== "undefined" ? window.location.hostname : "";
+      const useApiSubpath = /coopagricola\.coop\.br$/i.test(host);
+      const pathSafras = useApiSubpath ? "/api/safras" : "/safras";
+      const res = await fetch(`${baseUrl}${pathSafras}/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "omit" });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);

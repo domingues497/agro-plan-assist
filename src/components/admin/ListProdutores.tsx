@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ListProdutores = () => {
   const { data = [], isLoading, error } = useProdutores();
@@ -67,9 +68,7 @@ export const ListProdutores = () => {
 
   const onDelete = async (id: string) => {
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/produtores/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const txt = await res.text();

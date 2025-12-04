@@ -27,6 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ListConsultores = () => {
   const { data = [], isLoading, error } = useConsultores();
@@ -80,9 +81,7 @@ export const ListConsultores = () => {
 
   const onDelete = async (id: string) => {
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/consultores/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Erro ao remover consultor: ${res.status}`);
       toast.success("Consultor removido");
@@ -104,9 +103,7 @@ export const ListConsultores = () => {
   const onSaveEdit = async () => {
     if (!editRow) return;
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/consultores/${editRow.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

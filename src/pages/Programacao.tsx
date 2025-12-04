@@ -305,9 +305,8 @@ export default function Programacao() {
                       size="icon"
                       onClick={async () => {
                         // Buscar talhões da programacao
-                        const envUrl = (import.meta as any).env?.VITE_API_URL;
-                        const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-                        const baseUrl = envUrl || `http://${host}:5000`;
+                        const { getApiBaseUrl } = await import("@/lib/utils");
+                        const baseUrl = getApiBaseUrl();
                         const res = await fetch(`${baseUrl}/programacoes/${prog.id}/children`);
                         if (!res.ok) {
                           toast.error("Erro ao carregar dados da programação para edição");

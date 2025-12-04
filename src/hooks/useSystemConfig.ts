@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export type SystemConfigItem = {
   config_key: string;
@@ -12,9 +13,7 @@ export const useSystemConfig = () => {
   return useQuery({
     queryKey: ["system-config"],
     queryFn: async () => {
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/config`);
       if (!res.ok) throw new Error(`Erro ao carregar configurações: ${res.status}`);
       const json = await res.json();
@@ -24,9 +23,7 @@ export const useSystemConfig = () => {
 };
 
 export const upsertSystemConfig = async (items: SystemConfigItem[]) => {
-  const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-  const envUrl = (import.meta as any).env?.VITE_API_URL;
-  const baseUrl = envUrl || `http://${host}:5000`;
+  const baseUrl = getApiBaseUrl();
   const res = await fetch(`${baseUrl}/config/bulk`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

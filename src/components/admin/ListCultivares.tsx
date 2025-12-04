@@ -9,6 +9,7 @@ import { Pencil } from "lucide-react";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ListCultivares = () => {
   const { data = [], isLoading, error } = useCultivaresCatalog();
@@ -46,9 +47,7 @@ export const ListCultivares = () => {
     const originalCultura = editOriginal.cultura;
 
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/cultivares_catalog/by_key`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

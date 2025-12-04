@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ImportTratamentos = () => {
   const { toast } = useToast();
@@ -17,9 +18,7 @@ export const ImportTratamentos = () => {
   const { data: tratamentos = [] } = useQuery({
     queryKey: ["admin-tratamentos"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/tratamentos_sementes`);
       if (!res.ok) {
         const txt = await res.text();
@@ -32,9 +31,7 @@ export const ImportTratamentos = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ativo, cultura }: { id: string; ativo?: boolean; cultura?: string | null }) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/tratamentos_sementes/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -56,9 +53,7 @@ export const ImportTratamentos = () => {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/tratamentos_sementes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -85,9 +80,7 @@ export const ImportTratamentos = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/tratamentos_sementes/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const txt = await res.text();

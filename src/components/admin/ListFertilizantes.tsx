@@ -9,6 +9,7 @@ import { Pencil } from "lucide-react";
 import { useFertilizantesCatalog } from "@/hooks/useFertilizantesCatalog";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ListFertilizantes = () => {
   const { data = [], isLoading, error } = useFertilizantesCatalog();
@@ -45,9 +46,7 @@ export const ListFertilizantes = () => {
     if (!editOriginal) return;
     const { cod_item } = editOriginal;
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/fertilizantes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ListCalendario = () => {
   const { data, isLoading, error } = useCalendarioAplicacoes();
@@ -84,9 +85,7 @@ export const ListCalendario = () => {
 
   const onDelete = async (id: string) => {
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/calendario_aplicacoes/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const txt = await res.text();
@@ -113,9 +112,7 @@ export const ListCalendario = () => {
   const onSaveEdit = async () => {
     if (!editRow) return;
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const payload = {
         descr_aplicacao: editDescrAplicacao,
         cod_classe: editCodClasse || null,

@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useProfile } from "@/hooks/useProfile";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ImportCultivares = () => {
   const [isImporting, setIsImporting] = useState(false);
@@ -45,9 +46,7 @@ export const ImportCultivares = () => {
 
   const fetchCounts = async () => {
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/cultivares_catalog`);
       if (!res.ok) {
         setCatalogTotal(0);
@@ -203,9 +202,7 @@ export const ImportCultivares = () => {
       let imported = 0;
       let failedBatches = 0;
       setErrorMessages([]);
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/cultivares_catalog/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -259,9 +256,7 @@ export const ImportCultivares = () => {
     }
     setSavingNew(true);
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const item = {
         cultivar: cultivar.toUpperCase(),
         cultura: cultura ? cultura.toUpperCase() : null,

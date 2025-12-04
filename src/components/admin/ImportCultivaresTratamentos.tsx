@@ -8,6 +8,7 @@ import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
 import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ImportCultivaresTratamentos = () => {
   const { data: cultivares } = useCultivaresCatalog();
@@ -47,9 +48,7 @@ export const ImportCultivaresTratamentos = () => {
 
     setLoading(true);
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       if (modo === "por_tratamento") {
         const res = await fetch(`${baseUrl}/cultivares_tratamentos/bulk`, {
           method: "POST",

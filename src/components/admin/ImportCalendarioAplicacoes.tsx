@@ -75,9 +75,8 @@ export const ImportCalendarioAplicacoes = () => {
         new Map(rows.map((row) => [row.cod_aplic, row])).values()
       );
 
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/calendario_aplicacoes/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

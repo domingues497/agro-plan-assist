@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export type Profile = {
   id: string;
@@ -18,9 +19,7 @@ export const useProfile = () => {
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const token = localStorage.getItem("auth_token") || "";
       const res = await fetch(`${baseUrl}/auth/me`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
@@ -46,9 +45,7 @@ export const useProfile = () => {
 
   const updateProfile = useMutation({
     mutationFn: async (updates: Partial<Profile>) => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const token = localStorage.getItem("auth_token") || "";
       const id = (profile as any)?.id;
       if (!id) throw new Error("Usuário não autenticado");
@@ -87,9 +84,7 @@ export const useProfile = () => {
   const changePassword = useMutation({
     mutationFn: async (newPassword: string) => {
       if (!newPassword || newPassword.length < 6) throw new Error("Use ao menos 6 caracteres.");
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const token = localStorage.getItem("auth_token") || "";
       const id = (profile as any)?.id;
       if (!id) throw new Error("Usuário não autenticado");

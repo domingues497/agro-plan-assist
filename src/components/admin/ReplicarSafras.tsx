@@ -7,6 +7,7 @@ import { Copy } from "lucide-react";
 import { useSafras } from "@/hooks/useSafras";
 import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ReplicarSafras = () => {
   const { safras } = useSafras();
@@ -29,9 +30,7 @@ export const ReplicarSafras = () => {
     setIsReplicating(true);
 
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
 
       const token = localStorage.getItem("auth_token") || "";
       const userId = profile?.id || "";

@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { getApiBaseUrl } from "@/lib/utils";
 
 type ImportHistory = {
   id: string;
@@ -20,9 +21,7 @@ export const HistoricoImportacoes = () => {
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ["import-history"],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/import_history`);
       if (!res.ok) throw new Error(`Erro ao carregar histórico: ${res.status}`);
       const json = await res.json();

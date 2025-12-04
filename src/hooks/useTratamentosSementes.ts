@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export type TratamentoSemente = {
   id: string;
@@ -13,9 +14,7 @@ export const useTratamentosSementes = (cultura?: string) => {
   return useQuery({
     queryKey: ["tratamentos-sementes", cultura],
     queryFn: async () => {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const params = new URLSearchParams();
       params.set("ativo", "true");
       if (cultura) params.set("cultura", String(cultura).toUpperCase());

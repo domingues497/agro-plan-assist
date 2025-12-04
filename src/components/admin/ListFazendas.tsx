@@ -28,6 +28,7 @@ import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 import { useConsultores } from "@/hooks/useConsultores";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useProdutores } from "@/hooks/useProdutores";
+import { getApiBaseUrl } from "@/lib/utils";
 
 export const ListFazendas = () => {
   const { data = [], isLoading, error } = useFazendas();
@@ -103,9 +104,7 @@ export const ListFazendas = () => {
 
   const onDelete = async (key: { idfazenda: string; numerocm: string }) => {
     try {
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/fazendas/by_key`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -135,9 +134,7 @@ export const ListFazendas = () => {
     try {
       const payload: any = { nomefazenda: editNome };
       payload.numerocm_consultor = editNumerocmConsultor ? String(editNumerocmConsultor) : null;
-      const envUrl = (import.meta as any).env?.VITE_API_URL;
-      const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const baseUrl = envUrl || `http://${host}:5000`;
+      const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/fazendas/by_key`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
