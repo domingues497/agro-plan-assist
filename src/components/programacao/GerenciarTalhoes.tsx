@@ -129,20 +129,75 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
     leafletReadyRef.current = true;
   };
 
+  /**
+   * Renderiza o mapa usando:
+   * - Satélite (Esri World Imagery)
+   * - Ruas (OpenStreetMap)
+   * - Híbrido (Satélite + rótulos Esri)
+   * Tudo sem necessidade de chave de API.
+   */
   const renderMap = async (geojson: any) => {
     try {
       await loadLeaflet();
       const L = (window as any).L;
       if (!mapRef.current) return;
       mapRef.current.innerHTML = "";
+
       const map = L.map(mapRef.current, { zoomControl: true });
-      const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "© OpenStreetMap",
+
+      // Camadas base (sem MapQuest, tudo free)
+      const satellite = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+          attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
+          maxZoom: 19,
+        }
+      );
+
+      const roads = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          attribution: "© OpenStreetMap",
+          maxZoom: 19,
+        }
+      );
+
+      const hybrid = L.layerGroup([
+        L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          {
+            maxZoom: 19,
+          }
+        ),
+        L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+          {
+            maxZoom: 19,
+          }
+        ),
+      ]);
+
+      const baseLayers: Record<string, any> = {
+        "Satélite": satellite,
+        "Ruas (OSM)": roads,
+        "Híbrido": hybrid,
+      };
+
+      // Satélite como padrão
+      satellite.addTo(map);
+
+      const layer = L.geoJSON(geojson, {
+        style: {
+          color: "#d00",
+          weight: 2,
+          fillColor: "#d00",
+          fillOpacity: 0.25,
+        },
       });
-      tiles.addTo(map);
-      const layer = L.geoJSON(geojson);
       layer.addTo(map);
+
+      L.control.layers(baseLayers, { "Área KML": layer }, { position: "topright", collapsed: false }).addTo(map);
+
       try {
         const b = layer.getBounds();
         if (b && b.isValid()) map.fitBounds(b, { padding: [20, 20] });
@@ -538,41 +593,41 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
                 talhoes.map((talhao) => (
                   <Card key={talhao.id} className="p-3 flex items-center justify-between">
                     <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{talhao.nome}</p>
-                      {talhao.arrendado && (
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded">Arrendado</span>
-                      )}
-                      {(talhao as any).tem_programacao_safra && (
-                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Com Programação nesta safra</span>
-                      )}
-                      {((talhao as any).safras_todas || ((talhao as any).allowed_safras || []).length === 0) ? (
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: Todas</span>
-                      ) : (
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: {((talhao as any).allowed_safras || []).length}</span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{talhao.nome}</p>
+                        {talhao.arrendado && (
+                          <span className="text-xs bg-muted px-2 py-0.5 rounded">Arrendado</span>
+                        )}
+                        {(talhao as any).tem_programacao_safra && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Com Programação nesta safra</span>
+                        )}
+                        {((talhao as any).safras_todas || ((talhao as any).allowed_safras || []).length === 0) ? (
+                          <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: Todas</span>
+                        ) : (
+                          <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: {((talhao as any).allowed_safras || []).length}</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{Number(talhao.area).toFixed(2)} ha</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">{Number(talhao.area).toFixed(2)} ha</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString(), arrendado: talhao.arrendado, safras_todas: Boolean((talhao as any).safras_todas), safras_sel: [ ...(((talhao as any).allowed_safras || []) as string[]) ] })}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleExcluir(talhao.id)}
-                      disabled={(talhao as any).tem_programacao}
-                      title={(talhao as any).tem_programacao ? "Talhão com programação não pode ser excluído" : undefined}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </Card>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString(), arrendado: talhao.arrendado, safras_todas: Boolean((talhao as any).safras_todas), safras_sel: [ ...(((talhao as any).allowed_safras || []) as string[]) ] })}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleExcluir(talhao.id)}
+                        disabled={(talhao as any).tem_programacao}
+                        title={(talhao as any).tem_programacao ? "Talhão com programação não pode ser excluído" : undefined}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </Card>
                 ))
               )}
             </div>

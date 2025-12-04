@@ -158,6 +158,7 @@ def ensure_consultores_schema():
                       email TEXT NOT NULL UNIQUE,
                       role TEXT NOT NULL DEFAULT 'consultor',
                       ativo BOOLEAN NOT NULL DEFAULT true,
+                      pode_editar_programacao BOOLEAN NOT NULL DEFAULT false,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
@@ -174,6 +175,10 @@ def ensure_consultores_schema():
                     pass
                 try:
                     cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS password_digest TEXT")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS pode_editar_programacao BOOLEAN NOT NULL DEFAULT false")
                 except Exception:
                     pass
                 # Tabelas de associação
@@ -464,6 +469,31 @@ def ensure_cultivares_tratamentos_schema():
                     );
                     """
                 )
+    finally:
+        pool.putconn(conn)
+
+def ensure_app_versions_schema():
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.app_versions (
+                      id TEXT PRIMARY KEY,
+                      version TEXT NOT NULL,
+                      build TEXT,
+                      environment TEXT,
+                      notes TEXT,
+                      created_at TIMESTAMPTZ DEFAULT now()
+                    );
+                    """
+                )
+                try:
+                    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS app_versions_unique_version_env ON public.app_versions (version, environment)")
+                except Exception:
+                    pass
     finally:
         pool.putconn(conn)
 

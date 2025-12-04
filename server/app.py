@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema, ensure_gestor_consultores_schema
+from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema, ensure_gestor_consultores_schema, ensure_app_versions_schema
 from psycopg2.extras import execute_values
 import uuid
 import time
@@ -805,7 +805,7 @@ def list_consultores():
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, numerocm_consultor, consultor, email, created_at, updated_at FROM public.consultores ORDER BY consultor ASC")
+            cur.execute("SELECT id, numerocm_consultor, consultor, email, pode_editar_programacao, created_at, updated_at FROM public.consultores ORDER BY consultor ASC")
             rows = cur.fetchall()
             cols = [d[0] for d in cur.description]
             items = [dict(zip(cols, r)) for r in rows]
@@ -846,6 +846,7 @@ def update_consultor(id: str):
     consultor = payload.get("consultor")
     email = payload.get("email")
     numerocm_consultor = payload.get("numerocm_consultor")
+    pode_editar_programacao = payload.get("pode_editar_programacao")
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -862,6 +863,9 @@ def update_consultor(id: str):
                 if numerocm_consultor is not None:
                     set_parts.append("numerocm_consultor = %s")
                     values.append(numerocm_consultor)
+                if pode_editar_programacao is not None:
+                    set_parts.append("pode_editar_programacao = %s")
+                    values.append(bool(pode_editar_programacao))
                 set_parts.append("updated_at = now()")
                 cur.execute(
                     f"UPDATE public.consultores SET {', '.join(set_parts)} WHERE id = %s",
@@ -3686,4 +3690,5 @@ def remove_gestor_consultor(id: str):
         pool.putconn(conn)
 
 if __name__ == "__main__":
+    ensure_app_versions_schema()
     app.run(host="0.0.0.0", port=5000)

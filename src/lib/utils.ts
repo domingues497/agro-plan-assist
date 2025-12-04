@@ -32,13 +32,20 @@ export function getApiBaseUrl(): string {
   const isHttps = isBrowser && window.location.protocol === "https:";
   const isLocalHost = ["localhost", "127.0.0.1"].includes(host);
 
-  if (isBrowser && !isLocalHost) {
+  if (isBrowser) {
+    const origin = `${window.location.protocol}//${window.location.host}`;
+    const port = String(window.location.port || "");
+    const isDefaultHttpPort = !port || port === "80";
+    if (isDefaultHttpPort) {
+      return origin.replace(/\/$/, "") + "/api";
+    }
+    if (isLocalHost) {
+      return origin;
+    }
     const normalizedEnv = (envUrl || "").trim();
-    const envPointsToLocal = /localhost|127\.0\.0\.1/.test(normalizedEnv);
-    if (!envPointsToLocal && normalizedEnv) {
+    if (normalizedEnv) {
       return normalizedEnv;
     }
-    const origin = `${window.location.protocol}//${window.location.host}`;
     if (/coopagricola\.coop\.br$/i.test(host)) {
       return origin.replace(/\/$/, "") + "/api";
     }
@@ -46,10 +53,8 @@ export function getApiBaseUrl(): string {
   }
 
   if (envUrl && envUrl.trim()) {
-    const url = envUrl.trim();
-    return url;
+    return envUrl.trim();
   }
-
   if (isHttps) {
     return `https://${host}`;
   }

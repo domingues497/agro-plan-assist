@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
   const hmr = mode === "development"
     ? (process.env.VITE_HMR_HOST
         ? { host: process.env.VITE_HMR_HOST, protocol: "wss", clientPort: 443 }
-        : { host: "localhost", protocol: "ws", port: devPort, clientPort: devPort })
+        : undefined)
     : undefined;
 
   return {
@@ -43,6 +43,8 @@ export default defineConfig(({ mode }) => {
         "/defensivos/sync/test": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/fertilizantes/sync": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/fertilizantes/sync/test": { target: "http://127.0.0.1:5000", changeOrigin: true },
+        "/safras": { target: "http://127.0.0.1:5000", changeOrigin: true },
+        "/safras/": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/talhoes": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/fazendas": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/produtores": { target: "http://127.0.0.1:5000", changeOrigin: true },
