@@ -52,6 +52,7 @@ export default defineConfig(({ mode }) => {
         "/calendario_aplicacoes": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/aplicacoes_defensivos": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/config": { target: "http://127.0.0.1:5000", changeOrigin: true },
+        "/versions": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/user_produtores": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/user_fazendas": { target: "http://127.0.0.1:5000", changeOrigin: true },
         "/gestor_consultores": { target: "http://127.0.0.1:5000", changeOrigin: true },

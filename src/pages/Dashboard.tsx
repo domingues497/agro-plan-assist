@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { getApiBaseUrl } from "@/lib/utils";
 
 const Dashboard = () => {
   const {
@@ -66,6 +67,8 @@ const Dashboard = () => {
   const [editNome, setEditNome] = useState("");
   const [editCmConsultor, setEditCmConsultor] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [buildVersion, setBuildVersion] = useState<string | null>(null);
+  const [buildEnv, setBuildEnv] = useState<string | null>(null);
 
   const produtoresDisponiveis = useMemo(() => {
     const q = searchProdutor.trim().toLowerCase();
@@ -125,6 +128,34 @@ const Dashboard = () => {
 
   const { data: roleData } = useAdminRole();
 
+  useEffect(() => {
+    const loadBuild = async () => {
+      try {
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/versions`);
+        if (res.ok) {
+          const json = await res.json();
+          const items = (json?.items || []) as any[];
+          const first = items[0];
+          const ver = String(first?.version || first?.build || "").trim();
+          const env = String(first?.environment || "").trim();
+          if (ver) { setBuildVersion(ver); return; }
+          if (env) setBuildEnv(env);
+        }
+      } catch {}
+      try {
+        const alt = await fetch(`/build.json`);
+        if (!alt.ok) return;
+        const j = await alt.json();
+        const ver = String(j?.version || j?.build || "").trim();
+        const env = String(j?.environment || "").trim();
+        if (ver) setBuildVersion(ver);
+        if (env) setBuildEnv(env);
+      } catch {}
+    };
+    loadBuild();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -134,17 +165,23 @@ const Dashboard = () => {
               <Sprout className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-bold text-foreground">AgroPlan</h1>
             </div>
-            <div className="flex gap-2">
-              {roleData?.isAdmin && (
-                <Link to="/admin">
-                  <Button variant="outline" size="sm">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Admin
-                  </Button>
-                </Link>
-              )}
-              <Button variant="outline" size="sm" onClick={openProfile}>Perfil</Button>
-              <Button variant="outline" size="sm" onClick={handleLogout}>Sair</Button>
+            <div className="flex flex-col items-end">
+              <div className="flex gap-2">
+                {roleData?.isAdmin && (
+                  <Link to="/admin">
+                    <Button variant="outline" size="sm">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Admin
+                    </Button>
+                  </Link>
+                )}
+                <Button variant="outline" size="sm" onClick={openProfile}>Perfil</Button>
+                <Button variant="outline" size="sm" onClick={handleLogout}>Sair</Button>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {`Bem vindo ${String(profile?.nome || "").trim() || "usuário"}`}
+                {buildVersion ? `, Build: ${buildVersion}${roleData?.isAdmin && buildEnv ? ` (${buildEnv})` : ""}` : ""}
+              </div>
             </div>
           </div>
         </div>
@@ -243,22 +280,21 @@ const Dashboard = () => {
                 <p className="text-sm text-muted-foreground">Cadastre e edite os talhões das suas fazendas</p>
               </div>
             </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-            <div className="flex items-center gap-2">
-              <Label className="text-sm">Produtor</Label>
-              <Input
-                value={searchProdutor}
-                onChange={(e) => setSearchProdutor(e.target.value)}
-                placeholder="Buscar por nome ou CM"
-                className="w-[240px]"
-              />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Produtor</Label>
+                <Input
+                  value={searchProdutor}
+                  onChange={(e) => setSearchProdutor(e.target.value)}
+                  placeholder="Buscar por nome ou CM"
+                  className="w-[240px]"
+                />
+              </div>
+              <label className="text-sm flex items-center gap-2 whitespace-nowrap">
+                <Checkbox checked={onlyComTalhao} onCheckedChange={(c) => setOnlyComTalhao(!!c)} className="h-4 w-4" />
+                Somente fazendas com talhão
+              </label>
             </div>
-            <label className="text-sm flex items-center gap-2">
-              <Checkbox checked={onlyComTalhao} onCheckedChange={(c) => setOnlyComTalhao(!!c)} className="h-4 w-4" />
-              Somente fazendas com talhão
-            </label>
           </div>
 
           {produtoresDisponiveis.length === 0 ? (

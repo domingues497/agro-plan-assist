@@ -52,6 +52,7 @@ try:
     ensure_tratamentos_sementes_schema()
     ensure_cultivares_tratamentos_schema()
     ensure_gestor_consultores_schema()
+    ensure_app_versions_schema()
 except Exception:
     pass
 
@@ -2370,6 +2371,47 @@ def upsert_config_bulk():
         return jsonify({"error": "config_key obrigatório"}), 400
     upsert_config_items(items)
     return jsonify({"ok": True, "imported": len(items)})
+
+@app.route("/versions", methods=["GET", "POST"])
+def app_versions():
+    ensure_app_versions_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    if request.method == "GET":
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id, version, build, environment, notes, created_at FROM public.app_versions ORDER BY created_at DESC")
+                rows = cur.fetchall()
+                cols = [d[0] for d in cur.description]
+                items = [dict(zip(cols, r)) for r in rows]
+                return jsonify({"items": items, "count": len(items)})
+        finally:
+            pool.putconn(conn)
+    else:
+        payload = request.get_json(silent=True) or {}
+        version = (payload.get("version") or "").strip()
+        build = (payload.get("build") or "").strip() or None
+        environment = (payload.get("environment") or "prod").strip() or "prod"
+        notes = payload.get("notes")
+        if not version:
+            pool.putconn(conn)
+            return jsonify({"error": "version obrigatório"}), 400
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO public.app_versions (id, version, build, environment, notes)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (version, environment) DO NOTHING
+                        """,
+                        [str(uuid.uuid4()), version, build, environment, notes],
+                    )
+            return jsonify({"ok": True, "version": version, "build": build, "environment": environment})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+        finally:
+            pool.putconn(conn)
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
 
