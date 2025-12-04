@@ -22,9 +22,7 @@ export const useSafras = () => {
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const host = typeof window !== "undefined" ? window.location.hostname : "";
-      const useApiSubpath = /coopagricola\.coop\.br$/i.test(host);
-      const pathSafras = useApiSubpath ? "/api/safras" : "/safras";
+      const pathSafras = "/safras";
       const res = await fetch(`${baseUrl}${pathSafras}`, { credentials: "omit" });
       if (!res.ok) {
         const txt = await res.text();
@@ -39,9 +37,7 @@ export const useSafras = () => {
     mutationFn: async (safra: CreateSafra) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const host = typeof window !== "undefined" ? window.location.hostname : "";
-      const useApiSubpath = /coopagricola\.coop\.br$/i.test(host);
-      const pathSafras = useApiSubpath ? "/api/safras" : "/safras";
+      const pathSafras = "/safras";
       const res = await fetch(`${baseUrl}${pathSafras}`, {
         method: "POST",
         credentials: "omit",
@@ -68,9 +64,7 @@ export const useSafras = () => {
     mutationFn: async ({ id, ...updates }: Partial<Safra> & { id: string }) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const host = typeof window !== "undefined" ? window.location.hostname : "";
-      const useApiSubpath = /coopagricola\.coop\.br$/i.test(host);
-      const pathSafras = useApiSubpath ? "/api/safras" : "/safras";
+      const pathSafras = "/safras";
       const res = await fetch(`${baseUrl}${pathSafras}/${encodeURIComponent(id)}`, {
         method: "PUT",
         credentials: "omit",
@@ -97,9 +91,7 @@ export const useSafras = () => {
     mutationFn: async (id: string) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const host = typeof window !== "undefined" ? window.location.hostname : "";
-      const useApiSubpath = /coopagricola\.coop\.br$/i.test(host);
-      const pathSafras = useApiSubpath ? "/api/safras" : "/safras";
+      const pathSafras = "/safras";
       const res = await fetch(`${baseUrl}${pathSafras}/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "omit" });
       if (!res.ok) {
         const txt = await res.text();

@@ -41,7 +41,11 @@ export function getApiBaseUrl(): string {
       }
       return normalizedEnv;
     }
-    return `${window.location.protocol}//${window.location.host}`;
+    const origin = `${window.location.protocol}//${window.location.host}`;
+    if (/coopagricola\.coop\.br$/i.test(host)) {
+      return origin.replace(/\/$/, "") + "/api";
+    }
+    return origin;
   }
 
   if (envUrl && envUrl.trim()) {

@@ -18,6 +18,21 @@ import json as _json
 app = Flask(__name__)
 # Abrir CORS para simplificar chamadas do front; sem credenciais
 CORS(app, origins="*", supports_credentials=False)
+
+# Compatibilidade: aceitar prefixo '/api' nas rotas sem alterar endpoints
+class StripApiPrefixMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, environ, start_response):
+        path = environ.get("PATH_INFO", "") or ""
+        if path == "/api":
+            environ["PATH_INFO"] = "/"
+        elif path.startswith("/api/"):
+            environ["PATH_INFO"] = path[4:]
+        return self.app(environ, start_response)
+
+app.wsgi_app = StripApiPrefixMiddleware(app.wsgi_app)
 try:
     ensure_system_config_schema()
     ensure_defensivos_schema()
