@@ -36,9 +36,6 @@ export function getApiBaseUrl(): string {
     const normalizedEnv = (envUrl || "").trim();
     const envPointsToLocal = /localhost|127\.0\.0\.1/.test(normalizedEnv);
     if (!envPointsToLocal && normalizedEnv) {
-      if (isHttps && normalizedEnv.startsWith("http://")) {
-        return "https://" + normalizedEnv.slice("http://".length);
-      }
       return normalizedEnv;
     }
     const origin = `${window.location.protocol}//${window.location.host}`;
@@ -50,9 +47,6 @@ export function getApiBaseUrl(): string {
 
   if (envUrl && envUrl.trim()) {
     const url = envUrl.trim();
-    if (isHttps && url.startsWith("http://")) {
-      return "https://" + url.slice("http://".length);
-    }
     return url;
   }
 
