@@ -1041,7 +1041,7 @@ def create_programacao():
             pass
     if not (produtor_numerocm and fazenda_idfazenda and area):
         return jsonify({"error": "Campos obrigatórios ausentes"}), 400
-    prog_id = str(int(time.time() * 1000))
+    prog_id = f"p{uuid.uuid4().hex}"
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -1081,7 +1081,7 @@ def create_programacao():
                     [prog_id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id]
                 )
                 for item in cultivares:
-                    cult_id = item.get("id") or f"c{int(time.time()*1000)}"
+                    cult_id = item.get("id") or f"c{uuid.uuid4().hex}"
                     tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
                     first_tr = None if str(item.get("tipo_tratamento")).upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
                     cur.execute(
@@ -1126,7 +1126,7 @@ def create_programacao():
                           porcentagem_salva, total, safra_id
                         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"a{int(time.time()*1000)}", prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
+                        [f"a{uuid.uuid4().hex}", prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
                          bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
@@ -1270,7 +1270,7 @@ def update_programacao(id: str):
                 cur.execute("DELETE FROM public.programacao_talhoes WHERE programacao_id = %s", [id])
                 cur.execute("DELETE FROM public.programacao_adubacao WHERE programacao_id = %s", [id])
                 for item in cultivares:
-                    cult_id = item.get("id") or f"c{int(time.time()*1000)}"
+                    cult_id = item.get("id") or f"c{uuid.uuid4().hex}"
                     tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
                     first_tr = None if str(item.get("tipo_tratamento") or "").upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
                     cur.execute(
@@ -1315,7 +1315,7 @@ def update_programacao(id: str):
                           porcentagem_salva, total, safra_id
                         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"a{int(time.time()*1000)}", id, user_id, produtor_numerocm, area, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
+                        [f"a{uuid.uuid4().hex}", id, user_id, produtor_numerocm, area, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
                          bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
@@ -1385,7 +1385,7 @@ def list_programacao_cultivares():
 def create_programacao_cultivar():
     ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
-    id_val = payload.get("id") or f"pc{int(time.time()*1000)}"
+    id_val = payload.get("id") or f"c{uuid.uuid4().hex}"
     programacao_id = payload.get("programacao_id")
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
@@ -1563,7 +1563,7 @@ def list_programacao_adubacao():
 def create_programacao_adub():
     ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
-    id_val = payload.get("id") or f"pa{int(time.time()*1000)}"
+    id_val = payload.get("id") or f"a{uuid.uuid4().hex}"
     programacao_id = payload.get("programacao_id")
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
@@ -2404,7 +2404,9 @@ def app_versions():
                         """
                         INSERT INTO public.app_versions (id, version, build, environment, notes)
                         VALUES (%s, %s, %s, %s, %s)
-                        ON CONFLICT (version, environment) DO NOTHING
+                        ON CONFLICT (version, environment) DO UPDATE SET
+                          build = EXCLUDED.build,
+                          notes = EXCLUDED.notes
                         """,
                         [str(uuid.uuid4()), version, build, environment, notes],
                     )

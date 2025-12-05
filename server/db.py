@@ -651,6 +651,28 @@ def ensure_programacao_schema():
                       created_at TIMESTAMPTZ DEFAULT now()
                     );
 
+                    -- Ajuste de esquema para bases existentes: garantir PK em 'id'
+                    ALTER TABLE public.programacao_talhoes ADD COLUMN IF NOT EXISTS id TEXT;
+                    DO $$
+                    BEGIN
+                      IF EXISTS (
+                        SELECT 1
+                        FROM information_schema.table_constraints tc
+                        WHERE tc.table_schema = 'public'
+                          AND tc.table_name = 'programacao_talhoes'
+                          AND tc.constraint_type = 'PRIMARY KEY'
+                          AND tc.constraint_name = 'programacao_talhoes_pkey'
+                      ) THEN
+                        -- Remover PK atual para reatribuir a 'id'
+                        EXECUTE 'ALTER TABLE public.programacao_talhoes DROP CONSTRAINT programacao_talhoes_pkey';
+                      END IF;
+                    END$$;
+                    -- Preencher IDs ausentes antes de tornar PK
+                    UPDATE public.programacao_talhoes
+                    SET id = 'pt' || md5(random()::text || clock_timestamp()::text)
+                    WHERE id IS NULL;
+                    ALTER TABLE public.programacao_talhoes ADD PRIMARY KEY (id);
+
                     -- Garantir coluna e índice único para evitar duas programações por talhão na mesma safra
                     ALTER TABLE public.programacao_talhoes ADD COLUMN IF NOT EXISTS safra_id TEXT;
                     ALTER TABLE public.programacao_talhoes ADD COLUMN IF NOT EXISTS fazenda_idfazenda TEXT;

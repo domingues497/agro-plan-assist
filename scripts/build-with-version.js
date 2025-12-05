@@ -72,7 +72,7 @@ async function recordVersion() {
     version: version || 'unknown',
     build: buildHash || null,
     environment: process.env.NODE_ENV === 'development' ? 'dev' : 'prod',
-    notes: null,
+    notes: process.env.BUILD_NOTES || null,
   };
   try {
     writeFileSync(join(process.cwd(), 'dist', 'build.json'), JSON.stringify(payload));
