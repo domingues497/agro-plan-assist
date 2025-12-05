@@ -1104,7 +1104,7 @@ def create_programacao():
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{int(time.time()*1000)}", cult_id, tid]
+                        [f"t{uuid.uuid4().hex}", cult_id, tid]
                         )
                     if str(item.get("tipo_tratamento")).upper() == "NA FAZENDA":
                         for d in (item.get("defensivos_fazenda") or []):
@@ -1114,7 +1114,7 @@ def create_programacao():
                                 (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                                 """,
-                                [f"d{int(time.time()*1000)}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                                [f"d{uuid.uuid4().hex}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                                  d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                             )
                 for a in adubacao:
@@ -1136,7 +1136,7 @@ def create_programacao():
                         INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
                         VALUES (%s, %s, %s, %s, %s)
                         """,
-                        [f"pt{int(time.time()*1000)}", prog_id, tid, safra_id, fazenda_idfazenda]
+                        [f"pt{uuid.uuid4().hex}", prog_id, tid, safra_id, fazenda_idfazenda]
                     )
         return jsonify({"id": prog_id})
     except Exception as e:
@@ -1293,7 +1293,7 @@ def update_programacao(id: str):
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{int(time.time()*1000)}", cult_id, tid]
+                            [f"t{uuid.uuid4().hex}", cult_id, tid]
                         )
                     if str(item.get("tipo_tratamento") or "").upper() == "NA FAZENDA":
                         for d in (item.get("defensivos_fazenda") or []):
@@ -1303,7 +1303,7 @@ def update_programacao(id: str):
                                 (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                                 """,
-                                [f"d{int(time.time()*1000)}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                                [f"d{uuid.uuid4().hex}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                                  d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                             )
                 for a in adubacao:
@@ -1325,7 +1325,7 @@ def update_programacao(id: str):
                         INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
                         VALUES (%s, %s, %s, %s, %s)
                         """,
-                        [f"pt{int(time.time()*1000)}", id, tid, safra_id, fazenda_idfazenda]
+                        [f"pt{uuid.uuid4().hex}", id, tid, safra_id, fazenda_idfazenda]
                     )
         return jsonify({"ok": True, "id": id})
     except Exception as e:
@@ -1441,7 +1441,7 @@ def create_programacao_cultivar():
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{int(time.time()*1000)}", id_val, tid]
+                            [f"t{uuid.uuid4().hex}", id_val, tid]
                         )
                 for d in defensivos_fazenda:
                     cur.execute(
@@ -1450,7 +1450,7 @@ def create_programacao_cultivar():
                         (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"d{int(time.time()*1000)}", id_val, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                        [f"d{uuid.uuid4().hex}", id_val, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                          d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                     )
         return jsonify({"id": id_val})
@@ -1510,7 +1510,7 @@ def update_programacao_cultivar(id: str):
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{int(time.time()*1000)}", id, tid]
+                            [f"t{uuid.uuid4().hex}", id, tid]
                         )
                 cur.execute("DELETE FROM public.programacao_cultivares_defensivos WHERE programacao_cultivar_id = %s", [id])
                 for d in defensivos_fazenda:
@@ -1520,7 +1520,7 @@ def update_programacao_cultivar(id: str):
                         (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"d{int(time.time()*1000)}", id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                        [f"d{uuid.uuid4().hex}", id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                          d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                     )
         return jsonify({"ok": True, "id": id})
