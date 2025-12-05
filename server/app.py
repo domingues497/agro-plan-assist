@@ -2213,7 +2213,8 @@ def sync_fertilizantes():
     except Exception as e:
         return jsonify({"error": f"Falha ao gerar JWT: {e}"}), 400
     url = url_cfg
-    req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+    body = _json.dumps({}).encode("utf-8")
+    req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
     try:
         with urlopen(req, timeout=30) as resp:
             raw = resp.read()
@@ -2302,7 +2303,8 @@ def sync_fertilizantes_test():
         return jsonify({"error": "Config JWT ausente (cliente_id/secret/exp)"}), 400
     try:
         token = _make_jwt(client_id, int(str(exp)), secret, None)
-        req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+        body = _json.dumps({}).encode("utf-8")
+        req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
         with urlopen(req, timeout=15) as resp:
             return jsonify({"status": resp.status, "ok": True})
     except HTTPError as e:
@@ -2415,6 +2417,25 @@ def app_versions():
             return jsonify({"error": str(e)}), 400
         finally:
             pool.putconn(conn)
+@app.route("/sync/status", methods=["GET"])
+def sync_status():
+    ensure_system_config_schema()
+    keys = [
+        "defensivos_sync_enabled",
+        "defensivos_sync_interval_minutes",
+        "defensivos_last_sync_at",
+        "defensivos_last_sync_imported",
+        "defensivos_last_sync_ignored",
+        "defensivos_last_sync_error",
+        "fertilizantes_sync_enabled",
+        "fertilizantes_sync_interval_minutes",
+        "fertilizantes_last_sync_at",
+        "fertilizantes_last_sync_imported",
+        "fertilizantes_last_sync_ignored",
+        "fertilizantes_last_sync_error",
+    ]
+    cfg = get_config_map(keys)
+    return jsonify({"ok": True, "config": cfg})
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
 
@@ -2454,7 +2475,8 @@ def sync_defensivos():
     except Exception as e:
         return jsonify({"error": f"Falha ao gerar JWT: {e}"}), 400
     url = url_cfg
-    req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+    body = _json.dumps({}).encode("utf-8")
+    req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
     try:
         with urlopen(req, timeout=30) as resp:
             raw = resp.read()
@@ -2549,7 +2571,8 @@ def sync_defensivos_test():
         return jsonify({"error": "Config JWT ausente (client_id/secret/exp)"}), 400
     try:
         token = _make_jwt(client_id, int(str(exp)), secret, aud)
-        req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+        body = _json.dumps({}).encode("utf-8")
+        req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
         with urlopen(req, timeout=15) as resp:
             return jsonify({"status": resp.status, "ok": True})
     except HTTPError as e:
@@ -2573,19 +2596,41 @@ def run_sync_defensivos(limpar: bool = False):
     ])
     missing = [k for k in ["api_defensivos_client_id","api_defensivos_secret","api_defensivos_url","api_defensivos_exp"] if k not in cfg or not cfg[k]]
     if missing:
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        upsert_config_items([
+            {"config_key": "defensivos_last_sync_at", "config_value": ts, "description": None},
+            {"config_key": "defensivos_last_sync_imported", "config_value": "0", "description": None},
+            {"config_key": "defensivos_last_sync_ignored", "config_value": "0", "description": None},
+            {"config_key": "defensivos_last_sync_error", "config_value": f"Config ausente: {', '.join(missing)}", "description": None},
+        ])
         return {"error": f"Config ausente: {', '.join(missing)}", "status": 400}
     try:
         url_cfg = (cfg["api_defensivos_url"] or "").strip().strip("`")
         token = _make_jwt(cfg["api_defensivos_client_id"], int(cfg["api_defensivos_exp"]), cfg["api_defensivos_secret"], None)
     except Exception as e:
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        upsert_config_items([
+            {"config_key": "defensivos_last_sync_at", "config_value": ts, "description": None},
+            {"config_key": "defensivos_last_sync_imported", "config_value": "0", "description": None},
+            {"config_key": "defensivos_last_sync_ignored", "config_value": "0", "description": None},
+            {"config_key": "defensivos_last_sync_error", "config_value": str(e), "description": None},
+        ])
         return {"error": f"Falha ao gerar JWT: {e}", "status": 400}
     url = url_cfg
-    req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+    body = _json.dumps({}).encode("utf-8")
+    req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
     try:
         with urlopen(req, timeout=30) as resp:
             raw = resp.read()
             data = json.loads(raw.decode("utf-8"))
     except Exception as e:
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        upsert_config_items([
+            {"config_key": "defensivos_last_sync_at", "config_value": ts, "description": None},
+            {"config_key": "defensivos_last_sync_imported", "config_value": "0", "description": None},
+            {"config_key": "defensivos_last_sync_ignored", "config_value": "0", "description": None},
+            {"config_key": "defensivos_last_sync_error", "config_value": str(e), "description": None},
+        ])
         return {"error": f"Erro ao consultar API externa: {e}", "status": 502}
 
     items = data.get("items") if isinstance(data, dict) else data
@@ -2635,6 +2680,13 @@ def run_sync_defensivos(limpar: bool = False):
                         """,
                         normalized,
                     )
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        upsert_config_items([
+            {"config_key": "defensivos_last_sync_at", "config_value": ts, "description": None},
+            {"config_key": "defensivos_last_sync_imported", "config_value": str(len(normalized)), "description": None},
+            {"config_key": "defensivos_last_sync_ignored", "config_value": str(ignored), "description": None},
+            {"config_key": "defensivos_last_sync_error", "config_value": "", "description": None},
+        ])
         return {"ok": True, "imported": len(normalized), "ignored": ignored}
     finally:
         pool.putconn(conn)
@@ -2662,6 +2714,133 @@ def _start_sync_scheduler():
     t.start()
 
 _start_sync_scheduler()
+def run_sync_fertilizantes(limpar: bool = False):
+    ensure_system_config_schema()
+    ensure_fertilizantes_schema()
+    cfg = get_config_map([
+        "api_fertilizantes_cliente_id",
+        "api_fertilizantes_secret",
+        "api_fertilizantes_url",
+        "api_fertilizantes_exp",
+    ])
+    missing = [k for k in ["api_fertilizantes_cliente_id","api_fertilizantes_secret","api_fertilizantes_url","api_fertilizantes_exp"] if k not in cfg or not cfg[k]]
+    if missing:
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        upsert_config_items([
+            {"config_key": "fertilizantes_last_sync_at", "config_value": ts, "description": None},
+            {"config_key": "fertilizantes_last_sync_imported", "config_value": "0", "description": None},
+            {"config_key": "fertilizantes_last_sync_ignored", "config_value": "0", "description": None},
+            {"config_key": "fertilizantes_last_sync_error", "config_value": f"Config ausente: {', '.join(missing)}", "description": None},
+        ])
+        return {"error": f"Config ausente: {', '.join(missing)}", "status": 400}
+    try:
+        url_cfg = (cfg["api_fertilizantes_url"] or "").strip().strip("`")
+        token = _make_jwt(cfg["api_fertilizantes_cliente_id"], int(cfg["api_fertilizantes_exp"]), cfg["api_fertilizantes_secret"], None)
+    except Exception as e:
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        upsert_config_items([
+            {"config_key": "fertilizantes_last_sync_at", "config_value": ts, "description": None},
+            {"config_key": "fertilizantes_last_sync_imported", "config_value": "0", "description": None},
+            {"config_key": "fertilizantes_last_sync_ignored", "config_value": "0", "description": None},
+            {"config_key": "fertilizantes_last_sync_error", "config_value": str(e), "description": None},
+        ])
+        return {"error": f"Falha ao gerar JWT: {e}", "status": 400}
+    url = url_cfg
+    body = _json.dumps({}).encode("utf-8")
+    req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
+    try:
+        with urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+            data = json.loads(raw.decode("utf-8"))
+    except Exception as e:
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        upsert_config_items([
+            {"config_key": "fertilizantes_last_sync_at", "config_value": ts, "description": None},
+            {"config_key": "fertilizantes_last_sync_imported", "config_value": "0", "description": None},
+            {"config_key": "fertilizantes_last_sync_ignored", "config_value": "0", "description": None},
+            {"config_key": "fertilizantes_last_sync_error", "config_value": str(e), "description": None},
+        ])
+        return {"error": f"Erro ao consultar API externa: {e}", "status": 502}
+
+    items = data.get("items") if isinstance(data, dict) else data
+    if not isinstance(items, list):
+        return {"error": "Resposta da API externa inválida", "status": 500, "preview": data}
+
+    def pick(obj, keys):
+        for k in keys:
+            if k in obj and obj[k] not in (None, ""):
+                return obj[k]
+        return None
+
+    normalized = []
+    ignored = 0
+    for d in items:
+        cod_item = pick(d, ["cod_item", "COD_ITEM", "CODITEM", "COD ITEM", "COD. ITEM", "COD"])
+        item_val = pick(d, ["item", "ITEM"]) or None
+        marca_val = pick(d, ["marca", "MARCA"]) or None
+        princ_val = pick(d, ["principio_ativo", "PRINCIPIO_ATIVO", "PRINCIPIO ATIVO"]) or None
+        saldo_val = pick(d, ["saldo", "SALDO"]) or None
+        if not cod_item:
+            ignored += 1
+            continue
+        normalized.append([cod_item, item_val, marca_val, princ_val, saldo_val])
+
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                if limpar:
+                    cur.execute("DELETE FROM public.fertilizantes_catalog")
+                if normalized:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO public.fertilizantes_catalog (cod_item, item, marca, principio_ativo, saldo)
+                        VALUES %s
+                        ON CONFLICT (cod_item) DO UPDATE SET
+                          item = EXCLUDED.item,
+                          marca = EXCLUDED.marca,
+                          principio_ativo = EXCLUDED.principio_ativo,
+                          saldo = EXCLUDED.saldo,
+                          updated_at = now()
+                        """,
+                        normalized,
+                    )
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        upsert_config_items([
+            {"config_key": "fertilizantes_last_sync_at", "config_value": ts, "description": None},
+            {"config_key": "fertilizantes_last_sync_imported", "config_value": str(len(normalized)), "description": None},
+            {"config_key": "fertilizantes_last_sync_ignored", "config_value": str(ignored), "description": None},
+            {"config_key": "fertilizantes_last_sync_error", "config_value": "", "description": None},
+        ])
+        return {"ok": True, "imported": len(normalized), "ignored": ignored}
+    finally:
+        pool.putconn(conn)
+
+def _start_sync_scheduler_fertilizantes():
+    def loop():
+        last_run = 0
+        while True:
+            try:
+                ensure_system_config_schema()
+                cfg = get_config_map(["fertilizantes_sync_enabled", "fertilizantes_sync_interval_minutes"])
+                enabled = str(cfg.get("fertilizantes_sync_enabled", "")).strip().lower() in ("1", "true", "yes", "on")
+                interval = int(str(cfg.get("fertilizantes_sync_interval_minutes", "30") or "30"))
+                if interval < 1:
+                    interval = 30
+                now_ts = time.time()
+                if enabled and now_ts - last_run >= interval * 60:
+                    res = run_sync_fertilizantes(False)
+                    print(f"[fertilizantes-sync] imported={res.get('imported')} ignored={res.get('ignored')}")
+                    last_run = now_ts
+            except Exception as e:
+                print(f"[fertilizantes-sync] erro: {e}")
+            time.sleep(30)
+    t = threading.Thread(target=loop, daemon=True)
+    t.start()
+
+_start_sync_scheduler_fertilizantes()
 @app.route("/defensivos", methods=["POST"])
 def upsert_defensivo():
     ensure_defensivos_schema()
