@@ -874,10 +874,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
 
     const areaNome = fazendaSelecionada?.nomefazenda || area;
-    const areaHectaresFinal =
-      (fazendaSelecionada?.area_cultivavel && Number(fazendaSelecionada.area_cultivavel) > 0)
-        ? Number(fazendaSelecionada.area_cultivavel)
-        : Number(areaHectares);
+    const areaHectaresFinal = Number(areaHectares);
 
     if (!fazendaIdfazenda) {
       toast({

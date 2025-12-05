@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { cn, safeRandomUUID } from "@/lib/utils";
+import { cn, safeRandomUUID, getApiBaseUrl } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
@@ -74,6 +74,7 @@ export default function Programacao() {
   const [selectedAreaPairs, setSelectedAreaPairs] = useState<Array<{ produtor_numerocm: string; fazenda_idfazenda: string; nomefazenda: string; area_hectares: number }>>([]);
   const [replicateTargets, setReplicateTargets] = useState<Array<{ produtor_numerocm: string; fazenda_idfazenda: string; area_hectares: number }>>([]);
   const { data: fazendasReplicate = [] } = useFazendas(replicateProdutorNumerocm);
+  const [areasCalc, setAreasCalc] = useState<Record<string, number>>({});
 
   // Gerenciar talhões
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
@@ -82,6 +83,40 @@ export default function Programacao() {
   const [onlyFazendasComTalhao, setOnlyFazendasComTalhao] = useState(false);
 
   const temAreasCadastradas = fazendas.length > 0;
+
+  useEffect(() => {
+    const loadAreas = async () => {
+      try {
+        const base = getApiBaseUrl();
+        const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const updates: Record<string, number> = {};
+        for (const p of programacoes) {
+          if (areasCalc[p.id] !== undefined) continue;
+          const res = await fetch(`${base}/programacoes/${p.id}/children`, { headers });
+          if (!res.ok) continue;
+          const children = await res.json();
+          const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
+          if (!talhoes || talhoes.length === 0) continue;
+          const fazendaObj = fazendas.find((f: any) => f.idfazenda === p.fazenda_idfazenda && f.numerocm === p.produtor_numerocm);
+          const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
+          const params = new URLSearchParams();
+          if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
+          if (p.safra_id) params.set("safra_id", String(p.safra_id));
+          const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
+          if (!r2.ok) continue;
+          const j2 = await r2.json();
+          const items = ((j2?.items || []) as any[]).filter((t: any) => talhoes.includes(String(t.id)));
+          const sum = items.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
+          if (sum > 0) updates[p.id] = sum;
+        }
+        if (Object.keys(updates).length > 0) {
+          setAreasCalc((prev) => ({ ...prev, ...updates }));
+        }
+      } catch {}
+    };
+    loadAreas();
+  }, [programacoes, areasCalc]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -274,10 +309,23 @@ export default function Programacao() {
                             <span>
                               {fazenda?.nomefazenda || "—"}
                               {(() => {
-                                const ha = Number(prog.area_hectares || fazenda?.area_cultivavel || 0);
-                                return ha > 0 ? ` (${ha.toFixed(2)} ha)` : "";
+                                const areaTotal = Number(fazenda?.area_cultivavel || 0);
+                                return areaTotal > 0 ? ` (${areaTotal.toFixed(2)} ha)` : "";
                               })()}
                             </span>
+                            {(() => {
+                              const areaProg = Number(areasCalc[prog.id] ?? prog.area_hectares ?? 0);
+                              const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === prog.id);
+                              const cultPerc = cults.reduce((acc, c: any) => acc + (Number(c.percentual_cobertura) || 0), 0);
+                              const areaCult = areaProg > 0 ? (areaProg * Math.min(100, Math.max(0, cultPerc)) / 100) : 0;
+                              return (
+                                <>
+                                  <span className="mx-2 text-muted-foreground">•</span>
+                                  <span className="font-medium">Programado:</span>
+                                  <span className="ml-1">{areaCult.toFixed(2)} ha</span>
+                                </>
+                              );
+                            })()}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -295,8 +343,7 @@ export default function Programacao() {
                           </p>
                         </div>
                         
-                        <div className="grid gap-2 text-sm text-muted-foreground">
-                        </div>
+                        
                       </div>
                       
                    <div className="flex items-center gap-2">

@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
-import { cn, safeRandomUUID } from "@/lib/utils";
+import { cn, safeRandomUUID, getApiBaseUrl } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
@@ -24,6 +24,7 @@ type FormAplicacaoDefensivoProps = {
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: {
+    id?: string;
     produtor_numerocm?: string;
     area?: string;
     defensivos?: DefensivoItem[];
@@ -51,6 +52,8 @@ export const FormAplicacaoDefensivo = ({
   const [openFazenda, setOpenFazenda] = useState(false);
   const { data: fazendas } = useFazendas(produtorNumerocm);
   const [selectedAreaHa, setSelectedAreaHa] = useState<number>(0);
+  const [selectedTalhaoIds, setSelectedTalhaoIds] = useState<string[]>([]);
+  const [talhoesOptions, setTalhoesOptions] = useState<Array<{ id: string; nome: string; area: number }>>([]);
   const { safras, defaultSafra } = useSafras();
   const { aplicacoes = [] } = useAplicacoesDefensivos();
   const [safraId, setSafraId] = useState<string>("");
@@ -58,6 +61,12 @@ export const FormAplicacaoDefensivo = ({
   const isUuidLocal = (s?: string | null) => !!s && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(s));
   const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
   const { programacoes: adubProgramacoes = [], isLoading: isAdubLoading } = useProgramacaoAdubacao();
+  const talhoesKey = useMemo(() => {
+    const cm = String(produtorNumerocm || "").trim();
+    const a = String(area || "").trim();
+    const s = String(safraId || "").trim();
+    return cm && a && s ? `${cm}|${a}|${s}` : "";
+  }, [produtorNumerocm, area, safraId]);
   
   const [defensivos, setDefensivos] = useState<Array<Omit<DefensivoItem, "id"> & { tempId: string; total?: number }>>([
     {
@@ -232,12 +241,12 @@ export const FormAplicacaoDefensivo = ({
     }
 
     // Bloqueio: não permitir duplicidade produtor/fazenda/safra já existente
-    const exists = (aplicacoes || []).some((ap: any) =>
+    const dup = (aplicacoes || []).find((ap: any) =>
       String(ap.produtor_numerocm || "") === String(produtorNumerocm || "") &&
       String(ap.area || "") === String(area || "") &&
       ((ap.defensivos || []) as any[]).some((d: any) => String(d?.safra_id || "") === String(safraId || ""))
     );
-    if (exists) {
+    if (dup && (!initialData?.id || String(dup.id) !== String(initialData.id))) {
       alert("Já existe aplicação de defensivos para este Produtor/Fazenda nesta Safra.");
       return;
     }
@@ -290,15 +299,97 @@ export const FormAplicacaoDefensivo = ({
     );
   }, [adubProgramacoes, produtorNumerocm, area, safraId]);
 
-  // Atualiza a área selecionada com base na fazenda escolhida (usa área cultivável do backend)
+  // Atualiza a área selecionada com base nos talhões da programação correspondente
   useEffect(() => {
-    if (!produtorNumerocm || !area || !safraId) {
-      return;
-    }
-    const fazenda = (fazendas || []).find(f => String(f.nomefazenda) === String(area));
-    const ha = Number(fazenda?.area_cultivavel || 0);
-    setSelectedAreaHa(ha);
-  }, [produtorNumerocm, area, safraId, fazendas]);
+    const loadAreaFromTalhoes = async () => {
+      try {
+        if (!produtorNumerocm || !area || !safraId) return;
+        const base = getApiBaseUrl();
+        const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${base}/programacoes`, { headers });
+        if (!res.ok) return;
+        const j = await res.json();
+        const items = (j?.items || []) as any[];
+        const progs = items.filter((p: any) => {
+          const sameProd = String(p.produtor_numerocm) === String(produtorNumerocm);
+          const sameArea = String(p.area) === String(area);
+          const safraOk = String(p.safra_id || "") === String(safraId || "");
+          return sameProd && sameArea && safraOk;
+        });
+        if (!progs || progs.length === 0) {
+          const fazenda = (fazendas || []).find(f => String(f.nomefazenda) === String(area));
+          const haFallback = Number(fazenda?.area_cultivavel || 0);
+          setSelectedAreaHa(haFallback);
+          setTalhoesOptions([]);
+          return;
+        }
+        const talhaoSet = new Set<string>();
+        for (const prog of progs) {
+          const rc = await fetch(`${base}/programacoes/${prog.id}/children`, { headers });
+          if (!rc.ok) continue;
+          const children = await rc.json();
+          const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
+          talhoes.forEach((t) => talhaoSet.add(String(t)));
+        }
+        if (talhaoSet.size === 0) {
+          const fazenda = (fazendas || []).find(f => String(f.nomefazenda) === String(area));
+          const haFallback = Number(fazenda?.area_cultivavel || 0);
+          setSelectedAreaHa(haFallback);
+          setTalhoesOptions([]);
+          return;
+        }
+        const fazendaObj = (fazendas || []).find((f: any) => String(f.nomefazenda) === String(area));
+        const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
+        const params = new URLSearchParams();
+        if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
+        if (safraId) params.set("safra_id", String(safraId));
+        const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
+        if (!r2.ok) return;
+        const j2 = await r2.json();
+        const items2 = ((j2?.items || []) as any[]).filter((t: any) => talhaoSet.has(String(t.id)));
+        const opts = items2.map((t: any) => ({ id: String(t.id), nome: String(t.nome || "Talhão"), area: Number(t.area || 0) || 0 }));
+        setTalhoesOptions(opts);
+        const sumAll = items2.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
+        const saved = (() => {
+          try {
+            if (!talhoesKey) return [] as string[];
+            const raw = localStorage.getItem(`def-talhoes-sel:${talhoesKey}`);
+            const ids = raw ? (JSON.parse(raw) as string[]) : [];
+            return ids.filter((id) => opts.some((o) => o.id === id));
+          } catch {
+            return [] as string[];
+          }
+        })();
+        if (saved.length > 0) {
+          setSelectedTalhaoIds(saved);
+          const idSet = new Set(saved.map(String));
+          const sumSel = opts.reduce((acc, o) => acc + (idSet.has(o.id) ? (Number(o.area || 0) || 0) : 0), 0);
+          setSelectedAreaHa(sumSel > 0 ? sumSel : (sumAll > 0 ? sumAll : 0));
+        } else if (selectedTalhaoIds.length > 0) {
+          const idSet = new Set(selectedTalhaoIds.map(String));
+          const sumSel = opts.reduce((acc, o) => acc + (idSet.has(o.id) ? (Number(o.area || 0) || 0) : 0), 0);
+          setSelectedAreaHa(sumSel > 0 ? sumSel : (sumAll > 0 ? sumAll : 0));
+        } else {
+          // tentativa simples de inferência: se área salva em edição bater com um talhão, selecionar automaticamente
+          const target = Number(initialData?.defensivos?.[0]?.area_hectares || 0) || 0;
+          if (target > 0) {
+            const tolerance = 0.01; // 0.01 ha
+            const single = opts.find((o) => Math.abs((Number(o.area || 0) || 0) - target) <= tolerance);
+            if (single) {
+              setSelectedTalhaoIds([single.id]);
+              setSelectedAreaHa(Number(single.area || 0) || 0);
+            } else {
+              setSelectedAreaHa(sumAll > 0 ? sumAll : 0);
+            }
+          } else {
+            setSelectedAreaHa(sumAll > 0 ? sumAll : 0);
+          }
+        }
+      } catch {}
+    };
+    loadAreaFromTalhoes();
+  }, [produtorNumerocm, area, safraId, fazendas, selectedTalhaoIds]);
 
   const allowedProdutoresNumerocm = useMemo(() => {
     if (!safraId) return [] as string[];
@@ -401,6 +492,7 @@ export const FormAplicacaoDefensivo = ({
                             setProdutorNumerocm("");
                             setArea("");
                             setSelectedAreaHa(0);
+                            setSelectedTalhaoIds([]);
                             setOpenSafra(false);
                           }}
                         >
@@ -441,6 +533,7 @@ export const FormAplicacaoDefensivo = ({
                           onSelect={() => {
                             setProdutorNumerocm(produtor.numerocm);
                             setArea("");
+                            setSelectedTalhaoIds([]);
                             setOpenProdutorPopover(false);
                           }}
                         >
@@ -499,6 +592,7 @@ export const FormAplicacaoDefensivo = ({
                           onSelect={() => {
                             setArea(f.nomefazenda);
                             // A área será calculada via useEffect quando programacaoAtual mudar
+                            setSelectedTalhaoIds([]);
                             setOpenFazenda(false);
                           }}
                         >
@@ -516,6 +610,58 @@ export const FormAplicacaoDefensivo = ({
                               <Badge variant="secondary" className="text-xs">sem área(há)</Badge>
                             )}
                           </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+          </Popover>
+          </div>
+
+          <div className="space-y-2 md:col-span-1 lg:col-span-3">
+            <Label>Talhão</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between" disabled={!produtorNumerocm || !area || !safraId || talhoesOptions.length === 0}>
+                  {selectedTalhaoIds.length > 0
+                    ? `${selectedTalhaoIds.length} talhões selecionados`
+                    : talhoesOptions.length > 0
+                      ? "Selecione..."
+                      : "Sem talhões desta programação"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar talhão..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum talhão encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {talhoesOptions.map((t) => (
+                        <CommandItem
+                          key={t.id}
+                          value={`${t.nome}`}
+                          onSelect={() => {
+                            const isSelected = selectedTalhaoIds.includes(t.id);
+                            const next = isSelected ? selectedTalhaoIds.filter((id) => id !== t.id) : [...selectedTalhaoIds, t.id];
+                            setSelectedTalhaoIds(next);
+                            const idSet = new Set(next.map(String));
+                            const sumSel = talhoesOptions.reduce((acc, o) => acc + (idSet.has(o.id) ? (Number(o.area || 0) || 0) : 0), 0);
+                            const sumAll = talhoesOptions.reduce((acc, o) => acc + (Number(o.area || 0) || 0), 0);
+                            setSelectedAreaHa(sumSel > 0 ? sumSel : sumAll);
+                            try {
+                              if (talhoesKey) localStorage.setItem(`def-talhoes-sel:${talhoesKey}`, JSON.stringify(next));
+                            } catch {}
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedTalhaoIds.includes(t.id) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {t.nome} • {t.area.toFixed(2)} ha
                         </CommandItem>
                       ))}
                     </CommandGroup>

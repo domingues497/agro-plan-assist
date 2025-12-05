@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
+import { cn, getApiBaseUrl } from "@/lib/utils";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useProfile } from "@/hooks/useProfile";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -46,6 +46,7 @@ const Defensivos = () => {
   const [openReplicateFazendaPopover, setOpenReplicateFazendaPopover] = useState(false);
   const [selectedAreaPairs, setSelectedAreaPairs] = useState<Array<{ produtor_numerocm: string; area: string }>>([]);
   const { data: fazendas = [] } = useFazendas(replicateProdutorNumerocm);
+  const { data: fazendasAll = [] } = useFazendas();
   const { profile } = useProfile();
   const { data: adminRole } = useAdminRole();
   const { data: consultores = [] } = useConsultores();
@@ -53,6 +54,58 @@ const Defensivos = () => {
   const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
   const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
   const canEditDefensivos = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
+  const [areasCalc, setAreasCalc] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const loadAreas = async () => {
+      try {
+        const base = getApiBaseUrl();
+        const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const updates: Record<string, number> = {};
+        for (const ap of aplicacoes) {
+          const defs = (ap.defensivos || []) as any[];
+          const safraId = (() => {
+            const d = defs.find((it: any) => it && it.safra_id);
+            return String(d?.safra_id || "").trim();
+          })();
+          const key = `${String(ap.produtor_numerocm)}|${String(ap.area)}|${safraId}`;
+          if (!safraId || areasCalc[key] !== undefined) continue;
+          const progs = (programacoes || []).filter((p: any) => {
+            const sameProd = String(p.produtor_numerocm) === String(ap.produtor_numerocm);
+            const sameArea = String(p.area) === String(ap.area);
+            const safraOk = String(p.safra_id || "") === safraId;
+            return sameProd && sameArea && safraOk;
+          });
+          if (!progs || progs.length === 0) continue;
+          const talhaoSet = new Set<string>();
+          for (const prog of progs) {
+            const res = await fetch(`${base}/programacoes/${prog.id}/children`, { headers });
+            if (!res.ok) continue;
+            const children = await res.json();
+            const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
+            talhoes.forEach((t) => talhaoSet.add(String(t)));
+          }
+          if (talhaoSet.size === 0) continue;
+          const fazendaObj = (fazendasAll || []).find((f: any) => String(f.nomefazenda) === String(ap.area) && String(f.numerocm) === String(ap.produtor_numerocm));
+          const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
+          const params = new URLSearchParams();
+          if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
+          if (safraId) params.set("safra_id", safraId);
+          const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
+          if (!r2.ok) continue;
+          const j2 = await r2.json();
+          const items = ((j2?.items || []) as any[]).filter((t: any) => talhaoSet.has(String(t.id)));
+          const sum = items.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
+          if (sum > 0) updates[key] = sum;
+        }
+        if (Object.keys(updates).length > 0) {
+          setAreasCalc((prev) => ({ ...prev, ...updates }));
+        }
+      } catch {}
+    };
+    loadAreas();
+  }, [aplicacoes, programacoes, fazendasAll]);
 
   const produtoresComCultivar = useMemo(() => {
     const set = new Set<string>();
@@ -188,6 +241,7 @@ const Defensivos = () => {
             title="Editar Programação de Defensivo"
             submitLabel="Salvar alterações"
             initialData={{
+              id: editing.id,
               produtor_numerocm: editing.produtor_numerocm || getProdutorNumerocmFallback(editing.id),
               area: editing.area,
               defensivos: editing.defensivos,
@@ -226,13 +280,8 @@ const Defensivos = () => {
                                 const d = defs.find((it: any) => it && it.safra_id);
                                 return String(d?.safra_id || "").trim();
                               })();
-                              const progMatch = (programacoes || []).find((p: any) => {
-                                const sameProd = String(p.produtor_numerocm) === String(aplicacao.produtor_numerocm);
-                                const sameArea = String(p.area) === String(aplicacao.area);
-                                const safraOk = safraId ? String(p.safra_id || "") === safraId : true;
-                                return sameProd && sameArea && safraOk;
-                              });
-                              const areaHa = Number(progMatch?.area_hectares || 0);
+                              const key = `${String(aplicacao.produtor_numerocm)}|${String(aplicacao.area)}|${safraId}`;
+                              const areaHa = Number(areasCalc[key] ?? 0);
                               return (
                                 <p className="text-sm text-muted-foreground">
                                   {aplicacao.area}
