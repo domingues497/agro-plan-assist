@@ -40,7 +40,7 @@ export function getApiBaseUrl(): string {
       return origin.replace(/\/$/, "") + "/api";
     }
     if (isLocalHost) {
-      return origin;
+      return origin.replace(/\/$/, "") + "/api";
     }
     const normalizedEnv = (envUrl || "").trim();
     if (normalizedEnv) {

@@ -74,6 +74,18 @@ def db_health():
     finally:
         pool.putconn(conn)
 
+
+@app.route("/debug/routes")
+def debug_routes():
+    try:
+        routes = [str(r) for r in app.url_map.iter_rules()]
+        return jsonify({"routes": routes})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# execução do servidor está no final do arquivo
+
+
 @app.route("/talhoes/import", methods=["POST"])
 def import_talhoes():
     ensure_talhoes_schema()
@@ -125,6 +137,8 @@ def import_talhoes():
         return jsonify({"error": str(e)}), 400
     finally:
         pool.putconn(conn)
+
+## removed misplaced __main__ block (moved to file end)
 @app.route("/fazendas", methods=["GET"])
 def list_fazendas():
     ensure_fazendas_schema()
@@ -822,7 +836,7 @@ def create_consultor():
     id_val = str(uuid.uuid4())
     numerocm_consultor = payload.get("numerocm_consultor")
     consultor = payload.get("consultor")
-    email = (payload.get("email") or "").lower()
+    email = (payload.get("email") or "").strip().lower()
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -861,7 +875,7 @@ def update_consultor(id: str):
                     values.append(consultor)
                 if email is not None:
                     set_parts.append("email = %s")
-                    values.append((email or "").lower())
+                    values.append((email or "").strip().lower())
                 if numerocm_consultor is not None:
                     set_parts.append("numerocm_consultor = %s")
                     values.append(numerocm_consultor)
@@ -897,15 +911,15 @@ def delete_consultor(id: str):
 @app.route("/consultores/by_email", methods=["GET"])
 def get_consultor_by_email():
     ensure_consultores_schema()
-    email = (request.args.get("email") or "").lower()
+    email = (request.args.get("email") or "").strip().lower()
     pool = get_pool()
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, numerocm_consultor, consultor, email FROM public.consultores WHERE email = %s", [email])
+            cur.execute("SELECT id, numerocm_consultor, consultor, email FROM public.consultores WHERE lower(btrim(email)) = %s", [email])
             row = cur.fetchone()
             if not row:
-                return jsonify({"item": None}), 404
+                return jsonify({"item": None})
             cols = [d[0] for d in cur.description]
             item = dict(zip(cols, row))
             return jsonify({"item": item})
@@ -3620,86 +3634,6 @@ def remove_user_produtor(id: str):
     finally:
         pool.putconn(conn)
 
-@app.route("/embalagens", methods=["GET"])
-def list_embalagens():
-    ensure_embalagens_schema()
-    scope = (request.args.get("scope") or "").strip().lower()
-    cultura = (request.args.get("cultura") or "").strip()
-    only_active = True if (request.args.get("ativo") or "true").strip().lower() in ("true", "1") else False
-    pool = get_pool()
-    conn = pool.getconn()
-    try:
-        with conn.cursor() as cur:
-            where = []
-            vals = []
-            if only_active:
-                where.append("ativo = true")
-            if scope in ("cultivar", "fertilizante", "defensivo"):
-                col = {
-                    "cultivar": "scope_cultivar",
-                    "fertilizante": "scope_fertilizante",
-                    "defensivo": "scope_defensivo",
-                }[scope]
-                where.append(f"{col} = true")
-            if cultura:
-                where.append("(cultura IS NULL OR cultura = %s)")
-                vals.append(cultura)
-            sql = "SELECT id, nome, ativo, scope_cultivar, scope_fertilizante, scope_defensivo, cultura, created_at, updated_at FROM public.embalagens"
-            if where:
-                sql += " WHERE " + " AND ".join(where)
-            sql += " ORDER BY nome"
-            cur.execute(sql, vals)
-            rows = cur.fetchall()
-            cols = [d[0] for d in cur.description]
-            items = [dict(zip(cols, r)) for r in rows]
-            return jsonify({"items": items, "count": len(items)})
-    finally:
-        pool.putconn(conn)
-
-@app.route("/embalagens/bulk", methods=["POST"])
-def upsert_embalagens_bulk():
-    ensure_embalagens_schema()
-    payload = request.get_json(silent=True) or {}
-    items = payload.get("items") or []
-    if not isinstance(items, list) or not items:
-        return jsonify({"error": "items vazio"}), 400
-    pool = get_pool()
-    conn = pool.getconn()
-    inserted = 0
-    updated = 0
-    try:
-        with conn:
-            with conn.cursor() as cur:
-                for it in items:
-                    idv = (it.get("id") or str(uuid.uuid4())).strip()
-                    nome = (it.get("nome") or "").strip()
-                    ativo = bool(it.get("ativo", True))
-                    sc_cult = bool(it.get("scope_cultivar", False)) or ("CULTIVAR" in (it.get("scopes") or []))
-                    sc_fert = bool(it.get("scope_fertilizante", False)) or ("FERTILIZANTE" in (it.get("scopes") or []))
-                    sc_def = bool(it.get("scope_defensivo", False)) or ("DEFENSIVO" in (it.get("scopes") or []))
-                    cultura = it.get("cultura")
-                    if not nome:
-                        continue
-                    cur.execute(
-                        """
-                        INSERT INTO public.embalagens (id, nome, ativo, scope_cultivar, scope_fertilizante, scope_defensivo, cultura)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (id) DO UPDATE SET
-                          nome = EXCLUDED.nome,
-                          ativo = EXCLUDED.ativo,
-                          scope_cultivar = EXCLUDED.scope_cultivar,
-                          scope_fertilizante = EXCLUDED.scope_fertilizante,
-                          scope_defensivo = EXCLUDED.scope_defensivo,
-                          cultura = EXCLUDED.cultura,
-                          updated_at = now()
-                        """,
-                        [idv, nome, ativo, sc_cult, sc_fert, sc_def, cultura],
-                    )
-                    inserted += 1
-        return jsonify({"ok": True, "processed": inserted, "updated": updated})
-    finally:
-        pool.putconn(conn)
-
 @app.route("/user_fazendas", methods=["GET"])
 def list_user_fazendas():
     ensure_consultores_schema()
@@ -3809,6 +3743,87 @@ def remove_gestor_consultor(id: str):
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM public.gestor_consultores WHERE id = %s", [id])
         return jsonify({"ok": True})
+    finally:
+        pool.putconn(conn)
+
+# moved to end of file to ensure all routes are registered before running
+@app.route("/embalagens", methods=["GET"])
+def list_embalagens():
+    ensure_embalagens_schema()
+    scope = (request.args.get("scope") or "").strip().lower()
+    cultura = (request.args.get("cultura") or "").strip()
+    only_active = True if (request.args.get("ativo") or "true").strip().lower() in ("true", "1") else False
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            where = []
+            vals = []
+            if only_active:
+                where.append("ativo = true")
+            if scope in ("cultivar", "fertilizante", "defensivo"):
+                col = {
+                    "cultivar": "scope_cultivar",
+                    "fertilizante": "scope_fertilizante",
+                    "defensivo": "scope_defensivo",
+                }[scope]
+                where.append(f"{col} = true")
+            if cultura:
+                where.append("(cultura IS NULL OR cultura = %s)")
+                vals.append(cultura)
+            sql = "SELECT id, nome, ativo, scope_cultivar, scope_fertilizante, scope_defensivo, cultura, created_at, updated_at FROM public.embalagens"
+            if where:
+                sql += " WHERE " + " AND ".join(where)
+            sql += " ORDER BY nome"
+            cur.execute(sql, vals)
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            items = [dict(zip(cols, r)) for r in rows]
+            return jsonify({"items": items, "count": len(items)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/embalagens/bulk", methods=["POST"])
+def upsert_embalagens_bulk():
+    ensure_embalagens_schema()
+    payload = request.get_json(silent=True) or {}
+    items = payload.get("items") or []
+    if not isinstance(items, list) or not items:
+        return jsonify({"error": "items vazio"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    inserted = 0
+    updated = 0
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                for it in items:
+                    idv = (it.get("id") or str(uuid.uuid4())).strip()
+                    nome = (it.get("nome") or "").strip()
+                    ativo = bool(it.get("ativo", True))
+                    sc_cult = bool(it.get("scope_cultivar", False)) or ("CULTIVAR" in (it.get("scopes") or []))
+                    sc_fert = bool(it.get("scope_fertilizante", False)) or ("FERTILIZANTE" in (it.get("scopes") or []))
+                    sc_def = bool(it.get("scope_defensivo", False)) or ("DEFENSIVO" in (it.get("scopes") or []))
+                    cultura = it.get("cultura")
+                    if not nome:
+                        continue
+                    cur.execute(
+                        """
+                        INSERT INTO public.embalagens (id, nome, ativo, scope_cultivar, scope_fertilizante, scope_defensivo, cultura)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                          nome = EXCLUDED.nome,
+                          ativo = EXCLUDED.ativo,
+                          scope_cultivar = EXCLUDED.scope_cultivar,
+                          scope_fertilizante = EXCLUDED.scope_fertilizante,
+                          scope_defensivo = EXCLUDED.scope_defensivo,
+                          cultura = EXCLUDED.cultura,
+                          updated_at = now()
+                        """,
+                        [idv, nome, ativo, sc_cult, sc_fert, sc_def, cultura],
+                    )
+                    inserted += 1
+        return jsonify({"ok": True, "processed": inserted, "updated": updated})
     finally:
         pool.putconn(conn)
 

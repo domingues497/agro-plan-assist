@@ -181,6 +181,10 @@ def ensure_consultores_schema():
                     cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS pode_editar_programacao BOOLEAN NOT NULL DEFAULT false")
                 except Exception:
                     pass
+                try:
+                    cur.execute("UPDATE public.consultores SET email = LOWER(TRIM(email)) WHERE email IS NOT NULL")
+                except Exception:
+                    pass
                 # Tabelas de associação
                 cur.execute(
                     """
@@ -492,6 +496,34 @@ def ensure_app_versions_schema():
                 )
                 try:
                     cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS app_versions_unique_version_env ON public.app_versions (version, environment)")
+                except Exception:
+                    pass
+    finally:
+        pool.putconn(conn)
+
+def ensure_embalagens_schema():
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.embalagens (
+                      id TEXT PRIMARY KEY,
+                      nome TEXT NOT NULL,
+                      ativo BOOLEAN NOT NULL DEFAULT true,
+                      scope_cultivar BOOLEAN NOT NULL DEFAULT false,
+                      scope_fertilizante BOOLEAN NOT NULL DEFAULT false,
+                      scope_defensivo BOOLEAN NOT NULL DEFAULT false,
+                      cultura TEXT,
+                      created_at TIMESTAMPTZ DEFAULT now(),
+                      updated_at TIMESTAMPTZ DEFAULT now()
+                    );
+                    """
+                )
+                try:
+                    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS embalagens_nome_idx ON public.embalagens (nome)")
                 except Exception:
                     pass
     finally:

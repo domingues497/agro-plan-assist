@@ -29,6 +29,7 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
   const { data: produtores } = useProdutores();
   const [openProdutor, setOpenProdutor] = useState(false);
   const [openFazenda, setOpenFazenda] = useState(false);
+  const [embalagensFert, setEmbalagensFert] = useState<string[]>([]);
   
   const normalizeNumerocm = (v?: string) => (v || "").trim().toLowerCase();
   const parseNumber = (v: string | number | null | undefined) => {
@@ -73,6 +74,21 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
       setFormData((prev) => ({ ...prev, total: computed }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const loadEmbalagens = async () => {
+      try {
+        const { getApiBaseUrl } = await import("@/lib/utils");
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/embalagens?scope=fertilizante`);
+        if (!res.ok) return;
+        const j = await res.json();
+        const names = (j?.items || []).map((x: any) => String(x.nome || "").trim()).filter(Boolean);
+        setEmbalagensFert(names);
+      } catch {}
+    };
+    loadEmbalagens();
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -332,14 +348,15 @@ export const FormAdubacao = ({ onSubmit, onCancel, isLoading, initialData, title
               value={formData.embalagem || ""}
               onValueChange={(value) => setFormData({ ...formData, embalagem: value || null })}
             >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Big Bag" id="big-bag" />
-                <Label htmlFor="big-bag" className="font-normal cursor-pointer">Big Bag</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Saca" id="saca" />
-                <Label htmlFor="saca" className="font-normal cursor-pointer">Saca</Label>
-              </div>
+              {(embalagensFert.length ? embalagensFert : ["Big Bag", "Saca"]).map((nome) => {
+                const id = `emb-${nome.replace(/\s+/g, '-').toLowerCase()}`;
+                return (
+                  <div className="flex items-center space-x-2" key={id}>
+                    <RadioGroupItem value={nome} id={id} />
+                    <Label htmlFor={id} className="font-normal cursor-pointer">{nome}</Label>
+                  </div>
+                );
+              })}
             </RadioGroup>
           </div>
         </div>

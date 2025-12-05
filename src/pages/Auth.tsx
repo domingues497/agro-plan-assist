@@ -45,15 +45,8 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Permitir login apenas para emails de consultores cadastrados
     const baseUrl2 = getApiBaseUrl();
-    const res2 = await fetch(`${baseUrl2}/consultores/by_email?email=${encodeURIComponent(email.toLowerCase())}`);
-    if (!res2.ok) {
-      toast({ title: "Login bloqueado", description: "Email não encontrado na base de consultores.", variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
+    // Tenta login diretamente; o backend valida se o email está autorizado e a senha
     const res = await fetch(`${baseUrl2}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -61,7 +54,9 @@ const Auth = () => {
     });
     if (!res.ok) {
       const txt = await res.text();
-      toast({ title: "Erro ao fazer login", description: txt, variant: "destructive" });
+      // Mensagens amigáveis para casos comuns
+      const msg = txt || (res.status === 403 ? "Email não autorizado ou senha inválida" : "Falha ao fazer login");
+      toast({ title: "Erro ao fazer login", description: msg, variant: "destructive" });
     } else {
       const json = await res.json();
       localStorage.setItem("auth_token", json?.token);

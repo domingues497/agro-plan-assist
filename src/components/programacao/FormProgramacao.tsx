@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList, CommandInput } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronsUpDown, Check } from "lucide-react";
-import { cn, safeRandomUUID } from "@/lib/utils";
+import { cn, safeRandomUUID, getApiBaseUrl } from "@/lib/utils";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
@@ -76,6 +76,19 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
       setCulturaSelecionada(item.cultura);
     }
   }, [item.cultura]);
+
+  useEffect(() => {
+    const filtered = (embalagensCultivar || []).filter((e) => {
+      const ec = String(e?.cultura || "").trim();
+      const cc = String(culturaSelecionada || "").trim();
+      return !ec || (cc && ec === cc);
+    });
+    const sel = String(item.tipo_embalagem || "");
+    if (sel && !filtered.some((e) => e.nome === sel)) {
+      onChange(index, "tipo_embalagem", "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embalagensCultivar, culturaSelecionada]);
   
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
   const cultivarNome = cultivarSelecionado?.cultivar;
@@ -257,17 +270,15 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
           <div className="flex gap-2">
             <Select value={item.tipo_embalagem} onValueChange={(value) => onChange(index, "tipo_embalagem", value)}>
               <SelectTrigger className="flex-1">
-                <SelectValue />
+                <SelectValue placeholder="Selecione a embalagem" />
               </SelectTrigger>
               <SelectContent>
-                {item.tipo_embalagem && !(embalagensCultivar || []).some((e) => e.nome === item.tipo_embalagem) && (
-                  <SelectItem value={item.tipo_embalagem}>{item.tipo_embalagem}</SelectItem>
-                )}
                 {(embalagensCultivar || [])
                   .filter((e) => {
                     const ec = String(e?.cultura || "").trim();
                     const cc = String(culturaSelecionada || "").trim();
-                    return !ec || (cc && ec === cc);
+                    const ecs = ec ? ec.split(",").map((s) => s.trim()).filter(Boolean) : [];
+                    return ecs.length === 0 || (cc && ecs.includes(cc));
                   })
                   .map((e) => (
                     <SelectItem key={e.id} value={e.nome}>{e.nome}</SelectItem>
@@ -570,8 +581,44 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
   }, [embalagensRaw]);
-  const embalagensCultivar = useMemo(() => (embalagens || []).filter((e: any) => (e?.ativo ?? true) && Array.isArray(e?.scopes) && e.scopes.includes("CULTIVAR")), [embalagens]);
+  const [embalagensApi, setEmbalagensApi] = useState<Array<{ id: string; nome: string; cultura?: string | null }>>([]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const base = getApiBaseUrl();
+        const res = await fetch(`${base}/embalagens?scope=cultivar`);
+        if (!res.ok) return;
+        const j = await res.json();
+        const list = (j?.items || []).map((x: any) => ({ id: String(x.id || ""), nome: String(x.nome || ""), cultura: x.cultura ?? null }));
+        setEmbalagensApi(list);
+      } catch {}
+    };
+    load();
+  }, []);
+  const embalagensCultivar = useMemo(() => {
+    if ((embalagensApi || []).length > 0) return embalagensApi;
+    return (embalagens || []).filter((e: any) => (e?.ativo ?? true) && Array.isArray(e?.scopes) && e.scopes.includes("CULTIVAR"));
+  }, [embalagensApi, embalagens]);
+
+  const [embalagensFertilizantesApi, setEmbalagensFertilizantesApi] = useState<Array<{ id: string; nome: string }>>([]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const base = getApiBaseUrl();
+        const res = await fetch(`${base}/embalagens?scope=fertilizante`);
+        if (!res.ok) return;
+        const j = await res.json();
+        const list = (j?.items || []).map((x: any) => ({ id: String(x.id || ""), nome: String(x.nome || "") }));
+        setEmbalagensFertilizantesApi(list);
+      } catch {}
+    };
+    load();
+  }, []);
   const embalagensFertilizantes = useMemo(() => (embalagens || []).filter((e: any) => (e?.ativo ?? true) && Array.isArray(e?.scopes) && e.scopes.includes("FERTILIZANTE")), [embalagens]);
+  const embalagensFertilizantesAll = useMemo(() => {
+    if ((embalagensFertilizantesApi || []).length > 0) return embalagensFertilizantesApi;
+    return embalagensFertilizantes as Array<{ id: string; nome: string }>;
+  }, [embalagensFertilizantesApi, embalagensFertilizantes]);
 
   // Normaliza valores vindos do banco para o enum do select
   const normalizeTipoTratamento = (s?: string): ItemCultivar["tipo_tratamento"] => {
@@ -622,7 +669,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           uiId: makeUiId(),
           cultivar: "",
           percentual_cobertura: 0,
-          tipo_embalagem: "BAG 5000K" as const,
+          tipo_embalagem: "",
           tipo_tratamento: "NÃO" as const,
           populacao_recomendada: 0
         }]
@@ -765,7 +812,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       uiId: makeUiId(),
       cultivar: "",
       percentual_cobertura: 100,
-      tipo_embalagem: "BAG 5000K" as const,
+      tipo_embalagem: "",
       tipo_tratamento: "NÃO" as const
     }, ...itensCultivar]);
   };
@@ -929,6 +976,30 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           })()
         : adubacaoNormal
     };
+
+    // Validação: cada cultivar deve ter embalagem selecionada
+    const cultsSemEmbalagem = itensCultivar.filter((it) => !!it.cultivar && !String(it.tipo_embalagem || "").trim());
+    if (cultsSemEmbalagem.length > 0) {
+      toast({
+        title: "Erro de validação",
+        description: "Selecione a embalagem para cada cultivar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação: cada adubação deve ter embalagem selecionada
+    if (!naoFazerAdubacao) {
+      const adubsSemEmbalagem = itensAdubacao.filter((it) => !!it.formulacao && !String(it.embalagem || "").trim());
+      if (adubsSemEmbalagem.length > 0) {
+        toast({
+          title: "Erro de validação",
+          description: "Selecione a embalagem para cada adubação",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
     onSubmit(data);
   };
@@ -1221,13 +1292,10 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                       onValueChange={(value) => handleAdubacaoChange(index, "embalagem", value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
+                        <SelectValue placeholder="Selecione a embalagem" />
                       </SelectTrigger>
                       <SelectContent>
-                        {item.embalagem && !(embalagensFertilizantes || []).some((e: any) => e.nome === item.embalagem) && (
-                          <SelectItem value={item.embalagem}>{item.embalagem}</SelectItem>
-                        )}
-                        {(embalagensFertilizantes || []).map((e: any) => (
+                        {(embalagensFertilizantesAll || []).map((e: any) => (
                           <SelectItem key={e.id} value={e.nome}>{e.nome}</SelectItem>
                         ))}
                       </SelectContent>

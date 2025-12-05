@@ -46,6 +46,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const [embalagemPreferida, setEmbalagemPreferida] = useState<EmbalagemPreferida>("auto");
   const [openEmbalagem, setOpenEmbalagem] = useState(false);
   const [resultadoEmbalagens, setResultadoEmbalagens] = useState<string>("");
+  const [embalagensDb, setEmbalagensDb] = useState<string[]>([]);
   const { safras, defaultSafra } = useSafras();
   const safrasAtivas = (safras || []).filter((s) => s.ativa);
   const { data: defensivosCatalog } = useDefensivosCatalog();
@@ -132,6 +133,33 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
       }
     }
   }, [formData.populacao_recomendada, formData.area_hectares, embalagemPreferida]);
+
+  useEffect(() => {
+    const loadEmbalagens = async () => {
+      try {
+        const { getApiBaseUrl } = await import("@/lib/utils");
+        const baseUrl = getApiBaseUrl();
+        const selected = (cultivares || []).find((c) => String(c.cultivar || "").trim() === String(formData.cultivar || "").trim());
+        const cultura = selected?.cultura ? `&cultura=${encodeURIComponent(String(selected.cultura))}` : "";
+        const res = await fetch(`${baseUrl}/embalagens?scope=cultivar${cultura}`);
+        if (!res.ok) return;
+        const j = await res.json();
+        const names = (j?.items || []).map((x: any) => String(x.nome || "").trim()).filter(Boolean);
+        setEmbalagensDb(names);
+      } catch {}
+    };
+    loadEmbalagens();
+  }, [formData.cultivar, cultivares]);
+
+  const embalagemOptionAvailable = (key: EmbalagemPreferida) => {
+    if (key === "auto") return true;
+    const lower = (s: string) => s.toLowerCase();
+    const has = (q: string) => embalagensDb.some((x) => lower(x).includes(q));
+    if (key === "bigbag_5m") return has("big") && (has("5m") || has("5 m") || has("5000"));
+    if (key === "saca_200k") return (has("200k") || has("200 k") || has("200")) && has("saca");
+    if (key === "saca_160k") return (has("160k") || has("160 k") || has("160")) && has("saca");
+    return false;
+  };
 
   const { data: fazendas } = useFazendas(formData.produtor_numerocm);
 
@@ -430,6 +458,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                       >
                         Automático (cascata)
                       </CommandItem>
+                      {embalagemOptionAvailable("bigbag_5m") && (
                       <CommandItem
                         key="bigbag"
                         value="bigbag_5m"
@@ -441,6 +470,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                       >
                         BigBag 5M
                       </CommandItem>
+                      )}
+                      {embalagemOptionAvailable("saca_200k") && (
                       <CommandItem
                         key="s200"
                         value="saca_200k"
@@ -452,6 +483,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                       >
                         Saca 200k
                       </CommandItem>
+                      )}
+                      {embalagemOptionAvailable("saca_160k") && (
                       <CommandItem
                         key="s160"
                         value="saca_160k"
@@ -463,6 +496,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
                       >
                         Saca 160k
                       </CommandItem>
+                      )}
                     </CommandGroup>
                   </CommandList>
                 </Command>
