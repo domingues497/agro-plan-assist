@@ -1041,7 +1041,7 @@ def create_programacao():
             pass
     if not (produtor_numerocm and fazenda_idfazenda and area):
         return jsonify({"error": "Campos obrigatórios ausentes"}), 400
-    prog_id = f"p{uuid.uuid4().hex}"
+    prog_id = str(int(time.time() * 1000))
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -1081,7 +1081,7 @@ def create_programacao():
                     [prog_id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id]
                 )
                 for item in cultivares:
-                    cult_id = item.get("id") or f"c{uuid.uuid4().hex}"
+                    cult_id = item.get("id") or f"c{int(time.time()*1000)}"
                     tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
                     first_tr = None if str(item.get("tipo_tratamento")).upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
                     cur.execute(
@@ -1104,7 +1104,7 @@ def create_programacao():
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                        [f"t{uuid.uuid4().hex}", cult_id, tid]
+                            [f"t{int(time.time()*1000)}", cult_id, tid]
                         )
                     if str(item.get("tipo_tratamento")).upper() == "NA FAZENDA":
                         for d in (item.get("defensivos_fazenda") or []):
@@ -1114,7 +1114,7 @@ def create_programacao():
                                 (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                                 """,
-                                [f"d{uuid.uuid4().hex}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                                [f"d{int(time.time()*1000)}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                                  d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                             )
                 for a in adubacao:
@@ -1126,7 +1126,7 @@ def create_programacao():
                           porcentagem_salva, total, safra_id
                         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"a{uuid.uuid4().hex}", prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
+                        [f"a{int(time.time()*1000)}", prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
                          bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
@@ -1136,7 +1136,7 @@ def create_programacao():
                         INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
                         VALUES (%s, %s, %s, %s, %s)
                         """,
-                        [f"pt{uuid.uuid4().hex}", prog_id, tid, safra_id, fazenda_idfazenda]
+                        [f"pt{int(time.time()*1000)}", prog_id, tid, safra_id, fazenda_idfazenda]
                     )
         return jsonify({"id": prog_id})
     except Exception as e:
@@ -1270,7 +1270,7 @@ def update_programacao(id: str):
                 cur.execute("DELETE FROM public.programacao_talhoes WHERE programacao_id = %s", [id])
                 cur.execute("DELETE FROM public.programacao_adubacao WHERE programacao_id = %s", [id])
                 for item in cultivares:
-                    cult_id = item.get("id") or f"c{uuid.uuid4().hex}"
+                    cult_id = item.get("id") or f"c{int(time.time()*1000)}"
                     tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
                     first_tr = None if str(item.get("tipo_tratamento") or "").upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
                     cur.execute(
@@ -1293,7 +1293,7 @@ def update_programacao(id: str):
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{uuid.uuid4().hex}", cult_id, tid]
+                            [f"t{int(time.time()*1000)}", cult_id, tid]
                         )
                     if str(item.get("tipo_tratamento") or "").upper() == "NA FAZENDA":
                         for d in (item.get("defensivos_fazenda") or []):
@@ -1303,7 +1303,7 @@ def update_programacao(id: str):
                                 (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                                 """,
-                                [f"d{uuid.uuid4().hex}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                                [f"d{int(time.time()*1000)}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                                  d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                             )
                 for a in adubacao:
@@ -1315,7 +1315,7 @@ def update_programacao(id: str):
                           porcentagem_salva, total, safra_id
                         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"a{uuid.uuid4().hex}", id, user_id, produtor_numerocm, area, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
+                        [f"a{int(time.time()*1000)}", id, user_id, produtor_numerocm, area, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
                          bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
@@ -1325,7 +1325,7 @@ def update_programacao(id: str):
                         INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
                         VALUES (%s, %s, %s, %s, %s)
                         """,
-                        [f"pt{uuid.uuid4().hex}", id, tid, safra_id, fazenda_idfazenda]
+                        [f"pt{int(time.time()*1000)}", id, tid, safra_id, fazenda_idfazenda]
                     )
         return jsonify({"ok": True, "id": id})
     except Exception as e:
@@ -1385,7 +1385,7 @@ def list_programacao_cultivares():
 def create_programacao_cultivar():
     ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
-    id_val = payload.get("id") or f"c{uuid.uuid4().hex}"
+    id_val = payload.get("id") or f"pc{int(time.time()*1000)}"
     programacao_id = payload.get("programacao_id")
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
@@ -1441,7 +1441,7 @@ def create_programacao_cultivar():
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{uuid.uuid4().hex}", id_val, tid]
+                            [f"t{int(time.time()*1000)}", id_val, tid]
                         )
                 for d in defensivos_fazenda:
                     cur.execute(
@@ -1450,7 +1450,7 @@ def create_programacao_cultivar():
                         (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"d{uuid.uuid4().hex}", id_val, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                        [f"d{int(time.time()*1000)}", id_val, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                          d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                     )
         return jsonify({"id": id_val})
@@ -1510,7 +1510,7 @@ def update_programacao_cultivar(id: str):
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{uuid.uuid4().hex}", id, tid]
+                            [f"t{int(time.time()*1000)}", id, tid]
                         )
                 cur.execute("DELETE FROM public.programacao_cultivares_defensivos WHERE programacao_cultivar_id = %s", [id])
                 for d in defensivos_fazenda:
@@ -1520,7 +1520,7 @@ def update_programacao_cultivar(id: str):
                         (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"d{uuid.uuid4().hex}", id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                        [f"d{int(time.time()*1000)}", id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                          d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                     )
         return jsonify({"ok": True, "id": id})
@@ -1563,7 +1563,7 @@ def list_programacao_adubacao():
 def create_programacao_adub():
     ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
-    id_val = payload.get("id") or f"a{uuid.uuid4().hex}"
+    id_val = payload.get("id") or f"pa{int(time.time()*1000)}"
     programacao_id = payload.get("programacao_id")
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
@@ -2213,8 +2213,7 @@ def sync_fertilizantes():
     except Exception as e:
         return jsonify({"error": f"Falha ao gerar JWT: {e}"}), 400
     url = url_cfg
-    body = _json.dumps({}).encode("utf-8")
-    req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
+    req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
     try:
         with urlopen(req, timeout=30) as resp:
             raw = resp.read()
@@ -2303,8 +2302,7 @@ def sync_fertilizantes_test():
         return jsonify({"error": "Config JWT ausente (cliente_id/secret/exp)"}), 400
     try:
         token = _make_jwt(client_id, int(str(exp)), secret, None)
-        body = _json.dumps({}).encode("utf-8")
-        req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
+        req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
         with urlopen(req, timeout=15) as resp:
             return jsonify({"status": resp.status, "ok": True})
     except HTTPError as e:
@@ -2406,9 +2404,7 @@ def app_versions():
                         """
                         INSERT INTO public.app_versions (id, version, build, environment, notes)
                         VALUES (%s, %s, %s, %s, %s)
-                        ON CONFLICT (version, environment) DO UPDATE SET
-                          build = EXCLUDED.build,
-                          notes = EXCLUDED.notes
+                        ON CONFLICT (version, environment) DO NOTHING
                         """,
                         [str(uuid.uuid4()), version, build, environment, notes],
                     )
@@ -2417,25 +2413,6 @@ def app_versions():
             return jsonify({"error": str(e)}), 400
         finally:
             pool.putconn(conn)
-@app.route("/sync/status", methods=["GET"])
-def sync_status():
-    ensure_system_config_schema()
-    keys = [
-        "defensivos_sync_enabled",
-        "defensivos_sync_interval_minutes",
-        "defensivos_last_sync_at",
-        "defensivos_last_sync_imported",
-        "defensivos_last_sync_ignored",
-        "defensivos_last_sync_error",
-        "fertilizantes_sync_enabled",
-        "fertilizantes_sync_interval_minutes",
-        "fertilizantes_last_sync_at",
-        "fertilizantes_last_sync_imported",
-        "fertilizantes_last_sync_ignored",
-        "fertilizantes_last_sync_error",
-    ]
-    cfg = get_config_map(keys)
-    return jsonify({"ok": True, "config": cfg})
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
 
@@ -2475,8 +2452,7 @@ def sync_defensivos():
     except Exception as e:
         return jsonify({"error": f"Falha ao gerar JWT: {e}"}), 400
     url = url_cfg
-    body = _json.dumps({}).encode("utf-8")
-    req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
+    req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
     try:
         with urlopen(req, timeout=30) as resp:
             raw = resp.read()
@@ -2571,8 +2547,7 @@ def sync_defensivos_test():
         return jsonify({"error": "Config JWT ausente (client_id/secret/exp)"}), 400
     try:
         token = _make_jwt(client_id, int(str(exp)), secret, aud)
-        body = _json.dumps({}).encode("utf-8")
-        req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
+        req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
         with urlopen(req, timeout=15) as resp:
             return jsonify({"status": resp.status, "ok": True})
     except HTTPError as e:
@@ -2596,41 +2571,19 @@ def run_sync_defensivos(limpar: bool = False):
     ])
     missing = [k for k in ["api_defensivos_client_id","api_defensivos_secret","api_defensivos_url","api_defensivos_exp"] if k not in cfg or not cfg[k]]
     if missing:
-        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        upsert_config_items([
-            {"config_key": "defensivos_last_sync_at", "config_value": ts, "description": None},
-            {"config_key": "defensivos_last_sync_imported", "config_value": "0", "description": None},
-            {"config_key": "defensivos_last_sync_ignored", "config_value": "0", "description": None},
-            {"config_key": "defensivos_last_sync_error", "config_value": f"Config ausente: {', '.join(missing)}", "description": None},
-        ])
         return {"error": f"Config ausente: {', '.join(missing)}", "status": 400}
     try:
         url_cfg = (cfg["api_defensivos_url"] or "").strip().strip("`")
         token = _make_jwt(cfg["api_defensivos_client_id"], int(cfg["api_defensivos_exp"]), cfg["api_defensivos_secret"], None)
     except Exception as e:
-        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        upsert_config_items([
-            {"config_key": "defensivos_last_sync_at", "config_value": ts, "description": None},
-            {"config_key": "defensivos_last_sync_imported", "config_value": "0", "description": None},
-            {"config_key": "defensivos_last_sync_ignored", "config_value": "0", "description": None},
-            {"config_key": "defensivos_last_sync_error", "config_value": str(e), "description": None},
-        ])
         return {"error": f"Falha ao gerar JWT: {e}", "status": 400}
     url = url_cfg
-    body = _json.dumps({}).encode("utf-8")
-    req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
+    req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
     try:
         with urlopen(req, timeout=30) as resp:
             raw = resp.read()
             data = json.loads(raw.decode("utf-8"))
     except Exception as e:
-        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        upsert_config_items([
-            {"config_key": "defensivos_last_sync_at", "config_value": ts, "description": None},
-            {"config_key": "defensivos_last_sync_imported", "config_value": "0", "description": None},
-            {"config_key": "defensivos_last_sync_ignored", "config_value": "0", "description": None},
-            {"config_key": "defensivos_last_sync_error", "config_value": str(e), "description": None},
-        ])
         return {"error": f"Erro ao consultar API externa: {e}", "status": 502}
 
     items = data.get("items") if isinstance(data, dict) else data
@@ -2680,13 +2633,6 @@ def run_sync_defensivos(limpar: bool = False):
                         """,
                         normalized,
                     )
-        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        upsert_config_items([
-            {"config_key": "defensivos_last_sync_at", "config_value": ts, "description": None},
-            {"config_key": "defensivos_last_sync_imported", "config_value": str(len(normalized)), "description": None},
-            {"config_key": "defensivos_last_sync_ignored", "config_value": str(ignored), "description": None},
-            {"config_key": "defensivos_last_sync_error", "config_value": "", "description": None},
-        ])
         return {"ok": True, "imported": len(normalized), "ignored": ignored}
     finally:
         pool.putconn(conn)
@@ -2714,133 +2660,6 @@ def _start_sync_scheduler():
     t.start()
 
 _start_sync_scheduler()
-def run_sync_fertilizantes(limpar: bool = False):
-    ensure_system_config_schema()
-    ensure_fertilizantes_schema()
-    cfg = get_config_map([
-        "api_fertilizantes_cliente_id",
-        "api_fertilizantes_secret",
-        "api_fertilizantes_url",
-        "api_fertilizantes_exp",
-    ])
-    missing = [k for k in ["api_fertilizantes_cliente_id","api_fertilizantes_secret","api_fertilizantes_url","api_fertilizantes_exp"] if k not in cfg or not cfg[k]]
-    if missing:
-        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        upsert_config_items([
-            {"config_key": "fertilizantes_last_sync_at", "config_value": ts, "description": None},
-            {"config_key": "fertilizantes_last_sync_imported", "config_value": "0", "description": None},
-            {"config_key": "fertilizantes_last_sync_ignored", "config_value": "0", "description": None},
-            {"config_key": "fertilizantes_last_sync_error", "config_value": f"Config ausente: {', '.join(missing)}", "description": None},
-        ])
-        return {"error": f"Config ausente: {', '.join(missing)}", "status": 400}
-    try:
-        url_cfg = (cfg["api_fertilizantes_url"] or "").strip().strip("`")
-        token = _make_jwt(cfg["api_fertilizantes_cliente_id"], int(cfg["api_fertilizantes_exp"]), cfg["api_fertilizantes_secret"], None)
-    except Exception as e:
-        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        upsert_config_items([
-            {"config_key": "fertilizantes_last_sync_at", "config_value": ts, "description": None},
-            {"config_key": "fertilizantes_last_sync_imported", "config_value": "0", "description": None},
-            {"config_key": "fertilizantes_last_sync_ignored", "config_value": "0", "description": None},
-            {"config_key": "fertilizantes_last_sync_error", "config_value": str(e), "description": None},
-        ])
-        return {"error": f"Falha ao gerar JWT: {e}", "status": 400}
-    url = url_cfg
-    body = _json.dumps({}).encode("utf-8")
-    req = Request(url, data=body, headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"})
-    try:
-        with urlopen(req, timeout=30) as resp:
-            raw = resp.read()
-            data = json.loads(raw.decode("utf-8"))
-    except Exception as e:
-        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        upsert_config_items([
-            {"config_key": "fertilizantes_last_sync_at", "config_value": ts, "description": None},
-            {"config_key": "fertilizantes_last_sync_imported", "config_value": "0", "description": None},
-            {"config_key": "fertilizantes_last_sync_ignored", "config_value": "0", "description": None},
-            {"config_key": "fertilizantes_last_sync_error", "config_value": str(e), "description": None},
-        ])
-        return {"error": f"Erro ao consultar API externa: {e}", "status": 502}
-
-    items = data.get("items") if isinstance(data, dict) else data
-    if not isinstance(items, list):
-        return {"error": "Resposta da API externa inválida", "status": 500, "preview": data}
-
-    def pick(obj, keys):
-        for k in keys:
-            if k in obj and obj[k] not in (None, ""):
-                return obj[k]
-        return None
-
-    normalized = []
-    ignored = 0
-    for d in items:
-        cod_item = pick(d, ["cod_item", "COD_ITEM", "CODITEM", "COD ITEM", "COD. ITEM", "COD"])
-        item_val = pick(d, ["item", "ITEM"]) or None
-        marca_val = pick(d, ["marca", "MARCA"]) or None
-        princ_val = pick(d, ["principio_ativo", "PRINCIPIO_ATIVO", "PRINCIPIO ATIVO"]) or None
-        saldo_val = pick(d, ["saldo", "SALDO"]) or None
-        if not cod_item:
-            ignored += 1
-            continue
-        normalized.append([cod_item, item_val, marca_val, princ_val, saldo_val])
-
-    pool = get_pool()
-    conn = pool.getconn()
-    try:
-        with conn:
-            with conn.cursor() as cur:
-                if limpar:
-                    cur.execute("DELETE FROM public.fertilizantes_catalog")
-                if normalized:
-                    execute_values(
-                        cur,
-                        """
-                        INSERT INTO public.fertilizantes_catalog (cod_item, item, marca, principio_ativo, saldo)
-                        VALUES %s
-                        ON CONFLICT (cod_item) DO UPDATE SET
-                          item = EXCLUDED.item,
-                          marca = EXCLUDED.marca,
-                          principio_ativo = EXCLUDED.principio_ativo,
-                          saldo = EXCLUDED.saldo,
-                          updated_at = now()
-                        """,
-                        normalized,
-                    )
-        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        upsert_config_items([
-            {"config_key": "fertilizantes_last_sync_at", "config_value": ts, "description": None},
-            {"config_key": "fertilizantes_last_sync_imported", "config_value": str(len(normalized)), "description": None},
-            {"config_key": "fertilizantes_last_sync_ignored", "config_value": str(ignored), "description": None},
-            {"config_key": "fertilizantes_last_sync_error", "config_value": "", "description": None},
-        ])
-        return {"ok": True, "imported": len(normalized), "ignored": ignored}
-    finally:
-        pool.putconn(conn)
-
-def _start_sync_scheduler_fertilizantes():
-    def loop():
-        last_run = 0
-        while True:
-            try:
-                ensure_system_config_schema()
-                cfg = get_config_map(["fertilizantes_sync_enabled", "fertilizantes_sync_interval_minutes"])
-                enabled = str(cfg.get("fertilizantes_sync_enabled", "")).strip().lower() in ("1", "true", "yes", "on")
-                interval = int(str(cfg.get("fertilizantes_sync_interval_minutes", "30") or "30"))
-                if interval < 1:
-                    interval = 30
-                now_ts = time.time()
-                if enabled and now_ts - last_run >= interval * 60:
-                    res = run_sync_fertilizantes(False)
-                    print(f"[fertilizantes-sync] imported={res.get('imported')} ignored={res.get('ignored')}")
-                    last_run = now_ts
-            except Exception as e:
-                print(f"[fertilizantes-sync] erro: {e}")
-            time.sleep(30)
-    t = threading.Thread(target=loop, daemon=True)
-    t.start()
-
-_start_sync_scheduler_fertilizantes()
 @app.route("/defensivos", methods=["POST"])
 def upsert_defensivo():
     ensure_defensivos_schema()

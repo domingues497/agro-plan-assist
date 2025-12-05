@@ -33,23 +33,23 @@ export function getApiBaseUrl(): string {
   const isLocalHost = ["localhost", "127.0.0.1"].includes(host);
 
   if (isBrowser) {
+    const normalizedEnv = (envUrl || "").trim();
+    if (normalizedEnv) {
+      return normalizedEnv;
+    }
     const origin = `${window.location.protocol}//${window.location.host}`;
     const port = String(window.location.port || "");
     const isDefaultHttpPort = !port || port === "80";
-    if (isLocalHost) {
-      const normalizedEnv = (envUrl || "").trim();
-      if (normalizedEnv) {
-        return normalizedEnv;
-      }
+    if (isDefaultHttpPort) {
       return origin.replace(/\/$/, "") + "/api";
     }
-    if (isDefaultHttpPort) {
+    if (isLocalHost) {
       return origin.replace(/\/$/, "") + "/api";
     }
     if (/coopagricola\.coop\.br$/i.test(host)) {
       return origin.replace(/\/$/, "") + "/api";
     }
-    return origin.replace(/\/$/, "") + "/api";
+    return origin;
   }
 
   if (envUrl && envUrl.trim()) {
