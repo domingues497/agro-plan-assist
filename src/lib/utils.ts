@@ -36,20 +36,20 @@ export function getApiBaseUrl(): string {
     const origin = `${window.location.protocol}//${window.location.host}`;
     const port = String(window.location.port || "");
     const isDefaultHttpPort = !port || port === "80";
+    if (isLocalHost) {
+      const normalizedEnv = (envUrl || "").trim();
+      if (normalizedEnv) {
+        return normalizedEnv;
+      }
+      return origin.replace(/\/$/, "") + "/api";
+    }
     if (isDefaultHttpPort) {
       return origin.replace(/\/$/, "") + "/api";
-    }
-    if (isLocalHost) {
-      return origin.replace(/\/$/, "") + "/api";
-    }
-    const normalizedEnv = (envUrl || "").trim();
-    if (normalizedEnv) {
-      return normalizedEnv;
     }
     if (/coopagricola\.coop\.br$/i.test(host)) {
       return origin.replace(/\/$/, "") + "/api";
     }
-    return origin;
+    return origin.replace(/\/$/, "") + "/api";
   }
 
   if (envUrl && envUrl.trim()) {
