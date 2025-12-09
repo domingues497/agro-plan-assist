@@ -72,6 +72,15 @@ const Dashboard = () => {
   const [idleLeft, setIdleLeft] = useState<number | null>(null);
   const lastRefreshRef = useRef<number>(0);
 
+  const debugFazendas = useMemo(() => {
+    const cms = Array.from(new Set((allFazendas || []).map((f: any) => String(f.numerocm || "")))).filter(Boolean);
+    return {
+      count: (allFazendas || []).length,
+      cms,
+      consultorCm: String(profile?.numerocm_consultor || ""),
+    };
+  }, [allFazendas, profile]);
+
   const produtoresDisponiveis = useMemo(() => {
     const q = searchProdutor.trim().toLowerCase();
     return allProdutores.filter((p: any) => {
@@ -84,13 +93,40 @@ const Dashboard = () => {
 
   const fazendasPorProdutor = useMemo(() => {
     const grouped: Record<string, typeof allFazendas> = {};
-    produtoresDisponiveis.forEach((produtor) => {
-      grouped[produtor.numerocm] = allFazendas.filter(
-        (f: any) => f.numerocm === produtor.numerocm && (!onlyComTalhao || Number(f.area_cultivavel || 0) > 0)
+    const cmSet = new Set((allFazendas || []).map((f: any) => String(f.numerocm || "")));
+    cmSet.forEach((cm) => {
+      grouped[cm] = allFazendas.filter(
+        (f: any) => String(f.numerocm || "") === cm && (!onlyComTalhao || Number(f.area_cultivavel || 0) > 0)
       );
     });
     return grouped;
-  }, [produtoresDisponiveis, allFazendas, onlyComTalhao]);
+  }, [allFazendas, onlyComTalhao]);
+
+  const produtoresParaRenderizar = useMemo(() => {
+    const q = searchProdutor.trim().toLowerCase();
+    const cmSet = new Set((allFazendas || []).map((f: any) => String(f.numerocm || "")));
+    const base = [...produtoresDisponiveis];
+    cmSet.forEach((cm) => {
+      if (!base.some((p: any) => String(p.numerocm || "") === cm)) {
+        const stub = {
+          id: cm,
+          numerocm: cm,
+          nome: `Produtor ${cm}`,
+          numerocm_consultor: "",
+          consultor: null,
+          created_at: null,
+          updated_at: null,
+        } as any;
+        base.push(stub);
+      }
+    });
+    return base.filter((p: any) => {
+      if (!q) return true;
+      const nome = String(p.nome || "").toLowerCase();
+      const cm = String(p.numerocm || "").toLowerCase();
+      return nome.includes(q) || cm.includes(q);
+    });
+  }, [produtoresDisponiveis, allFazendas, searchProdutor]);
 
   // Área agora é calculada pelos talhões - modal de edição removido
 
@@ -349,13 +385,16 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {produtoresDisponiveis.length === 0 ? (
+          {produtoresParaRenderizar.length === 0 ? (
             <div className="text-center py-4 text-muted-foreground">
               <p>Nenhum produtor vinculado ao seu perfil.</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {produtoresDisponiveis.map((produtor) => {
+              <div className="text-xs text-muted-foreground">
+                {`Fazendas: ${debugFazendas.count} | CMs: ${debugFazendas.cms.join(", ")} | Consultor: ${debugFazendas.consultorCm}`}
+              </div>
+              {produtoresParaRenderizar.map((produtor) => {
                 const fazendas = fazendasPorProdutor[produtor.numerocm] || [];
                 if (fazendas.length === 0) return null;
 

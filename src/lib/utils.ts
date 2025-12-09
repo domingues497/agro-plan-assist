@@ -44,7 +44,7 @@ export function getApiBaseUrl(): string {
       return origin.replace(/\/$/, "") + "/api";
     }
     if (isLocalHost) {
-      return origin.replace(/\/$/, "") + "/api";
+      return "http://127.0.0.1:5000";
     }
     if (/coopagricola\.coop\.br$/i.test(host)) {
       return origin.replace(/\/$/, "") + "/api";

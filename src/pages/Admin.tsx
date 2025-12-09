@@ -34,6 +34,7 @@ import { ImportCultivaresTratamentos } from "@/components/admin/ImportCultivares
 import { ImportEpocas } from "@/components/admin/ImportEpocas";
 import { ListEpocas } from "@/components/admin/ListEpocas";
 import { GerenciarGestores } from "@/components/admin/GerenciarGestores";
+import { GerenciarAcessoConsultores } from "@/components/admin/GerenciarAcessoConsultores";
 import { SystemConfig } from "@/components/admin/SystemConfig";
 import { EmbalagensConfig } from "@/components/admin/EmbalagensConfig";
 
@@ -177,6 +178,14 @@ export default function Admin() {
                     onClick={() => setSelected("gestores")}
                   >
                     Gestores
+                  </Button>
+                  <Button
+                    variant={selected === "acesso-consultores" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("acesso-consultores")}
+                  >
+                    Acesso dos Consultores
                   </Button>
                 </div>
               )}
@@ -352,6 +361,7 @@ export default function Admin() {
           {selected === "embalagens" && <EmbalagensConfig />}
           {selected === "config" && <SystemConfig />}
           {selected === "gestores" && <GerenciarGestores />}
+          {selected === "acesso-consultores" && <GerenciarAcessoConsultores />}
           {selected === "replicar" && <ReplicarSafras />}
           {selected === "historico" && <HistoricoImportacoes />}
         </main>

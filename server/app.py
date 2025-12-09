@@ -171,14 +171,24 @@ def list_fazendas():
                     cur.execute("SELECT numerocm_consultor FROM public.gestor_consultores WHERE user_id = %s", [user_id])
                     allowed_consultores = [r[0] for r in cur.fetchall()]
             if role == "consultor":
+                subconds = []
                 if allowed_numerocm:
-                    where.append("f.numerocm = ANY(%s)")
+                    subconds.append("f.numerocm = ANY(%s)")
                     params.append(allowed_numerocm)
-                else:
-                    cm_val = numerocm_consultor or cm_token
-                    if cm_val:
-                        where.append("f.numerocm_consultor = %s")
-                        params.append(cm_val)
+                cm_val = numerocm_consultor or cm_token
+                if (not cm_val) and user_id:
+                    try:
+                        cur.execute("SELECT numerocm_consultor FROM public.consultores WHERE id = %s", [user_id])
+                        r = cur.fetchone()
+                        if r and r[0]:
+                            cm_val = r[0]
+                    except Exception:
+                        pass
+                if cm_val:
+                    subconds.append("f.numerocm_consultor = %s")
+                    params.append(cm_val)
+                if subconds:
+                    where.append("(" + " OR ".join(subconds) + ")")
             elif role == "gestor":
                 if allowed_numerocm or allowed_fazendas or allowed_consultores:
                     subconds = []
@@ -448,30 +458,59 @@ def list_produtores():
             if user_id and role in ("gestor", "consultor"):
                 cur.execute("SELECT produtor_numerocm FROM public.user_produtores WHERE user_id = %s", [user_id])
                 allowed_numerocm = [r[0] for r in cur.fetchall()]
+                try:
+                    cur.execute("SELECT DISTINCT f.numerocm FROM public.fazendas f JOIN public.user_fazendas uf ON uf.fazenda_id = f.id WHERE uf.user_id = %s", [user_id])
+                    from_fazendas = [r[0] for r in cur.fetchall()]
+                    if from_fazendas:
+                        allowed_numerocm = list({*(allowed_numerocm or []), *from_fazendas})
+                except Exception:
+                    pass
                 if role == "gestor":
                     cur.execute("SELECT numerocm_consultor FROM public.gestor_consultores WHERE user_id = %s", [user_id])
                     allowed_consultores = [r[0] for r in cur.fetchall()]
             if role == "consultor":
+                subconds = []
                 if allowed_numerocm:
-                    where.append("numerocm = ANY(%s)")
+                    subconds.append("numerocm = ANY(%s)")
                     params.append(allowed_numerocm)
+                # sempre incluir carteira do consultor (produtores com numerocm_consultor == consultor)
+                cm_val = numerocm_consultor or cm_token
+                if (not cm_val) and user_id:
+                    try:
+                        cur.execute("SELECT numerocm_consultor FROM public.consultores WHERE id = %s", [user_id])
+                        r = cur.fetchone()
+                        if r and r[0]:
+                            cm_val = r[0]
+                    except Exception:
+                        pass
+                if cm_val:
+                    subconds.append("numerocm_consultor = %s")
+                    params.append(cm_val)
+                if subconds:
+                    where.append("(" + " OR ".join(subconds) + ")")
                 else:
-                    # fallback: permitir que o consultor veja produtores do seu próprio CM
-                    cm_val = numerocm_consultor or cm_token
-                    if cm_val:
-                        where.append("numerocm_consultor = %s")
-                        params.append(cm_val)
-                    else:
-                        where.append("1=0")
+                    where.append("1=0")
             elif role == "gestor":
-                if allowed_numerocm or allowed_consultores:
-                    subconds = []
-                    if allowed_numerocm:
-                        subconds.append("numerocm = ANY(%s)")
-                        params.append(allowed_numerocm)
-                    if allowed_consultores:
-                        subconds.append("numerocm_consultor = ANY(%s)")
-                        params.append(allowed_consultores)
+                subconds = []
+                if allowed_numerocm:
+                    subconds.append("numerocm = ANY(%s)")
+                    params.append(allowed_numerocm)
+                if allowed_consultores:
+                    subconds.append("numerocm_consultor = ANY(%s)")
+                    params.append(allowed_consultores)
+                cm_val = numerocm_consultor or cm_token
+                if (not cm_val) and user_id:
+                    try:
+                        cur.execute("SELECT numerocm_consultor FROM public.consultores WHERE id = %s", [user_id])
+                        r = cur.fetchone()
+                        if r and r[0]:
+                            cm_val = r[0]
+                    except Exception:
+                        pass
+                if cm_val:
+                    subconds.append("numerocm_consultor = %s")
+                    params.append(cm_val)
+                if subconds:
                     where.append("(" + " OR ".join(subconds) + ")")
             # Admin: sem restrição
             if numerocm_consultor:
@@ -993,6 +1032,9 @@ def list_programacoes():
                     if allowed_numerocm:
                         where.append("p.produtor_numerocm = ANY(%s)")
                         params.append(allowed_numerocm)
+                    if allowed_fazendas:
+                        where.append("p.fazenda_idfazenda = ANY(%s)")
+                        params.append(allowed_fazendas)
                     if cm_token:
                         where.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s))")
                         params.append(cm_token)
