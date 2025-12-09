@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,8 @@ const Dashboard = () => {
   const [editEmail, setEditEmail] = useState("");
   const [buildVersion, setBuildVersion] = useState<string | null>(null);
   const [buildEnv, setBuildEnv] = useState<string | null>(null);
+  const [idleLeft, setIdleLeft] = useState<number | null>(null);
+  const lastRefreshRef = useRef<number>(0);
 
   const produtoresDisponiveis = useMemo(() => {
     const q = searchProdutor.trim().toLowerCase();
@@ -156,6 +158,55 @@ const Dashboard = () => {
     loadBuild();
   }, []);
 
+  const refreshToken = async () => {
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem("auth_token") || "";
+      if (!token) return;
+      const res = await fetch(`${baseUrl}/auth/refresh`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const j = await res.json();
+        if (j?.token) localStorage.setItem("auth_token", j.token);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    let last = Date.now();
+    let ttl = 1800; // 30 minutos padrão
+    const tick = () => {
+      const now = Date.now();
+      const diff = Math.floor((now - last) / 1000);
+      setIdleLeft(Math.max(ttl - diff, 0));
+    };
+    const onActivity = () => {
+      last = Date.now();
+      tick();
+      const now = Date.now();
+      if (now - (lastRefreshRef.current || 0) > 60_000) {
+        lastRefreshRef.current = now;
+        refreshToken();
+      }
+    };
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"] as const;
+    events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => {
+      clearInterval(id);
+      events.forEach((e) => window.removeEventListener(e, onActivity));
+    };
+  }, []);
+
+  useEffect(() => {
+    if (idleLeft === 0) {
+      handleLogout();
+    }
+  }, [idleLeft]);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -181,6 +232,7 @@ const Dashboard = () => {
               <div className="text-xs text-muted-foreground mt-1">
                 {`Bem vindo ${String(profile?.nome || "").trim() || "usuário"}`}
                 {buildVersion ? `, Build: ${buildVersion}${roleData?.isAdmin && buildEnv ? ` (${buildEnv})` : ""}` : ""}
+                {idleLeft != null ? `, Inatividade: ${Math.floor(idleLeft / 60)}:${String(idleLeft % 60).padStart(2, "0")}` : ""}
               </div>
             </div>
           </div>

@@ -3368,9 +3368,9 @@ def create_jwt(payload: dict, exp_seconds: int | None = None) -> str:
     if exp_seconds is None:
         try:
             cfg = get_config_map()
-            exp_seconds = int(cfg.get("auth_token_ttl_seconds") or 1800)
+            exp_seconds = int(cfg.get("auth_token_ttl_seconds") or 43200)
         except Exception:
-            exp_seconds = 1800
+            exp_seconds = 43200
     payload["exp"] = int(time.time()) + int(exp_seconds)
     h = _b64url(_json.dumps(header, separators=(",", ":")).encode("utf-8"))
     p = _b64url(_json.dumps(payload, separators=(",", ":")).encode("utf-8"))
@@ -3458,6 +3458,25 @@ def auth_me():
     try:
         payload = verify_jwt(token)
         return jsonify({"user": payload})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 401
+
+@app.route("/auth/refresh", methods=["POST"])
+def auth_refresh():
+    auth = request.headers.get("Authorization") or ""
+    if not auth.lower().startswith("bearer "):
+        return jsonify({"error": "sem token"}), 401
+    token = auth.split(" ", 1)[1]
+    try:
+        payload = verify_jwt(token)
+        new_token = create_jwt({
+            "user_id": payload.get("user_id"),
+            "email": payload.get("email"),
+            "numerocm_consultor": payload.get("numerocm_consultor"),
+            "nome": payload.get("nome"),
+            "role": payload.get("role", "consultor"),
+        })
+        return jsonify({"token": new_token})
     except Exception as e:
         return jsonify({"error": str(e)}), 401
 
