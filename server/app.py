@@ -766,7 +766,7 @@ def import_calendario_aplicacoes():
                     INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [f"ih{int(time.time()*1000)}", user_id, "calendario_aplicacoes", imported_count, deleted_count, arquivo_nome, limpar_antes]
+                    [str(uuid.uuid4()), user_id, "calendario_aplicacoes", imported_count, deleted_count, arquivo_nome, limpar_antes]
                 )
         return jsonify({"imported": imported_count, "deleted": deleted_count})
     except Exception as e:
@@ -950,7 +950,7 @@ def import_consultores():
                     INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [f"ih{int(time.time()*1000)}", user_id, "consultores", imported_count, deleted_count, arquivo_nome, limpar_antes]
+                    [str(uuid.uuid4()), user_id, "consultores", imported_count, deleted_count, arquivo_nome, limpar_antes]
                 )
         return jsonify({"imported": imported_count, "deleted": deleted_count})
     except Exception as e:
@@ -1385,7 +1385,7 @@ def list_programacao_cultivares():
 def create_programacao_cultivar():
     ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
-    id_val = payload.get("id") or f"pc{int(time.time()*1000)}"
+    id_val = payload.get("id") or str(uuid.uuid4())
     programacao_id = payload.get("programacao_id")
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
@@ -1441,7 +1441,7 @@ def create_programacao_cultivar():
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{int(time.time()*1000)}", id_val, tid]
+                            [str(uuid.uuid4()), id_val, tid]
                         )
                 for d in defensivos_fazenda:
                     cur.execute(
@@ -1450,7 +1450,7 @@ def create_programacao_cultivar():
                         (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"d{int(time.time()*1000)}", id_val, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                        [str(uuid.uuid4()), id_val, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                          d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                     )
         return jsonify({"id": id_val})
@@ -1510,7 +1510,7 @@ def update_programacao_cultivar(id: str):
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{int(time.time()*1000)}", id, tid]
+                            [str(uuid.uuid4()), id, tid]
                         )
                 cur.execute("DELETE FROM public.programacao_cultivares_defensivos WHERE programacao_cultivar_id = %s", [id])
                 for d in defensivos_fazenda:
@@ -1520,7 +1520,7 @@ def update_programacao_cultivar(id: str):
                         (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"d{int(time.time()*1000)}", id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                        [str(uuid.uuid4()), id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                          d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                     )
         return jsonify({"ok": True, "id": id})
@@ -1563,7 +1563,7 @@ def list_programacao_adubacao():
 def create_programacao_adub():
     ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
-    id_val = payload.get("id") or f"pa{int(time.time()*1000)}"
+    id_val = payload.get("id") or str(uuid.uuid4())
     programacao_id = payload.get("programacao_id")
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
@@ -1682,7 +1682,7 @@ def create_safra():
     ativa = bool(payload.get("ativa", True))
     ano_inicio = payload.get("ano_inicio")
     ano_fim = payload.get("ano_fim")
-    id_val = (payload.get("id") or "").strip() or str(int(time.time()*1000))
+    id_val = (payload.get("id") or "").strip() or str(uuid.uuid4())
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -1848,7 +1848,7 @@ def import_cultivares_catalog():
                     INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [f"ih{int(time.time()*1000)}", user_id, "cultivares_catalog", imported, deleted, arquivo_nome, limpar]
+                    [str(uuid.uuid4()), user_id, "cultivares_catalog", imported, deleted, arquivo_nome, limpar]
                 )
         return jsonify({"ok": True, "imported": imported, "deleted": deleted})
     except Exception as e:
@@ -3362,9 +3362,15 @@ def get_auth_secret() -> str:
             secret = "dev-secret"
     return secret
 
-def create_jwt(payload: dict, exp_seconds: int = 7200) -> str:
+def create_jwt(payload: dict, exp_seconds: int | None = None) -> str:
     header = {"alg": "HS256", "typ": "JWT"}
     payload = dict(payload or {})
+    if exp_seconds is None:
+        try:
+            cfg = get_config_map()
+            exp_seconds = int(cfg.get("auth_token_ttl_seconds") or 1800)
+        except Exception:
+            exp_seconds = 1800
     payload["exp"] = int(time.time()) + int(exp_seconds)
     h = _b64url(_json.dumps(header, separators=(",", ":")).encode("utf-8"))
     p = _b64url(_json.dumps(payload, separators=(",", ":")).encode("utf-8"))
