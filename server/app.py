@@ -118,7 +118,7 @@ def import_talhoes():
                     INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [f"ih{int(time.time()*1000)}", user_id, "talhoes", imported, deleted, arquivo_nome, limpar_antes]
+                    [str(uuid.uuid4()), user_id, "talhoes", imported, deleted, arquivo_nome, limpar_antes]
                 )
         return jsonify({"ok": True, "imported": imported, "deleted": deleted})
     except Exception as e:
@@ -267,7 +267,7 @@ def import_fazendas():
                     INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [f"ih{int(time.time()*1000)}", user_id, "fazendas", imported, deleted, arquivo_nome, limpar]
+                    [str(uuid.uuid4()), user_id, "fazendas", imported, deleted, arquivo_nome, limpar]
                 )
         return jsonify({"ok": True, "imported": imported, "deleted": deleted})
     except Exception as e:
@@ -538,7 +538,7 @@ def import_produtores():
                     INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [f"ih{int(time.time()*1000)}", user_id, "produtores", imported, deleted, arquivo_nome, limpar]
+                    [str(uuid.uuid4()), user_id, "produtores", imported, deleted, arquivo_nome, limpar]
                 )
         return jsonify({"ok": True, "imported": imported, "deleted": deleted})
     except Exception as e:
