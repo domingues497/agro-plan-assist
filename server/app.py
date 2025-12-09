@@ -6,7 +6,7 @@ from psycopg2.extras import execute_values
 import uuid
 import time
 import json
-from typing import Optional
+from typing import Optional, Dict, Any
 import hmac
 import hashlib
 import base64
@@ -3364,7 +3364,9 @@ def get_auth_secret() -> str:
             secret = "dev-secret"
     return secret
 
-def create_jwt(payload: dict, exp_seconds: int | None = None) -> str:
+
+
+def create_jwt(payload: Dict[str, Any], exp_seconds: Optional[int] = None) -> str:
     header = {"alg": "HS256", "typ": "JWT"}
     payload = dict(payload or {})
     if exp_seconds is None:
@@ -3379,6 +3381,7 @@ def create_jwt(payload: dict, exp_seconds: int | None = None) -> str:
     signing = f"{h}.{p}".encode("ascii")
     sig = hmac.new(get_auth_secret().encode("utf-8"), signing, hashlib.sha256).digest()
     return f"{h}.{p}.{_b64url(sig)}"
+
 
 def verify_jwt(token: str) -> dict:
     try:
