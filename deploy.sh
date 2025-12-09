@@ -10,7 +10,7 @@ SERVER_DIR="$APP_DIR/server"
 
 # Se já usa DATABASE_URL no sistema, pode exportar aqui.
 # Ajuste a SENHA se precisar.
-DB_URL="${DATABASE_URL:-postgresql://agroplan_user:SENHA@localhost:5432/agroplan_assist}"
+DB_URL="${DATABASE_URL:-postgresql://agroplan_user:agroplan_pass@localhost:5432/agroplan_assist}"
 
 ENVIRONMENT="prod"
 
