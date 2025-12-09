@@ -1,5 +1,7 @@
 import os
 from flask import Flask, jsonify, request
+from alembic.config import Config as _AlembicConfig
+from alembic import command as _alembic_command
 from flask_cors import CORS
 from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema, ensure_gestor_consultores_schema, ensure_app_versions_schema, ensure_embalagens_schema
 from psycopg2.extras import execute_values
@@ -55,6 +57,16 @@ try:
     ensure_gestor_consultores_schema()
     ensure_app_versions_schema()
     ensure_embalagens_schema()
+except Exception:
+    pass
+
+# Executar migrações Alembic (baseline/head)
+try:
+    from db import get_database_url as _get_url
+    cfg = _AlembicConfig()
+    cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "migrations"))
+    cfg.set_main_option("sqlalchemy.url", _get_url())
+    _alembic_command.upgrade(cfg, "head")
 except Exception:
     pass
 

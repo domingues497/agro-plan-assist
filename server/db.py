@@ -1,8 +1,13 @@
 import os
 from psycopg2.pool import SimpleConnectionPool
 import psycopg2
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 _pool = None
+_sa_engine = None
+_SessionLocal = None
+Base = declarative_base()
 
 def get_pool():
     global _pool
@@ -14,6 +19,26 @@ def get_pool():
         port = int(os.environ.get("AGROPLAN_DB_PORT", "5432"))
         _pool = SimpleConnectionPool(1, 10, dbname=dbname, user=user, password=password, host=host, port=port)
     return _pool
+
+def get_database_url() -> str:
+    dbname = os.environ.get("AGROPLAN_DB_NAME", "agroplan_assist")
+    user = os.environ.get("AGROPLAN_DB_USER", "agroplan_user")
+    password = os.environ.get("AGROPLAN_DB_PASS", "agroplan_pass")
+    host = os.environ.get("AGROPLAN_DB_HOST", "localhost")
+    port = os.environ.get("AGROPLAN_DB_PORT", "5432")
+    return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{dbname}"
+
+def get_sa_engine():
+    global _sa_engine, _SessionLocal
+    if _sa_engine is None:
+        url = get_database_url()
+        _sa_engine = create_engine(url, pool_pre_ping=True, future=True)
+        _SessionLocal = sessionmaker(bind=_sa_engine, autoflush=False, autocommit=False, expire_on_commit=False, future=True)
+    return _sa_engine
+
+def get_sa_session():
+    get_sa_engine()
+    return _SessionLocal()
 
 def ensure_defensivos_schema():
     pool = get_pool()
