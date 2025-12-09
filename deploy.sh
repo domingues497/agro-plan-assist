@@ -48,36 +48,42 @@ echo ">>> Aplicando migrations (alembic upgrade head)..."
 
 cd "$SERVER_DIR"
 
-# tenta venv do backend primeiro
-if [ -d ".venv" ]; then
-  echo ">>> Usando venv do backend em $SERVER_DIR/.venv"
-  source .venv/bin/activate
-elif [ -d "$APP_DIR/.venv" ]; then
+ACTIVATED_VENV=0
+
+# 1) tenta venv da raiz do projeto: /var/www/agro-plan-assist/.venv
+if [ -d "$APP_DIR/.venv" ]; then
   echo ">>> Usando venv da raiz em $APP_DIR/.venv"
+  # shellcheck disable=SC1090
   source "$APP_DIR/.venv/bin/activate"
+  ACTIVATED_VENV=1
+
+# 2) se não tiver, tenta venv dentro de server/: /var/www/agro-plan-assist/server/.venv
+elif [ -d ".venv" ]; then
+  echo ">>> Usando venv do backend em $SERVER_DIR/.venv"
+  # shellcheck disable=SC1091
+  source ".venv/bin/activate"
+  ACTIVATED_VENV=1
+
+# 3) se nada disso existir, só avisa e segue o jogo
 else
   echo ">>> AVISO: nenhum venv encontrado (.venv). Pulando migrations Alembic."
-  cd "$APP_DIR"
-  echo
-  # volta pro fluxo sem derrubar o deploy
-  # (remova o 'return' se seu deploy.sh não estiver dentro de função)
-  :
 fi
 
-# só roda alembic se ele existir no PATH (dentro do venv)
-if command -v alembic >/dev/null 2>&1; then
-  alembic upgrade head
-else
-  echo ">>> AVISO: alembic não encontrado no venv atual. Pulando migrations."
-fi
+# Só tenta rodar alembic se um venv foi ativado
+if [ "$ACTIVATED_VENV" -eq 1 ]; then
+  if command -v alembic >/dev/null 2>&1; then
+    alembic upgrade head
+  else
+    echo ">>> AVISO: alembic não encontrado no venv atual. Pulando migrations."
+  fi
 
-# se um venv foi ativado, desativa
-if [ -n "$VIRTUAL_ENV" ]; then
+  # desativa venv só se tiver ativado
   deactivate
 fi
 
 cd "$APP_DIR"
 echo
+
 
 # ===========================
 # 4. FRONTEND BUILD
