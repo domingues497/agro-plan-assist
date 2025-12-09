@@ -1270,7 +1270,7 @@ def update_programacao(id: str):
                 cur.execute("DELETE FROM public.programacao_talhoes WHERE programacao_id = %s", [id])
                 cur.execute("DELETE FROM public.programacao_adubacao WHERE programacao_id = %s", [id])
                 for item in cultivares:
-                    cult_id = item.get("id") or f"c{int(time.time()*1000)}"
+                    cult_id = item.get("id") or str(uuid.uuid4())
                     tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
                     first_tr = None if str(item.get("tipo_tratamento") or "").upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
                     cur.execute(
@@ -1293,7 +1293,7 @@ def update_programacao(id: str):
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{int(time.time()*1000)}", cult_id, tid]
+                            [str(uuid.uuid4()), cult_id, tid]
                         )
                     if str(item.get("tipo_tratamento") or "").upper() == "NA FAZENDA":
                         for d in (item.get("defensivos_fazenda") or []):
@@ -1303,7 +1303,7 @@ def update_programacao(id: str):
                                 (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                                 """,
-                                [f"d{int(time.time()*1000)}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                                [str(uuid.uuid4()), cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                                  d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                             )
                 for a in adubacao:
@@ -1315,7 +1315,7 @@ def update_programacao(id: str):
                           porcentagem_salva, total, safra_id
                         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"a{int(time.time()*1000)}", id, user_id, produtor_numerocm, area, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
+                        [str(uuid.uuid4()), id, user_id, produtor_numerocm, area, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
                          bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
