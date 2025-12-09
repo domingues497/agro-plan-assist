@@ -1081,7 +1081,7 @@ def create_programacao():
                     [prog_id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id]
                 )
                 for item in cultivares:
-                    cult_id = item.get("id") or f"c{int(time.time()*1000)}"
+                    cult_id = item.get("id") or str(uuid.uuid4())
                     tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
                     first_tr = None if str(item.get("tipo_tratamento")).upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
                     cur.execute(
@@ -1104,7 +1104,7 @@ def create_programacao():
                             INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
                             VALUES (%s, %s, %s)
                             """,
-                            [f"t{int(time.time()*1000)}", cult_id, tid]
+                            [str(uuid.uuid4()), cult_id, tid]
                         )
                     if str(item.get("tipo_tratamento")).upper() == "NA FAZENDA":
                         for d in (item.get("defensivos_fazenda") or []):
@@ -1114,7 +1114,7 @@ def create_programacao():
                                 (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
                                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                                 """,
-                                [f"d{int(time.time()*1000)}", cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                                [str(uuid.uuid4()), cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
                                  d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                             )
                 for a in adubacao:
@@ -1126,7 +1126,7 @@ def create_programacao():
                           porcentagem_salva, total, safra_id
                         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [f"a{int(time.time()*1000)}", prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
+                        [str(uuid.uuid4()), prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
                          bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
@@ -1136,7 +1136,7 @@ def create_programacao():
                         INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
                         VALUES (%s, %s, %s, %s, %s)
                         """,
-                        [f"pt{int(time.time()*1000)}", prog_id, tid, safra_id, fazenda_idfazenda]
+                        [str(uuid.uuid4()), prog_id, tid, safra_id, fazenda_idfazenda]
                     )
         return jsonify({"id": prog_id})
     except Exception as e:
@@ -1325,7 +1325,7 @@ def update_programacao(id: str):
                         INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
                         VALUES (%s, %s, %s, %s, %s)
                         """,
-                        [f"pt{int(time.time()*1000)}", id, tid, safra_id, fazenda_idfazenda]
+                        [str(uuid.uuid4()), id, tid, safra_id, fazenda_idfazenda]
                     )
         return jsonify({"ok": True, "id": id})
     except Exception as e:
