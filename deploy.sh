@@ -44,17 +44,38 @@ echo
 # ===========================
 # 3. MIGRATIONS (Alembic)
 # ===========================
-# Aqui assumimos que você já configurou Alembic no backend
-# (alembic.ini + pasta migrations + env.py apontando pro SQLAlchemy).
-
 echo ">>> Aplicando migrations (alembic upgrade head)..."
+
 cd "$SERVER_DIR"
-source .venv/bin/activate
 
-# Se ainda não tiver Alembic configurado, COMENTA essa linha temporariamente
-alembic upgrade head
+# tenta venv do backend primeiro
+if [ -d ".venv" ]; then
+  echo ">>> Usando venv do backend em $SERVER_DIR/.venv"
+  source .venv/bin/activate
+elif [ -d "$APP_DIR/.venv" ]; then
+  echo ">>> Usando venv da raiz em $APP_DIR/.venv"
+  source "$APP_DIR/.venv/bin/activate"
+else
+  echo ">>> AVISO: nenhum venv encontrado (.venv). Pulando migrations Alembic."
+  cd "$APP_DIR"
+  echo
+  # volta pro fluxo sem derrubar o deploy
+  # (remova o 'return' se seu deploy.sh não estiver dentro de função)
+  :
+fi
 
-deactivate
+# só roda alembic se ele existir no PATH (dentro do venv)
+if command -v alembic >/dev/null 2>&1; then
+  alembic upgrade head
+else
+  echo ">>> AVISO: alembic não encontrado no venv atual. Pulando migrations."
+fi
+
+# se um venv foi ativado, desativa
+if [ -n "$VIRTUAL_ENV" ]; then
+  deactivate
+fi
+
 cd "$APP_DIR"
 echo
 
