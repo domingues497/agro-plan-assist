@@ -6,6 +6,7 @@ from psycopg2.extras import execute_values
 import uuid
 import time
 import json
+from typing import Optional
 import hmac
 import hashlib
 import base64
@@ -2416,7 +2417,8 @@ def app_versions():
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
 
-def _make_jwt(client_id: str, exp_ts: int, secret: str, audience: str | None = None) -> str:
+def _make_jwt(client_id: str, exp_ts: int, secret: str, audience: Optional[str] = None) -> str:
+#def _make_jwt(client_id: str, exp_ts: int, secret: str, audience: str | None = None) -> str
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {"client_id": client_id, "exp": int(exp_ts)}
