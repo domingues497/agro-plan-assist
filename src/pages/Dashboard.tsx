@@ -72,14 +72,6 @@ const Dashboard = () => {
   const [idleLeft, setIdleLeft] = useState<number | null>(null);
   const lastRefreshRef = useRef<number>(0);
 
-  const debugFazendas = useMemo(() => {
-    const cms = Array.from(new Set((allFazendas || []).map((f: any) => String(f.numerocm || "")))).filter(Boolean);
-    return {
-      count: (allFazendas || []).length,
-      cms,
-      consultorCm: String(profile?.numerocm_consultor || ""),
-    };
-  }, [allFazendas, profile]);
 
   const produtoresDisponiveis = useMemo(() => {
     const q = searchProdutor.trim().toLowerCase();
@@ -391,9 +383,6 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="text-xs text-muted-foreground">
-                {`Fazendas: ${debugFazendas.count} | CMs: ${debugFazendas.cms.join(", ")} | Consultor: ${debugFazendas.consultorCm}`}
-              </div>
               {produtoresParaRenderizar.map((produtor) => {
                 const fazendas = fazendasPorProdutor[produtor.numerocm] || [];
                 if (fazendas.length === 0) return null;
