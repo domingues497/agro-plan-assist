@@ -950,6 +950,7 @@ def list_programacoes():
             role = None
             user_id = None
             cm_token = None
+            cm_arg = (request.args.get("numerocm_consultor") or "").strip()
             where = []
             params = []
             if auth.lower().startswith("bearer "):
@@ -960,7 +961,11 @@ def list_programacoes():
                     cm_token = payload.get("numerocm_consultor")
                 except Exception:
                     role = None
-            if user_id and role in ("gestor", "consultor"):
+            if cm_arg:
+                where.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s))")
+                params.append(cm_arg)
+                params.append(cm_arg)
+            elif user_id and role in ("gestor", "consultor"):
                 cur.execute("SELECT produtor_numerocm FROM public.user_produtores WHERE user_id = %s", [user_id])
                 allowed_numerocm = [r[0] for r in cur.fetchall()]
                 cur.execute("SELECT fazenda_id FROM public.user_fazendas WHERE user_id = %s", [user_id])
@@ -970,7 +975,7 @@ def list_programacoes():
                         where.append("p.produtor_numerocm = ANY(%s)")
                         params.append(allowed_numerocm)
                     if allowed_fazendas:
-                        where.append("p.fazenda_idfazenda = ANY(%s)")
+                        where.append("EXISTS (SELECT 1 FROM public.fazendas f2 WHERE f2.id = ANY(%s) AND f2.idfazenda = p.fazenda_idfazenda)")
                         params.append(allowed_fazendas)
                     if cm_token:
                         where.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s))")
@@ -2649,6 +2654,16 @@ def list_talhoes():
     fazenda_id = request.args.get("fazenda_id")
     ids = request.args.get("ids")
     safra_id = request.args.get("safra_id")
+    auth = request.headers.get("Authorization") or ""
+    role = None
+    cm_token = None
+    if auth.lower().startswith("bearer "):
+        try:
+            payload = verify_jwt(auth.split(" ", 1)[1])
+            role = (payload.get("role") or "consultor").lower()
+            cm_token = payload.get("numerocm_consultor")
+        except Exception:
+            role = None
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -2681,11 +2696,12 @@ def list_talhoes():
                     FROM public.talhoes t
                     LEFT JOIN public.talhao_safras ts ON ts.talhao_id = t.id
                     WHERE t.fazenda_id = ANY(%s)
+                      AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND f.numerocm_consultor = %s))
                       AND (%s IS NULL OR t.safras_todas OR EXISTS (SELECT 1 FROM public.talhao_safras ts2 WHERE ts2.talhao_id = t.id AND ts2.safra_id = %s))
                     GROUP BY t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.safras_todas, t.created_at, t.updated_at
                     ORDER BY t.nome
                     """,
-                    (safra_id, safra_id, id_list, safra_id, safra_id)
+                    (safra_id, safra_id, id_list, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id)
                 )
             elif fazenda_id:
                 cur.execute(
@@ -2714,11 +2730,12 @@ def list_talhoes():
                     FROM public.talhoes t
                     LEFT JOIN public.talhao_safras ts ON ts.talhao_id = t.id
                     WHERE t.fazenda_id = %s
+                      AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND f.numerocm_consultor = %s))
                       AND (%s IS NULL OR t.safras_todas OR EXISTS (SELECT 1 FROM public.talhao_safras ts2 WHERE ts2.talhao_id = t.id AND ts2.safra_id = %s))
                     GROUP BY t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.safras_todas, t.created_at, t.updated_at
                     ORDER BY t.nome
                     """,
-                    [safra_id, safra_id, fazenda_id, safra_id, safra_id]
+                    [safra_id, safra_id, fazenda_id, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id]
                 )
             else:
                 # por padrão evitar retornar todos; retornar vazio
@@ -2743,11 +2760,26 @@ def create_talhao():
     safras = payload.get("safras") or []
     if not fazenda_id or not nome or area is None:
         return jsonify({"error": "campos obrigatórios ausentes"}), 400
+    # RBAC: Consultor só pode cadastrar talhão em fazendas dos seus cooperados
+    auth = request.headers.get("Authorization") or ""
+    role = None
+    cm_token = None
+    if auth.lower().startswith("bearer "):
+        try:
+            payload = verify_jwt(auth.split(" ", 1)[1])
+            role = (payload.get("role") or "consultor").lower()
+            cm_token = payload.get("numerocm_consultor")
+        except Exception:
+            role = None
     pool = get_pool()
     conn = pool.getconn()
     try:
         with conn:
             with conn.cursor() as cur:
+                if role == "consultor" and cm_token:
+                    cur.execute("SELECT 1 FROM public.fazendas WHERE id = %s AND numerocm_consultor = %s", [fazenda_id, cm_token])
+                    if not cur.fetchone():
+                        return jsonify({"error": "não autorizado para esta fazenda"}), 401
                 cur.execute(
                     """
                     INSERT INTO public.talhoes (id, fazenda_id, nome, area, arrendado, safras_todas)
