@@ -188,10 +188,6 @@ def list_fazendas():
                     cur.execute("SELECT numerocm_consultor FROM public.gestor_consultores WHERE user_id = %s", [user_id])
                     allowed_consultores = [r[0] for r in cur.fetchall()]
             if role == "consultor":
-                subconds = []
-                if allowed_numerocm:
-                    subconds.append("f.numerocm = ANY(%s)")
-                    params.append(allowed_numerocm)
                 cm_val = numerocm_consultor or cm_token
                 if (not cm_val) and user_id:
                     try:
@@ -202,10 +198,10 @@ def list_fazendas():
                     except Exception:
                         pass
                 if cm_val:
-                    subconds.append("f.numerocm_consultor = %s")
+                    where.append("f.numerocm_consultor = %s")
                     params.append(cm_val)
-                if subconds:
-                    where.append("(" + " OR ".join(subconds) + ")")
+                else:
+                    where.append("1=0")
             elif role == "gestor":
                 if allowed_numerocm or allowed_fazendas or allowed_consultores:
                     subconds = []
@@ -455,11 +451,6 @@ def list_produtores():
                     cur.execute("SELECT numerocm_consultor FROM public.gestor_consultores WHERE user_id = %s", [user_id])
                     allowed_consultores = [r[0] for r in cur.fetchall()]
             if role == "consultor":
-                subconds = []
-                if allowed_numerocm:
-                    subconds.append("numerocm = ANY(%s)")
-                    params.append(allowed_numerocm)
-                # sempre incluir carteira do consultor (produtores com numerocm_consultor == consultor)
                 cm_val = numerocm_consultor or cm_token
                 if (not cm_val) and user_id:
                     try:
@@ -470,10 +461,8 @@ def list_produtores():
                     except Exception:
                         pass
                 if cm_val:
-                    subconds.append("numerocm_consultor = %s")
+                    where.append("numerocm_consultor = %s")
                     params.append(cm_val)
-                if subconds:
-                    where.append("(" + " OR ".join(subconds) + ")")
                 else:
                     where.append("1=0")
             elif role == "gestor":
@@ -1321,7 +1310,22 @@ def list_programacao_cultivares():
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM public.programacao_cultivares ORDER BY created_at DESC")
+            auth = request.headers.get("Authorization") or ""
+            role = None
+            cm_token = None
+            if auth.lower().startswith("bearer "):
+                try:
+                    payload = verify_jwt(auth.split(" ", 1)[1])
+                    role = (payload.get("role") or "consultor").lower()
+                    cm_token = payload.get("numerocm_consultor")
+                except Exception:
+                    role = None
+            if role == "consultor" and cm_token:
+                cur.execute("SELECT * FROM public.programacao_cultivares WHERE numerocm_consultor = %s ORDER BY created_at DESC", [cm_token])
+            elif role == "consultor":
+                cur.execute("SELECT * FROM public.programacao_cultivares WHERE 1=0")
+            else:
+                cur.execute("SELECT * FROM public.programacao_cultivares ORDER BY created_at DESC")
             cols = [d[0] for d in cur.description]
             rows = cur.fetchall()
             items = [dict(zip(cols, r)) for r in rows]
@@ -1532,7 +1536,22 @@ def list_programacao_adubacao():
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM public.programacao_adubacao ORDER BY created_at DESC")
+            auth = request.headers.get("Authorization") or ""
+            role = None
+            cm_token = None
+            if auth.lower().startswith("bearer "):
+                try:
+                    payload = verify_jwt(auth.split(" ", 1)[1])
+                    role = (payload.get("role") or "consultor").lower()
+                    cm_token = payload.get("numerocm_consultor")
+                except Exception:
+                    role = None
+            if role == "consultor" and cm_token:
+                cur.execute("SELECT * FROM public.programacao_adubacao WHERE numerocm_consultor = %s ORDER BY created_at DESC", [cm_token])
+            elif role == "consultor":
+                cur.execute("SELECT * FROM public.programacao_adubacao WHERE 1=0")
+            else:
+                cur.execute("SELECT * FROM public.programacao_adubacao ORDER BY created_at DESC")
             cols = [d[0] for d in cur.description]
             rows = cur.fetchall()
             items = [dict(zip(cols, r)) for r in rows]
