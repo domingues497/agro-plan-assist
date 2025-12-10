@@ -962,7 +962,8 @@ def list_programacoes():
                 except Exception:
                     role = None
             if cm_arg:
-                where.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s))")
+                where.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.numerocm_consultor = %s AND f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm))")
+                params.append(cm_arg)
                 params.append(cm_arg)
                 params.append(cm_arg)
             elif user_id and role in ("gestor", "consultor"):
@@ -978,11 +979,10 @@ def list_programacoes():
                         where.append("EXISTS (SELECT 1 FROM public.fazendas f2 WHERE f2.id = ANY(%s) AND f2.idfazenda = p.fazenda_idfazenda)")
                         params.append(allowed_fazendas)
                     if cm_token:
-                        where.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s))")
+                        where.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.numerocm_consultor = %s AND f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm))")
                         params.append(cm_token)
                         params.append(cm_token)
-                    else:
-                        where.append("1=0")
+                        params.append(cm_token)
                 else:
                     subconds = []
                     if allowed_numerocm:
