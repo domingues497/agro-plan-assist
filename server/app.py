@@ -984,7 +984,7 @@ def list_programacoes():
                         subconds.append("p.produtor_numerocm = ANY(%s)")
                         params.append(allowed_numerocm)
                     if allowed_fazendas:
-                        subconds.append("p.fazenda_idfazenda = ANY(%s)")
+                        subconds.append("EXISTS (SELECT 1 FROM public.fazendas f2 WHERE f2.id = ANY(%s) AND f2.idfazenda = p.fazenda_idfazenda)")
                         params.append(allowed_fazendas)
                     if subconds:
                         where.append("(" + " OR ".join(subconds) + ")")

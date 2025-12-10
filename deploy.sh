@@ -2,42 +2,37 @@
 set -euo pipefail
 
 # ===========================
-# CONFIGURAÇÕES
+# CONFIGURAÇÕES BÁSICAS
 # ===========================
 APP_DIR="/var/www/agro-plan-assist"
 SERVER_DIR="$APP_DIR/server"
-VENV_PATH="$APP_DIR/.venv"        # venv oficial
+VENV_PATH="$APP_DIR/.venv"
 SERVICE_NAME="agroplan-backend"
 
-NOTES="${1:-Deploy sem notas}"
+MSG="${1:-Deploy}"
 
 cd "$APP_DIR"
 
-# ===========================
-# 1. VERSÃO E BUILD
-# ===========================
-VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
-BUILD=$(git rev-parse --short HEAD || echo "unknown")
-
-echo ">>> Deploy da versão $VERSION (build $BUILD) para prod"
-echo ">>> Notas: $NOTES"
+echo "======================================="
+echo ">>> Deploy: $MSG"
+echo ">>> Diretório: $APP_DIR"
+echo "======================================="
 echo
 
 # ===========================
-# 2. ATUALIZAR CÓDIGO (git pull)
+# 1. ATUALIZAR CÓDIGO
 # ===========================
-echo ">>> Atualizando código (git pull)..."
+echo ">>> git pull origin main..."
 git pull origin main
 echo
 
 # ===========================
-# 3. BACKEND: VENV + PIP + MIGRATIONS
+# 2. VENV + DEPENDÊNCIAS BACKEND
 # ===========================
-echo ">>> Preparando ambiente Python (venv + dependências + migrations)..."
+echo ">>> Preparando ambiente virtual Python..."
 
-# Garante que o venv existe
 if [ ! -d "$VENV_PATH" ]; then
-  echo ">>> Nenhum venv encontrado. Criando em $VENV_PATH..."
+  echo ">>> Nenhum venv encontrado em $VENV_PATH. Criando..."
   python3 -m venv "$VENV_PATH"
 fi
 
@@ -47,43 +42,29 @@ source "$VENV_PATH/bin/activate"
 
 cd "$SERVER_DIR"
 
-echo
 echo ">>> Instalando dependências backend (pip install -r requirements.txt)..."
-pip install -r requirements.txt --quiet
-echo
-
-echo ">>> Aplicando migrations (alembic upgrade head)..."
-if [ -f "$SERVER_DIR/alembic.ini" ]; then
-  if command -v alembic >/dev/null 2>&1; then
-    alembic -c "$SERVER_DIR/alembic.ini" upgrade head
-  else
-    echo ">>> AVISO: alembic.ini existe, mas o comando 'alembic' não está instalado no venv!"
-    echo ">>> Verifique se 'alembic' está em server/requirements.txt."
-  fi
-else
-  echo ">>> AVISO: arquivo $SERVER_DIR/alembic.ini não encontrado. Pulando migrations Alembic."
-fi
+pip install -r requirements.txt
 
 deactivate
 cd "$APP_DIR"
 echo
 
 # ===========================
-# 4. BUILD FRONTEND
+# 3. BUILD FRONTEND
 # ===========================
 echo ">>> Build do frontend (npm run build)..."
 npm run build
 echo
 
 # ===========================
-# 5. REINICIAR BACKEND
+# 4. REINICIAR BACKEND
 # ===========================
 echo ">>> Reiniciando serviço do backend ($SERVICE_NAME)..."
 sudo systemctl restart "$SERVICE_NAME"
 
 sleep 2
-sudo systemctl status "$SERVICE_NAME" --no-pager -l || true
 echo
+sudo systemctl status "$SERVICE_NAME" --no-pager -l || true
 
-echo ">>> Deploy concluído!"
-echo ">>> Versão: $VERSION  | Build: $BUILD  | Ambiente: prod"
+echo
+echo ">>> Deploy finalizado."
