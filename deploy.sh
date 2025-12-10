@@ -6,7 +6,7 @@ set -euo pipefail
 # ===========================
 APP_DIR="/var/www/agro-plan-assist"
 SERVER_DIR="$APP_DIR/server"
-VENV_PATH="$APP_DIR/.venv"        # se seu venv tiver outro caminho, ajuste aqui
+VENV_PATH="$APP_DIR/.venv"        # venv oficial
 SERVICE_NAME="agroplan-backend"
 
 NOTES="${1:-Deploy sem notas}"
@@ -53,10 +53,15 @@ pip install -r requirements.txt --quiet
 echo
 
 echo ">>> Aplicando migrations (alembic upgrade head)..."
-if command -v alembic >/dev/null 2>&1; then
-  alembic upgrade head
+if [ -f "$SERVER_DIR/alembic.ini" ]; then
+  if command -v alembic >/dev/null 2>&1; then
+    alembic -c "$SERVER_DIR/alembic.ini" upgrade head
+  else
+    echo ">>> AVISO: alembic.ini existe, mas o comando 'alembic' não está instalado no venv!"
+    echo ">>> Verifique se 'alembic' está em server/requirements.txt."
+  fi
 else
-  echo ">>> AVISO: alembic não está instalado no venv! (verifique server/requirements.txt)"
+  echo ">>> AVISO: arquivo $SERVER_DIR/alembic.ini não encontrado. Pulando migrations Alembic."
 fi
 
 deactivate
