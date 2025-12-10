@@ -89,7 +89,7 @@ const Auth = () => {
                 <Input
                   id="signin-email"
                   type="email"
-                  placeholder="seu@email.com"
+                  placeholder="seu@coopagricola.coop.br"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -118,7 +118,7 @@ const Auth = () => {
                 <Input
                   id="signup-email"
                   type="email"
-                  placeholder="seuemail@coopagricola.coop.br"
+                  placeholder="email@coopagricola.coop.br"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

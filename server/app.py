@@ -972,17 +972,20 @@ def list_programacoes():
                 cur.execute("SELECT fazenda_id FROM public.user_fazendas WHERE user_id = %s", [user_id])
                 allowed_fazendas = [r[0] for r in cur.fetchall()]
                 if role == "consultor":
+                    subconds = []
                     if allowed_numerocm:
-                        where.append("p.produtor_numerocm = ANY(%s)")
+                        subconds.append("p.produtor_numerocm = ANY(%s)")
                         params.append(allowed_numerocm)
                     if allowed_fazendas:
-                        where.append("EXISTS (SELECT 1 FROM public.fazendas f2 WHERE f2.id = ANY(%s) AND f2.idfazenda = p.fazenda_idfazenda)")
+                        subconds.append("EXISTS (SELECT 1 FROM public.fazendas f2 WHERE f2.id = ANY(%s) AND f2.idfazenda = p.fazenda_idfazenda)")
                         params.append(allowed_fazendas)
                     if cm_token:
-                        where.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.numerocm_consultor = %s AND f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm))")
+                        subconds.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.numerocm_consultor = %s AND f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm))")
                         params.append(cm_token)
                         params.append(cm_token)
                         params.append(cm_token)
+                    if subconds:
+                        where.append("(" + " OR ".join(subconds) + ")")
                 else:
                     subconds = []
                     if allowed_numerocm:
