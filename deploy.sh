@@ -30,25 +30,36 @@ git pull origin main
 echo
 
 # ===========================
-# 3. BACKEND DEPENDÊNCIAS + MIGRATIONS
+# 3. BACKEND: VENV + PIP + MIGRATIONS
 # ===========================
-cd "$SERVER_DIR"
+echo ">>> Preparando ambiente Python (venv + dependências + migrations)..."
 
-ACTIVATED_VENV=0
+VENV_PATH=""
 
-# Ativar venv da raiz, se existir
+# 1) tenta .venv na raiz
 if [ -d "$APP_DIR/.venv" ]; then
-  echo ">>> Ativando venv: $APP_DIR/.venv"
-  source "$APP_DIR/.venv/bin/activate"
-  ACTIVATED_VENV=1
-elif [ -d ".venv" ]; then
-  echo ">>> Ativando venv: $SERVER_DIR/.venv"
-  source ".venv/bin/activate"
-  ACTIVATED_VENV=1
+  VENV_PATH="$APP_DIR/.venv"
+# 2) tenta venv na raiz
+elif [ -d "$APP_DIR/venv" ]; then
+  VENV_PATH="$APP_DIR/venv"
+# 3) tenta .venv dentro de server/
+elif [ -d "$SERVER_DIR/.venv" ]; then
+  VENV_PATH="$SERVER_DIR/.venv"
+# 4) tenta venv dentro de server/
+elif [ -d "$SERVER_DIR/venv" ]; then
+  VENV_PATH="$SERVER_DIR/venv"
+# 5) se nada existir, cria um novo .venv na raiz
 else
-  echo ">>> ERRO: Nenhum ambiente virtual encontrado (.venv)."
-  exit 1
+  echo ">>> Nenhum venv encontrado. Criando em $APP_DIR/.venv..."
+  python3 -m venv "$APP_DIR/.venv"
+  VENV_PATH="$APP_DIR/.venv"
 fi
+
+echo ">>> Usando venv em: $VENV_PATH"
+# shellcheck disable=SC1090
+source "$VENV_PATH/bin/activate"
+
+cd "$SERVER_DIR"
 
 echo
 echo ">>> Instalando dependências backend (pip install -r requirements.txt)..."
@@ -59,7 +70,7 @@ echo ">>> Aplicando migrations (alembic upgrade head)..."
 if command -v alembic >/dev/null 2>&1; then
   alembic upgrade head
 else
-  echo ">>> AVISO: alembic não está instalado no venv!"
+  echo ">>> AVISO: alembic não está instalado no venv! (verifique server/requirements.txt)"
 fi
 
 deactivate
