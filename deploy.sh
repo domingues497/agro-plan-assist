@@ -1,136 +1,87 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 # ===========================
-# CONFIG BÁSICA DO DEPLOY
+# CONFIGURAÇÕES
 # ===========================
-
 APP_DIR="/var/www/agro-plan-assist"
 SERVER_DIR="$APP_DIR/server"
+SERVICE_NAME="agroplan-backend"
 
-# Se já usa DATABASE_URL no sistema, pode exportar aqui.
-# Ajuste a SENHA se precisar.
-DB_URL="${DATABASE_URL:-postgresql://agroplan_user:agroplan_pass@localhost:5432/agroplan_assist}"
-
-ENVIRONMENT="prod"
-
-# NOTAS DA RELEASE = tudo que você passar depois do ./deploy.sh
-NOTES="${*:-Deploy sem notas}"
+NOTES="${1:-Deploy sem notas}"
 
 cd "$APP_DIR"
 
 # ===========================
-# 1. COLETAR VERSION E BUILD
+# 1. VERSÃO E BUILD
 # ===========================
+VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
+BUILD=$(git rev-parse --short HEAD || echo "unknown")
 
-# Versão vem do package.json
-VERSION=$(node -p "require('./package.json').version")
-
-# Build = hash curto do commit atual
-BUILD=$(git rev-parse --short HEAD)
-
-echo ">>> Deploy da versão $VERSION (build $BUILD) para $ENVIRONMENT"
+echo ">>> Deploy da versão $VERSION (build $BUILD) para prod"
 echo ">>> Notas: $NOTES"
 echo
 
 # ===========================
-# 2. GIT PULL
+# 2. ATUALIZAR CÓDIGO (git pull)
 # ===========================
-
 echo ">>> Atualizando código (git pull)..."
 git pull origin main
 echo
 
 # ===========================
-# 3. MIGRATIONS (Alembic)
+# 3. BACKEND DEPENDÊNCIAS + MIGRATIONS
 # ===========================
-echo ">>> Aplicando migrations (alembic upgrade head)..."
-
 cd "$SERVER_DIR"
 
 ACTIVATED_VENV=0
 
-# 1) tenta venv da raiz do projeto: /var/www/agro-plan-assist/.venv
+# Ativar venv da raiz, se existir
 if [ -d "$APP_DIR/.venv" ]; then
-  echo ">>> Usando venv da raiz em $APP_DIR/.venv"
-  # shellcheck disable=SC1090
+  echo ">>> Ativando venv: $APP_DIR/.venv"
   source "$APP_DIR/.venv/bin/activate"
   ACTIVATED_VENV=1
-
-# 2) se não tiver, tenta venv dentro de server/: /var/www/agro-plan-assist/server/.venv
 elif [ -d ".venv" ]; then
-  echo ">>> Usando venv do backend em $SERVER_DIR/.venv"
-  # shellcheck disable=SC1091
+  echo ">>> Ativando venv: $SERVER_DIR/.venv"
   source ".venv/bin/activate"
   ACTIVATED_VENV=1
-
-# 3) se nada disso existir, só avisa e segue o jogo
 else
-  echo ">>> AVISO: nenhum venv encontrado (.venv). Pulando migrations Alembic."
+  echo ">>> ERRO: Nenhum ambiente virtual encontrado (.venv)."
+  exit 1
 fi
 
-# Só tenta rodar alembic se um venv foi ativado
-if [ "$ACTIVATED_VENV" -eq 1 ]; then
-  if command -v alembic >/dev/null 2>&1; then
-    alembic upgrade head
-  else
-    echo ">>> AVISO: alembic não encontrado no venv atual. Pulando migrations."
-  fi
+echo
+echo ">>> Instalando dependências backend (pip install -r requirements.txt)..."
+pip install -r requirements.txt --quiet
+echo
 
-  # desativa venv só se tiver ativado
-  deactivate
+echo ">>> Aplicando migrations (alembic upgrade head)..."
+if command -v alembic >/dev/null 2>&1; then
+  alembic upgrade head
+else
+  echo ">>> AVISO: alembic não está instalado no venv!"
 fi
 
+deactivate
 cd "$APP_DIR"
 echo
 
-
 # ===========================
-# 4. FRONTEND BUILD
+# 4. BUILD FRONTEND
 # ===========================
-
 echo ">>> Build do frontend (npm run build)..."
-# Só rode npm install se mudar deps:
-# npm install
 npm run build
 echo
 
 # ===========================
 # 5. REINICIAR BACKEND
 # ===========================
+echo ">>> Reiniciando serviço do backend ($SERVICE_NAME)..."
+sudo systemctl restart "$SERVICE_NAME"
 
-echo ">>> Reiniciando serviço do backend (agroplan-backend)..."
-sudo systemctl restart agroplan-backend
-sudo systemctl status agroplan-backend --no-pager
+sleep 2
+sudo systemctl status "$SERVICE_NAME" --no-pager -l || true
 echo
 
-# ===========================
-# 6. GARANTIR TABELA app_versions
-# ===========================
-
-echo ">>> Garantindo tabela app_versions..."
-psql "$DB_URL" <<'EOF'
-CREATE TABLE IF NOT EXISTS app_versions (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  version     text NOT NULL,
-  build       text NOT NULL,
-  environment text NOT NULL,
-  notes       text,
-  created_at  timestamptz NOT NULL DEFAULT now()
-);
-EOF
-echo
-
-# ===========================
-# 7. REGISTRAR RELEASE NO BANCO
-# ===========================
-
-echo ">>> Registrando release em app_versions..."
-psql "$DB_URL" <<EOF
-INSERT INTO app_versions (version, build, environment, notes)
-VALUES ('$VERSION', '$BUILD', '$ENVIRONMENT', '$NOTES');
-EOF
-
-echo
-echo ">>> Deploy concluído com sucesso!"
-echo ">>> Versão: $VERSION  | Build: $BUILD  | Ambiente: $ENVIRONMENT"
+echo ">>> Deploy concluído!"
+echo ">>> Versão: $VERSION  | Build: $BUILD  | Ambiente: prod"
