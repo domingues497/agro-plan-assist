@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ===========================
+# ===========================++
 # CONFIGURAÇÕES BÁSICAS
-# ===========================
+# ===========================++
 APP_DIR="/var/www/agro-plan-assist"
 SERVER_DIR="$APP_DIR/server"
 VENV_PATH="$APP_DIR/.venv"
