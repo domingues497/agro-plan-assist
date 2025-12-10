@@ -6,6 +6,7 @@ set -euo pipefail
 # ===========================
 APP_DIR="/var/www/agro-plan-assist"
 SERVER_DIR="$APP_DIR/server"
+VENV_PATH="$APP_DIR/.venv"        # se seu venv tiver outro caminho, ajuste aqui
 SERVICE_NAME="agroplan-backend"
 
 NOTES="${1:-Deploy sem notas}"
@@ -34,25 +35,10 @@ echo
 # ===========================
 echo ">>> Preparando ambiente Python (venv + dependências + migrations)..."
 
-VENV_PATH=""
-
-# 1) tenta .venv na raiz
-if [ -d "$APP_DIR/.venv" ]; then
-  VENV_PATH="$APP_DIR/.venv"
-# 2) tenta venv na raiz
-elif [ -d "$APP_DIR/venv" ]; then
-  VENV_PATH="$APP_DIR/venv"
-# 3) tenta .venv dentro de server/
-elif [ -d "$SERVER_DIR/.venv" ]; then
-  VENV_PATH="$SERVER_DIR/.venv"
-# 4) tenta venv dentro de server/
-elif [ -d "$SERVER_DIR/venv" ]; then
-  VENV_PATH="$SERVER_DIR/venv"
-# 5) se nada existir, cria um novo .venv na raiz
-else
-  echo ">>> Nenhum venv encontrado. Criando em $APP_DIR/.venv..."
-  python3 -m venv "$APP_DIR/.venv"
-  VENV_PATH="$APP_DIR/.venv"
+# Garante que o venv existe
+if [ ! -d "$VENV_PATH" ]; then
+  echo ">>> Nenhum venv encontrado. Criando em $VENV_PATH..."
+  python3 -m venv "$VENV_PATH"
 fi
 
 echo ">>> Usando venv em: $VENV_PATH"
