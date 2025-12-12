@@ -1,9 +1,19 @@
 from __future__ import annotations
+
 import os
+import sys
+
 from alembic import context
 from sqlalchemy import create_engine
 
+# === Ajuste para achar o pacote "server" ===
+# BASE_DIR = /var/www/agro-plan-assist
+BASE_DIR = os.path.dirname(os.path.abspath(os.path.join(__file__, "..", "..")))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
 def get_url() -> str:
+    # Agora o import funciona porque "server" está no sys.path
     from server.db import get_database_url
     return get_database_url()
 
