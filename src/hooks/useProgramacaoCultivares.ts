@@ -5,6 +5,7 @@ export type DefensivoFazenda = {
   id?: string;
   aplicacao: string;
   defensivo: string;
+  cod_item?: string;
   dose: number;
   cobertura: number;
   total: number;

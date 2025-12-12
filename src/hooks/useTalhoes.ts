@@ -34,7 +34,8 @@ export const useTalhoes = (fazendaId?: string, safraId?: string) => {
       const baseUrl = getApiBaseUrl();
       const params = new URLSearchParams({ fazenda_id: String(fazendaId) });
       if (safraId) params.set("safra_id", String(safraId));
-      const res = await fetch(`${baseUrl}/talhoes?${params.toString()}`);
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/talhoes?${params.toString()}` , { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
@@ -61,7 +62,8 @@ export const useTalhoesMultiFazendas = (fazendaIds?: string[]) => {
       if (!fazendaIds || fazendaIds.length === 0) return [];
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/talhoes?ids=${encodeURIComponent(fazendaIds.join(","))}`);
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/talhoes?ids=${encodeURIComponent(fazendaIds.join(","))}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);

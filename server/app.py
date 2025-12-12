@@ -1068,25 +1068,47 @@ def create_programacao():
                         )
                     if str(item.get("tipo_tratamento")).upper() == "NA FAZENDA":
                         for d in (item.get("defensivos_fazenda") or []):
+                            cod_val = None
+                            try:
+                                cur.execute(
+                                    "SELECT cod_item FROM public.defensivos_catalog WHERE item = %s AND (%s IS NULL OR grupo = %s) ORDER BY cod_item LIMIT 1",
+                                    [d.get("defensivo"), d.get("classe"), d.get("classe")]
+                                )
+                                r = cur.fetchone()
+                                if r:
+                                    cod_val = r[0]
+                            except Exception:
+                                cod_val = None
                             cur.execute(
                                 """
                                 INSERT INTO public.programacao_cultivares_defensivos
-                                (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
-                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                                (id, programacao_cultivar_id, classe, aplicacao, defensivo, cod_item, dose, cobertura, total, produto_salvo)
+                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                                 """,
-                                [str(uuid.uuid4()), cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                                [str(uuid.uuid4()), cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"), cod_val,
                                  d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                             )
                 for a in adubacao:
+                    cod_val = None
+                    try:
+                        cur.execute(
+                            "SELECT cod_item FROM public.fertilizantes_catalog WHERE item = %s ORDER BY cod_item LIMIT 1",
+                            [a.get("formulacao")]
+                        )
+                        r = cur.fetchone()
+                        if r:
+                            cod_val = r[0]
+                    except Exception:
+                        cod_val = None
                     cur.execute(
                         """
                         INSERT INTO public.programacao_adubacao (
-                          id, programacao_id, user_id, produtor_numerocm, area, numerocm_consultor, formulacao, dose, percentual_cobertura,
+                          id, programacao_id, user_id, produtor_numerocm, area, numerocm_consultor, formulacao, cod_item, dose, percentual_cobertura,
                           data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo, deve_faturar,
                           porcentagem_salva, total, safra_id
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [str(uuid.uuid4()), prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
+                        [str(uuid.uuid4()), prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
                          bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
@@ -1257,25 +1279,47 @@ def update_programacao(id: str):
                         )
                     if str(item.get("tipo_tratamento") or "").upper() == "NA FAZENDA":
                         for d in (item.get("defensivos_fazenda") or []):
+                            cod_val = None
+                            try:
+                                cur.execute(
+                                    "SELECT cod_item FROM public.defensivos_catalog WHERE item = %s AND (%s IS NULL OR grupo = %s) ORDER BY cod_item LIMIT 1",
+                                    [d.get("defensivo"), d.get("classe"), d.get("classe")]
+                                )
+                                r = cur.fetchone()
+                                if r:
+                                    cod_val = r[0]
+                            except Exception:
+                                cod_val = None
                             cur.execute(
                                 """
                                 INSERT INTO public.programacao_cultivares_defensivos
-                                (id, programacao_cultivar_id, classe, aplicacao, defensivo, dose, cobertura, total, produto_salvo)
-                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                                (id, programacao_cultivar_id, classe, aplicacao, defensivo, cod_item, dose, cobertura, total, produto_salvo)
+                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                                 """,
-                                [str(uuid.uuid4()), cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"),
+                                [str(uuid.uuid4()), cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"), cod_val,
                                  d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
                             )
                 for a in adubacao:
+                    cod_val = None
+                    try:
+                        cur.execute(
+                            "SELECT cod_item FROM public.fertilizantes_catalog WHERE item = %s ORDER BY cod_item LIMIT 1",
+                            [a.get("formulacao")]
+                        )
+                        r = cur.fetchone()
+                        if r:
+                            cod_val = r[0]
+                    except Exception:
+                        cod_val = None
                     cur.execute(
                         """
                         INSERT INTO public.programacao_adubacao (
-                          id, programacao_id, user_id, produtor_numerocm, area, formulacao, dose, percentual_cobertura,
+                          id, programacao_id, user_id, produtor_numerocm, area, formulacao, cod_item, dose, percentual_cobertura,
                           data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo, deve_faturar,
                           porcentagem_salva, total, safra_id
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [str(uuid.uuid4()), id, user_id, produtor_numerocm, area, a.get("formulacao"), a.get("dose"), a.get("percentual_cobertura"),
+                        [str(uuid.uuid4()), id, user_id, produtor_numerocm, area, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
                          bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
@@ -1581,15 +1625,26 @@ def create_programacao_adub():
     try:
         with conn:
             with conn.cursor() as cur:
+                cod_val = None
+                try:
+                    cur.execute(
+                        "SELECT cod_item FROM public.fertilizantes_catalog WHERE item = %s ORDER BY cod_item LIMIT 1",
+                        [formulacao]
+                    )
+                    r = cur.fetchone()
+                    if r:
+                        cod_val = r[0]
+                except Exception:
+                    cod_val = None
                 cur.execute(
                     """
                     INSERT INTO public.programacao_adubacao (
-                      id, programacao_id, user_id, produtor_numerocm, area, numerocm_consultor, formulacao, dose, percentual_cobertura,
+                      id, programacao_id, user_id, produtor_numerocm, area, numerocm_consultor, formulacao, cod_item, dose, percentual_cobertura,
                       data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo, deve_faturar,
                       porcentagem_salva, total, safra_id
-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     """,
-                    [id_val, programacao_id, user_id, produtor_numerocm, area, cm_token, formulacao, dose, percentual_cobertura,
+                    [id_val, programacao_id, user_id, produtor_numerocm, area, cm_token, formulacao, cod_val, dose, percentual_cobertura,
                      data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo, deve_faturar,
                      porcentagem_salva, None, safra_id]
                 )
@@ -1630,6 +1685,17 @@ def update_programacao_adub(id: str):
                 if cm_token is not None:
                     set_parts.append("numerocm_consultor = %s")
                     values.append(cm_token)
+                try:
+                    if fields.get("formulacao") is not None:
+                        cur.execute(
+                            "SELECT cod_item FROM public.fertilizantes_catalog WHERE item = %s ORDER BY cod_item LIMIT 1",
+                            [fields.get("formulacao")]
+                        )
+                        r = cur.fetchone()
+                        set_parts.append("cod_item = %s")
+                        values.append(r[0] if r else None)
+                except Exception:
+                    pass
                 cur.execute(
                     f"UPDATE public.programacao_adubacao SET {', '.join(set_parts)}, updated_at = now() WHERE id = %s",
                     values + [id]
@@ -3320,12 +3386,23 @@ def create_aplicacao_defensivos():
                     [id_val, user_id, produtor_numerocm, area]
                 )
                 for d in defensivos:
+                    cod_val = None
+                    try:
+                        cur.execute(
+                            "SELECT cod_item FROM public.defensivos_catalog WHERE item = %s AND (%s IS NULL OR grupo = %s) ORDER BY cod_item LIMIT 1",
+                            [d.get("defensivo"), d.get("classe"), d.get("classe")]
+                        )
+                        r = cur.fetchone()
+                        if r:
+                            cod_val = r[0]
+                    except Exception:
+                        cod_val = None
                     cur.execute(
                         """
-                        INSERT INTO public.programacao_defensivos (id, aplicacao_id, user_id, classe, defensivo, dose, unidade, alvo, produto_salvo, deve_faturar, porcentagem_salva, area_hectares, safra_id, numerocm_consultor)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        INSERT INTO public.programacao_defensivos (id, aplicacao_id, user_id, classe, defensivo, cod_item, dose, unidade, alvo, produto_salvo, deve_faturar, porcentagem_salva, area_hectares, safra_id, numerocm_consultor)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [str(uuid.uuid4()), id_val, user_id, d.get("classe"), d.get("defensivo"), d.get("dose"), d.get("unidade"), d.get("alvo"), d.get("produto_salvo"), d.get("deve_faturar"), d.get("porcentagem_salva"), d.get("area_hectares"), d.get("safra_id"), cm_token]
+                        [str(uuid.uuid4()), id_val, user_id, d.get("classe"), d.get("defensivo"), cod_val, d.get("dose"), d.get("unidade"), d.get("alvo"), d.get("produto_salvo"), d.get("deve_faturar"), d.get("porcentagem_salva"), d.get("area_hectares"), d.get("safra_id"), cm_token]
                     )
         return jsonify({"id": id_val})
     except Exception as e:
@@ -3383,12 +3460,23 @@ def update_aplicacao_defensivos(id: str):
                 cur.execute("UPDATE public.aplicacoes_defensivos SET user_id = %s, produtor_numerocm = %s, area = %s, updated_at = now() WHERE id = %s", [user_id, produtor_numerocm, area, id])
                 cur.execute("DELETE FROM public.programacao_defensivos WHERE aplicacao_id = %s", [id])
                 for d in defensivos:
+                    cod_val = None
+                    try:
+                        cur.execute(
+                            "SELECT cod_item FROM public.defensivos_catalog WHERE item = %s AND (%s IS NULL OR grupo = %s) ORDER BY cod_item LIMIT 1",
+                            [d.get("defensivo"), d.get("classe"), d.get("classe")]
+                        )
+                        r = cur.fetchone()
+                        if r:
+                            cod_val = r[0]
+                    except Exception:
+                        cod_val = None
                     cur.execute(
                         """
-                        INSERT INTO public.programacao_defensivos (id, aplicacao_id, user_id, classe, defensivo, dose, unidade, alvo, produto_salvo, deve_faturar, porcentagem_salva, area_hectares, safra_id, numerocm_consultor)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        INSERT INTO public.programacao_defensivos (id, aplicacao_id, user_id, classe, defensivo, cod_item, dose, unidade, alvo, produto_salvo, deve_faturar, porcentagem_salva, area_hectares, safra_id, numerocm_consultor)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        [str(uuid.uuid4()), id, user_id, d.get("classe"), d.get("defensivo"), d.get("dose"), d.get("unidade"), d.get("alvo"), d.get("produto_salvo"), d.get("deve_faturar"), d.get("porcentagem_salva"), d.get("area_hectares"), d.get("safra_id"), cm_token]
+                        [str(uuid.uuid4()), id, user_id, d.get("classe"), d.get("defensivo"), cod_val, d.get("dose"), d.get("unidade"), d.get("alvo"), d.get("produto_salvo"), d.get("deve_faturar"), d.get("porcentagem_salva"), d.get("area_hectares"), d.get("safra_id"), cm_token]
                     )
         return jsonify({"ok": True, "id": id})
     except Exception as e:

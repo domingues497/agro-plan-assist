@@ -45,6 +45,7 @@ type DefensivoNaFazenda = {
   classe: string;
   aplicacao: string;
   defensivo: string;
+  cod_item?: string;
   dose: number;
   cobertura: number;
   total: number;
@@ -126,6 +127,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
         classe: "",
         aplicacao: "Tratamento de Semente - TS",
         defensivo: "",
+        cod_item: "",
         dose: 0,
         cobertura: 100,
         total: 0,
@@ -146,6 +148,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
         classe: "",
         aplicacao: "Tratamento de Semente - TS",
         defensivo: "",
+        cod_item: "",
         dose: 0,
         cobertura: 100,
         total: 0,
@@ -204,7 +207,15 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
     setDefensivosFazenda(prev => 
       prev.map(d => {
         if (d.tempId === tempId) {
-          const updated = { ...d, [field]: value };
+          const updated = { ...d, [field]: value } as DefensivoNaFazenda;
+          if (field === "defensivo") {
+            const norm = (s: string) => String(s || "").normalize("NFD").replace(/[^\p{L}\p{N}\s\-]/gu, "").toUpperCase().trim();
+            const sel = defensivosCatalog.find((x: any) => String(x.item) === String(value))
+              || defensivosCatalog.find((x: any) => norm(String(x.item)) === norm(String(value)));
+            updated.cod_item = sel?.cod_item ? String(sel.cod_item) : "";
+            const grupo = sel?.grupo ? String(sel.grupo) : "";
+            updated.classe = grupo || updated.classe || "";
+          }
           if (field === "dose" || field === "cobertura") {
             const dose = Number(field === "dose" ? value : d.dose) || 0;
             const cobertura = Math.min(100, Math.max(0, Number(field === "cobertura" ? value : d.cobertura) || 100));
@@ -571,6 +582,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const { data: fazendas = [] } = useFazendas(initialProdutorNumerocm, isEditing ? undefined : safraId);
   const { data: cultivares = [] } = useCultivaresCatalog();
   const { data: fertilizantes = [] } = useFertilizantesCatalog();
+  const { data: defensivosCatalog = [] } = useDefensivosCatalog();
   const { safras = [], defaultSafra } = useSafras();
   const { data: justificativas = [] } = useJustificativasAdubacao();
   const { data: epocas = [] } = useEpocas();
@@ -686,14 +698,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
   const [fazendaFiltrada, setFazendaFiltrada] = useState<any[]>([]);
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
+  const [selectedFazendaUuid, setSelectedFazendaUuid] = useState<string | undefined>(undefined);
   
   // Ref para rastrear se estamos carregando initialData
   const isLoadingInitialData = useRef(false);
   
   // Busca os talhões da fazenda selecionada (robusto na primeira carga)
   const fazendaSelecionadaId = (
-    (fazendas || []).find((f: any) => f.idfazenda === fazendaIdfazenda)?.id
+    selectedFazendaUuid
     || (fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda)?.id)
+    || ((fazendas || []).find((f: any) => f.idfazenda === fazendaIdfazenda)?.id)
     || undefined
   );
   const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaId, isEditing ? undefined : safraId);
@@ -719,7 +733,12 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       setFazendaFiltrada(filtered);
     }
     
-    if (typeof initialData.fazenda_idfazenda === "string") setFazendaIdfazenda(initialData.fazenda_idfazenda);
+    if (typeof initialData.fazenda_idfazenda === "string") {
+      setFazendaIdfazenda(initialData.fazenda_idfazenda);
+      const f0 = (fazendas || []).find((f: any) => String(f.idfazenda) === String(initialData.fazenda_idfazenda))
+        || fazendaFiltrada.find((f: any) => String(f.idfazenda) === String(initialData.fazenda_idfazenda));
+      setSelectedFazendaUuid(f0?.id);
+    }
     if (typeof initialData.area === "string") setArea(initialData.area);
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
@@ -886,7 +905,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     return itensAdubacao.reduce((sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const totalCultivar = getTotalCultivar();
@@ -953,6 +972,19 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       return;
     }
 
+    // Garantir catálogo de defensivos disponível
+    let defensivosCatalogLocal = defensivosCatalog;
+    if (!defensivosCatalogLocal || defensivosCatalogLocal.length === 0) {
+      try {
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/defensivos`, { credentials: "omit" });
+        if (res.ok) {
+          const json = await res.json();
+          defensivosCatalogLocal = (json?.items ?? []) as any[];
+        }
+      } catch {}
+    }
+
     const data: CreateProgramacao = {
       produtor_numerocm: produtorNumerocm,
       fazenda_idfazenda: fazendaIdfazenda,
@@ -967,7 +999,22 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
         .map(({ uiId, ...rest }) => {
           // Se for NA FAZENDA, incluir defensivos_fazenda
           if (rest.tipo_tratamento === "NA FAZENDA") {
-            const result = { ...rest, defensivos_fazenda: (rest as any).defensivos_fazenda || [] } as any;
+            const defsInput = ((rest as any).defensivos_fazenda || []) as DefensivoNaFazenda[];
+            const defsNormalized = defsInput.map((d) => {
+              const sel = (defensivosCatalogLocal || []).find((x: any) => String(x.item) === String(d.defensivo));
+              const codRaw = d.cod_item || (sel?.cod_item ? String(sel.cod_item) : "");
+              return {
+                classe: String(d.classe || "").trim() ? String(d.classe) : null,
+                aplicacao: String(d.aplicacao || "Tratamento de Semente - TS"),
+                defensivo: String(d.defensivo || ""),
+                cod_item: String(codRaw || ""),
+                dose: Number(d.dose) || 0,
+                cobertura: Number(d.cobertura) || 100,
+                total: Number(d.total) || 0,
+                produto_salvo: !!d.produto_salvo,
+              } as any;
+            });
+            const result = { ...rest, defensivos_fazenda: defsNormalized } as any;
             const ids = Array.isArray((rest as any).tratamento_ids)
               ? ((rest as any).tratamento_ids as string[])
               : [];
@@ -1029,6 +1076,12 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       }
     }
 
+    try {
+      const defensivosSnapshot = (data.cultivares || []).flatMap((c: any) => c?.defensivos_fazenda || []);
+      if (defensivosSnapshot.length > 0) {
+        console.log("[programacao:submit] defensivos_fazenda:", defensivosSnapshot);
+      }
+    } catch {}
     onSubmit(data);
   };
 
@@ -1054,7 +1107,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione o produtor" />
               </SelectTrigger>
               <SelectContent>
-                {produtores.map((p) => (
+                {Array.from(new Map(produtores.map((p: any) => [String(p.numerocm), p])).values()).map((p: any) => (
                   <SelectItem key={p.numerocm} value={p.numerocm}>
                     {p.nome}
                   </SelectItem>
@@ -1070,7 +1123,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione a safra" />
               </SelectTrigger>
               <SelectContent>
-                {(safras || []).filter((s) => s.ativa).map((s) => (
+                {Array.from(new Map(((safras || []).filter((s: any) => s.ativa)).map((s: any) => [String(s.id), s])).values()).map((s: any) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.nome}{s.is_default ? " (Padrão)" : ""}
                   </SelectItem>
@@ -1095,15 +1148,20 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 </Button>
               )}
             </div>
-            <Select value={fazendaIdfazenda} onValueChange={setFazendaIdfazenda} disabled={!produtorNumerocm || !safraId}>
+            <Select value={fazendaIdfazenda} onValueChange={(val) => {
+              setFazendaIdfazenda(val);
+              const f0 = fazendaFiltrada.find((f: any) => String(f.idfazenda) === String(val))
+                || (fazendas || []).find((f: any) => String(f.idfazenda) === String(val));
+              setSelectedFazendaUuid(f0?.id);
+            }} disabled={!produtorNumerocm || !safraId}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a fazenda" />
               </SelectTrigger>
               <SelectContent>
-                {fazendaFiltrada.map((f) => {
+                {fazendaFiltrada.map((f: any) => {
                   const invalid = !f.area_cultivavel || Number(f.area_cultivavel) <= 0;
                   return (
-                    <SelectItem key={f.idfazenda} value={f.idfazenda}>
+                    <SelectItem key={`${f.id}-${f.idfazenda}`} value={f.idfazenda}>
                       <div className="flex flex-col gap-1">
                         <span>{f.nomefazenda}</span>
                         <div className="flex items-center gap-2">
@@ -1122,7 +1180,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             <div className="space-y-2 lg:col-span-2">
               <Label>Talhões da Fazenda *</Label>
               <div className="border rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
-                {talhoesDaFazenda.map((talhao) => (
+                {talhoesDaFazenda
+                  .filter((t) => !fazendaSelecionadaId || String(t.fazenda_id) === String(fazendaSelecionadaId))
+                  .map((talhao) => (
                   <div key={talhao.id} className="flex items-center space-x-2 py-1">
                     <Checkbox
                       id={`talhao-${talhao.id}`}

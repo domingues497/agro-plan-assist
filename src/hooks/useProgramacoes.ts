@@ -6,6 +6,7 @@ export interface DefensivoFazenda {
   classe: string;
   aplicacao: string;
   defensivo: string;
+  cod_item?: string;
   dose: number;
   cobertura: number;
   total: number;
@@ -104,6 +105,12 @@ export const useProgramacoes = () => {
         user_id: undefined,
         ...newProgramacao,
       } as any;
+      try {
+        const defs = Array.isArray(payload.cultivares)
+          ? payload.cultivares.map((c: any) => c?.defensivos_fazenda || [])
+          : [];
+        console.log("[programacoes:create] defensivos_fazenda payload:", defs);
+      } catch {}
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/programacoes`, {
         method: "POST",
@@ -205,6 +212,12 @@ Talhões: ${nomes}.`
         throw new Error("O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)");
       }
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      try {
+        const defs = Array.isArray(data.cultivares)
+          ? data.cultivares.map((c: any) => c?.defensivos_fazenda || [])
+          : [];
+        console.log("[programacoes:update] defensivos_fazenda payload:", defs);
+      } catch {}
       const res = await fetch(`${baseUrl}/programacoes/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },

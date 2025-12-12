@@ -373,6 +373,7 @@ export default function Programacao() {
                               classe: d.classe || "",
                               aplicacao: d.aplicacao,
                               defensivo: d.defensivo,
+                              cod_item: d.cod_item || "",
                               dose: Number(d.dose) || 0,
                               cobertura: Number(d.cobertura) || 100,
                               total: Number(d.total) || 0,

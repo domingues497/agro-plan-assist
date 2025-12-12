@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useInactivityLogout } from "@/hooks/useInactivityLogout";
+import { InactivityProvider } from "@/hooks/useInactivityLogout.tsx";
 import { getApiBaseUrl } from "@/lib/utils";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
@@ -22,8 +22,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Hook de inatividade - desconecta após 5 minutos
-  useInactivityLogout();
+  
 
   useEffect(() => {
     const checkToken = async () => {
@@ -73,30 +72,32 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      {(() => {
-        const isBrowser = typeof window !== "undefined";
-        const host = isBrowser ? window.location.hostname : "localhost";
-        const isProdHost = isBrowser && !["localhost", "127.0.0.1"].includes(host);
-        const RouterComp = isProdHost ? HashRouter : BrowserRouter;
-        return (
-          <RouterComp
-            future={{
-              v7_relativeSplatPath: true,
-              v7_startTransition: true,
-            }}
-          >
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-              <Route path="/defensivos" element={<ProtectedRoute><Defensivos /></ProtectedRoute>} />
-              <Route path="/programacao" element={<ProtectedRoute><Programacao /></ProtectedRoute>} />
-              <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </RouterComp>
-        );
-      })()}
+      <InactivityProvider>
+        {(() => {
+          const isBrowser = typeof window !== "undefined";
+          const host = isBrowser ? window.location.hostname : "localhost";
+          const isProdHost = isBrowser && !["localhost", "127.0.0.1"].includes(host);
+          const RouterComp = isProdHost ? HashRouter : BrowserRouter;
+          return (
+            <RouterComp
+              future={{
+                v7_relativeSplatPath: true,
+                v7_startTransition: true,
+              }}
+            >
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+                <Route path="/defensivos" element={<ProtectedRoute><Defensivos /></ProtectedRoute>} />
+                <Route path="/programacao" element={<ProtectedRoute><Programacao /></ProtectedRoute>} />
+                <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </RouterComp>
+          );
+        })()}
+      </InactivityProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
