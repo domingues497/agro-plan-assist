@@ -24,7 +24,6 @@ export function ImportFazendas() {
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
-  const [limparAntes, setLimparAntes] = useState(false);
   const [deletedRows, setDeletedRows] = useState(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,7 +91,6 @@ export function ImportFazendas() {
         headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : undefined as any },
         body: JSON.stringify({
           items: uniquePayload,
-          limparAntes,
           user_id: user.user_id || user.id,
           arquivo_nome: file.name,
         }),
@@ -109,7 +107,6 @@ export function ImportFazendas() {
 
       toast.success(`Importação de fazendas concluída (${imported} de ${uniquePayload.length})`);
       setShowSummary(true);
-      setLimparAntes(false);
     } catch (err: any) {
       console.error(err);
       toast.error(`Erro ao importar fazendas: ${err.message}`);
@@ -130,17 +127,7 @@ export function ImportFazendas() {
           <Input type="file" accept=".xlsx,.xls" onChange={handleFileChange} />
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="limpar-antes"
-            checked={limparAntes}
-            onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
-            disabled={isImporting}
-          />
-          <Label htmlFor="limpar-antes" className="cursor-pointer text-sm">
-            Limpar todos os registros antes de importar
-          </Label>
-        </div>
+        
 
         <Button onClick={handleImport} disabled={isImporting || !file}>
           {isImporting ? "Importando..." : "Importar"}

@@ -124,6 +124,7 @@ class FertilizanteCatalog(Base):
     __tablename__ = "fertilizantes_catalog"
     cod_item = Column(String, primary_key=True)
     item = Column(String)
+    grupo = Column(String)
     marca = Column(String)
     principio_ativo = Column(String)
     saldo = Column(Numeric)

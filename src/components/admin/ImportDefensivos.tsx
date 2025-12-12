@@ -25,7 +25,7 @@ export const ImportDefensivos = () => {
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
-  const [limparAntes, setLimparAntes] = useState(false);
+  
   const [deletedRows, setDeletedRows] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [isSyncingApi, setIsSyncingApi] = useState(false);
@@ -118,7 +118,7 @@ export const ImportDefensivos = () => {
       const res = await fetch(`${baseUrl}/defensivos/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: dataArray, limparAntes }),
+        body: JSON.stringify({ items: dataArray }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => null);
@@ -131,7 +131,7 @@ export const ImportDefensivos = () => {
       toast.success(`Importação concluída! ${imported} registros únicos de ${totalRows} linhas processadas`);
       setShowSummary(true);
       setFile(null);
-      setLimparAntes(false);
+      
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar arquivo. Verifique o formato.");
@@ -151,7 +151,7 @@ export const ImportDefensivos = () => {
     setDeletedRows(0);
 
     toast.info('🚀 Iniciando sincronização com API externa...', {
-      description: limparAntes ? 'Os dados existentes serão removidos antes da importação.' : 'Novos dados serão mesclados com os existentes.'
+      description: 'Novos dados serão mesclados com os existentes.'
     });
 
     try {
@@ -161,7 +161,7 @@ export const ImportDefensivos = () => {
       const res = await fetch(`${baseUrl}/defensivos/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limparAntes }),
+        body: JSON.stringify({}),
       });
       toast.dismiss();
       if (!res.ok) {
@@ -186,7 +186,7 @@ export const ImportDefensivos = () => {
       toast.success('✅ Sincronização concluída com sucesso!');
       setShowSummary(true);
       setFile(null);
-      setLimparAntes(false);
+      
     } catch (err) {
       toast.dismiss();
       console.error('Erro ao sincronizar API:', err);
@@ -222,17 +222,7 @@ export const ImportDefensivos = () => {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="limpar-antes"
-            checked={limparAntes}
-            onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
-            disabled={isImporting}
-          />
-          <Label htmlFor="limpar-antes" className="cursor-pointer text-sm">
-            Limpar todos os registros antes de importar
-          </Label>
-        </div>
+        
 
         <div className="space-y-3">
           <div className="flex items-center gap-2">

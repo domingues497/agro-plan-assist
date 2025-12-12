@@ -33,7 +33,6 @@ export const ImportCalendarioAplicacoes = () => {
   const [importProgress, setImportProgress] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
-  const [limparAntes, setLimparAntes] = useState(false);
   const [deletedCount, setDeletedCount] = useState(0);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +80,6 @@ export const ImportCalendarioAplicacoes = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          limpar_antes: limparAntes,
           items: uniqueRows,
           user_id: null,
           arquivo_nome: file.name,
@@ -99,7 +97,6 @@ export const ImportCalendarioAplicacoes = () => {
       setShowSummary(true);
       toast.success(`${Number(json?.imported || uniqueRows.length)} registros importados com sucesso!`);
       setFile(null);
-      setLimparAntes(false);
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar arquivo");
@@ -130,17 +127,7 @@ export const ImportCalendarioAplicacoes = () => {
           </Button>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="limpar-antes"
-            checked={limparAntes}
-            onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
-            disabled={isImporting}
-          />
-          <Label htmlFor="limpar-antes" className="cursor-pointer text-sm">
-            Limpar todos os registros antes de importar
-          </Label>
-        </div>
+        
 
         {isImporting && (
           <div className="space-y-2">

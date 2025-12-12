@@ -243,7 +243,7 @@ def import_fazendas():
     ensure_fazendas_schema()
     ensure_import_history_schema()
     payload = request.get_json(silent=True) or {}
-    limpar = bool(payload.get("limparAntes")) or bool(payload.get("limpar_antes"))
+    limpar = False
     items = payload.get("items") or payload.get("data") or payload.get("rows") or []
     user_id = payload.get("user_id")
     arquivo_nome = payload.get("arquivo_nome")
@@ -254,10 +254,7 @@ def import_fazendas():
     try:
         with conn:
             with conn.cursor() as cur:
-                if limpar:
-                    cur.execute("SELECT COUNT(*) FROM public.fazendas")
-                    deleted = cur.fetchone()[0] or 0
-                    cur.execute("DELETE FROM public.fazendas")
+                
                 values = []
                 seen = set()
                 for it in (items or []):
@@ -291,9 +288,9 @@ def import_fazendas():
                     INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [str(uuid.uuid4()), user_id, "fazendas", imported, deleted, arquivo_nome, limpar]
+                    [str(uuid.uuid4()), user_id, "fazendas", imported, 0, arquivo_nome, False]
                 )
-        return jsonify({"ok": True, "imported": imported, "deleted": deleted})
+        return jsonify({"ok": True, "imported": imported, "deleted": 0})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
     finally:
@@ -505,7 +502,7 @@ def import_produtores():
     ensure_produtores_schema()
     ensure_import_history_schema()
     payload = request.get_json(silent=True) or {}
-    limpar = bool(payload.get("limparAntes")) or bool(payload.get("limpar_antes"))
+    limpar = False
     items = payload.get("items") or payload.get("data") or payload.get("rows") or []
     user_id = payload.get("user_id")
     arquivo_nome = payload.get("arquivo_nome")
@@ -516,10 +513,7 @@ def import_produtores():
     try:
         with conn:
             with conn.cursor() as cur:
-                if limpar:
-                    cur.execute("SELECT COUNT(*) FROM public.produtores")
-                    deleted = cur.fetchone()[0] or 0
-                    cur.execute("DELETE FROM public.produtores")
+                
                 values = []
                 seen = set()
                 for it in (items or []):
@@ -553,9 +547,9 @@ def import_produtores():
                     INSERT INTO public.import_history (id, user_id, tabela_nome, registros_importados, registros_deletados, arquivo_nome, limpar_antes)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [str(uuid.uuid4()), user_id, "produtores", imported, deleted, arquivo_nome, limpar]
+                    [str(uuid.uuid4()), user_id, "produtores", imported, 0, arquivo_nome, False]
                 )
-        return jsonify({"ok": True, "imported": imported, "deleted": deleted})
+        return jsonify({"ok": True, "imported": imported, "deleted": 0})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
     finally:
@@ -701,7 +695,7 @@ def import_calendario_aplicacoes():
     ensure_calendario_aplicacoes_schema()
     ensure_import_history_schema()
     payload = request.get_json(silent=True) or {}
-    limpar_antes = bool(payload.get("limpar_antes") or payload.get("limparAntes"))
+    limpar_antes = False
     items = payload.get("items") or []
     user_id = payload.get("user_id")
     arquivo_nome = payload.get("arquivo_nome")
@@ -709,9 +703,7 @@ def import_calendario_aplicacoes():
     deleted_count = 0
     imported_count = 0
     try:
-        if limpar_antes:
-            deleted_count = session.execute(select(text("COUNT(*)")).select_from(CalendarioAplicacao)).scalar() or 0
-            session.execute(delete(CalendarioAplicacao))
+        
         to_upsert = []
         for it in items:
             to_upsert.append({
@@ -739,9 +731,9 @@ def import_calendario_aplicacoes():
                 )
             )
             imported_count = len(to_upsert)
-        session.add(ImportHistory(id=str(uuid.uuid4()), user_id=user_id, tabela_nome="calendario_aplicacoes", registros_importados=imported_count, registros_deletados=deleted_count, arquivo_nome=arquivo_nome, limpar_antes=limpar_antes))
+        session.add(ImportHistory(id=str(uuid.uuid4()), user_id=user_id, tabela_nome="calendario_aplicacoes", registros_importados=imported_count, registros_deletados=0, arquivo_nome=arquivo_nome, limpar_antes=False))
         session.commit()
-        return jsonify({"imported": imported_count, "deleted": deleted_count})
+        return jsonify({"imported": imported_count, "deleted": 0})
     except Exception as e:
         session.rollback()
         return jsonify({"error": str(e)}), 400
@@ -885,7 +877,7 @@ def import_consultores():
     ensure_consultores_schema()
     ensure_import_history_schema()
     payload = request.get_json(silent=True) or {}
-    limpar_antes = bool(payload.get("limpar_antes"))
+    limpar_antes = False
     items = payload.get("items") or []
     user_id = payload.get("user_id")
     arquivo_nome = payload.get("arquivo_nome")
@@ -893,9 +885,7 @@ def import_consultores():
     deleted_count = 0
     imported_count = 0
     try:
-        if limpar_antes:
-            deleted_count = session.execute(select(text("COUNT(*)")).select_from(Consultor)).scalar() or 0
-            session.execute(delete(Consultor))
+        
         to_upsert = []
         for it in items:
             to_upsert.append({
@@ -917,9 +907,9 @@ def import_consultores():
                 )
             )
             imported_count = len(to_upsert)
-        session.add(ImportHistory(id=str(uuid.uuid4()), user_id=user_id, tabela_nome="consultores", registros_importados=imported_count, registros_deletados=deleted_count, arquivo_nome=arquivo_nome, limpar_antes=limpar_antes))
+        session.add(ImportHistory(id=str(uuid.uuid4()), user_id=user_id, tabela_nome="consultores", registros_importados=imported_count, registros_deletados=0, arquivo_nome=arquivo_nome, limpar_antes=False))
         session.commit()
-        return jsonify({"imported": imported_count, "deleted": deleted_count})
+        return jsonify({"imported": imported_count, "deleted": 0})
     except Exception as e:
         session.rollback()
         return jsonify({"error": str(e)}), 400
@@ -1785,7 +1775,7 @@ def get_cultivares_catalog():
     ensure_cultivares_catalog_schema()
     session = get_session()
     items = session.execute(select(CultivarCatalog).order_by(CultivarCatalog.cultivar)).scalars().all()
-    return jsonify({
+    out = jsonify({
         "items": [
             {
                 "cultivar": it.cultivar,
@@ -1797,22 +1787,22 @@ def get_cultivares_catalog():
         ],
         "count": len(items),
     })
+    session.close()
+    return out
 
 @app.route("/cultivares_catalog/bulk", methods=["POST"])
 def import_cultivares_catalog():
     ensure_cultivares_catalog_schema()
     ensure_import_history_schema()
     payload = request.get_json(silent=True) or {}
-    limpar = bool(payload.get("limparAntes")) or bool(payload.get("limpar_antes"))
+    limpar = False
     items = payload.get("items") or []
     user_id = payload.get("user_id")
     arquivo_nome = payload.get("arquivo_nome")
     deleted = 0
     imported = 0
     session = get_session()
-    if limpar:
-        deleted = session.execute(select(text("COUNT(*)")).select_from(CultivarCatalog)).scalar() or 0
-        session.execute(delete(CultivarCatalog))
+    
     to_insert = []
     seen = set()
     for it in (items or []):
@@ -1834,9 +1824,9 @@ def import_cultivares_catalog():
         )
         session.execute(upsert_stmt)
         imported = len(to_insert)
-    session.add(ImportHistory(id=str(uuid.uuid4()), user_id=user_id, tabela_nome="cultivares_catalog", registros_importados=imported, registros_deletados=deleted, arquivo_nome=arquivo_nome, limpar_antes=limpar))
+    session.add(ImportHistory(id=str(uuid.uuid4()), user_id=user_id, tabela_nome="cultivares_catalog", registros_importados=imported, registros_deletados=0, arquivo_nome=arquivo_nome, limpar_antes=False))
     session.commit()
-    return jsonify({"ok": True, "imported": imported, "deleted": deleted})
+    return jsonify({"ok": True, "imported": imported, "deleted": 0})
 
 @app.route("/cultivares_catalog/by_key", methods=["PUT"])
 def update_cultivares_by_key():
@@ -2025,11 +2015,12 @@ def get_fertilizantes():
     ensure_fertilizantes_schema()
     session = get_session()
     items = session.execute(select(FertilizanteCatalog).order_by(FertilizanteCatalog.item.nulls_last(), FertilizanteCatalog.cod_item)).scalars().all()
-    return jsonify({
+    out = jsonify({
         "items": [
             {
                 "cod_item": it.cod_item,
                 "item": it.item,
+                "grupo": it.grupo,
                 "marca": it.marca,
                 "principio_ativo": it.principio_ativo,
                 "saldo": float(it.saldo) if it.saldo is not None else None,
@@ -2039,6 +2030,30 @@ def get_fertilizantes():
         ],
         "count": len(items),
     })
+    session.close()
+    return out
+
+@app.route("/debug/fertilizante_row/<cod_item>", methods=["GET"])
+def debug_fertilizante_row(cod_item: str):
+    ensure_fertilizantes_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT cod_item, item, grupo, marca, principio_ativo, saldo FROM public.fertilizantes_catalog WHERE cod_item = %s", [cod_item])
+            r = cur.fetchone()
+            if not r:
+                return jsonify({"error": "not found"}), 404
+            return jsonify({
+                "cod_item": r[0],
+                "item": r[1],
+                "grupo": r[2],
+                "marca": r[3],
+                "principio_ativo": r[4],
+                "saldo": float(r[5]) if r[5] is not None else None,
+            })
+    finally:
+        pool.putconn(conn)
 
 @app.route("/fertilizantes", methods=["POST"])
 def upsert_fertilizante():
@@ -2050,23 +2065,59 @@ def upsert_fertilizante():
     session = get_session()
     row = session.get(FertilizanteCatalog, cod_item)
     if row:
-        for k in ["item", "marca", "principio_ativo", "saldo"]:
+        for k in ["item", "grupo", "marca", "principio_ativo", "saldo"]:
             if k in payload:
                 setattr(row, k, payload.get(k))
     else:
         row = FertilizanteCatalog(
             cod_item=cod_item,
             item=payload.get("item"),
+            grupo=payload.get("grupo"),
             marca=payload.get("marca"),
             principio_ativo=payload.get("principio_ativo"),
             saldo=payload.get("saldo"),
         )
         session.add(row)
+    gv_raw = payload.get("grupo")
+    gval = (str(gv_raw) if gv_raw is not None else "").strip()
+    if gval:
+        session.execute(text("UPDATE public.fertilizantes_catalog SET grupo = :grupo, updated_at = now() WHERE cod_item = :cod"), {"grupo": gval, "cod": str(cod_item)})
     session.commit()
     return jsonify({"ok": True, "cod_item": cod_item})
 
+@app.route("/fertilizantes/update_grupo", methods=["POST"])
+def update_fertilizante_grupo():
+    ensure_fertilizantes_schema()
+    payload = request.get_json(silent=True) or {}
+    cod_item = str(payload.get("cod_item") or "").strip()
+    grupo = str(payload.get("grupo") or "").strip()
+    if not cod_item or not grupo:
+        return jsonify({"error": "cod_item e grupo obrigatórios"}), 400
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE public.fertilizantes_catalog SET grupo = %s, updated_at = now() WHERE cod_item = %s", [grupo, cod_item])
+            conn.commit()
+        return jsonify({"ok": True, "cod_item": cod_item, "grupo": grupo})
+    finally:
+        pool.putconn(conn)
+
 @app.route("/fertilizantes/bulk", methods=["POST"])
 def upsert_fertilizantes_bulk():
+    def _pick(obj, keys):
+        for k in keys:
+            if k in obj and obj[k] not in (None, ""):
+                return obj[k]
+        def norm(s: str) -> str:
+            s2 = (s or "").strip().lower().replace(" ", "_")
+            return "".join(ch for ch in s2 if (ch.isalnum() or ch == "_"))
+        norm_map = {norm(str(k)): v for k, v in obj.items()}
+        for k in keys:
+            nk = norm(k)
+            if nk in norm_map and norm_map[nk] not in (None, ""):
+                return norm_map[nk]
+        return None
     ensure_fertilizantes_schema()
     payload = request.get_json(silent=True) or {}
     items = payload.get("items") or []
@@ -2074,18 +2125,19 @@ def upsert_fertilizantes_bulk():
     if not isinstance(items, list) or len(items) == 0:
         return jsonify({"error": "items vazio"}), 400
     session = get_session()
-    if limpar:
-        session.execute(delete(FertilizanteCatalog))
+    session.execute(text("SET LOCAL lock_timeout = '3s'"))
     to_insert = []
     for d in items:
-        if not d.get("cod_item"):
+        cod_item = _pick(d, ["cod_item", "CODITEM", "COD_ITEM", "COD ITEM", "COD. ITEM", "COD"])
+        if not cod_item:
             continue
         to_insert.append({
-            "cod_item": d.get("cod_item"),
-            "item": d.get("item"),
-            "marca": d.get("marca"),
-            "principio_ativo": d.get("principio_ativo"),
-            "saldo": d.get("saldo"),
+            "cod_item": str(cod_item),
+            "item": (str(_pick(d, ["item", "ITEM"])) if _pick(d, ["item", "ITEM"]) is not None else None),
+            "grupo": (str(_pick(d, ["grupo", "GRUPO"])) if _pick(d, ["grupo", "GRUPO"]) is not None else None),
+            "marca": (str(_pick(d, ["marca", "MARCA"])) if _pick(d, ["marca", "MARCA"]) is not None else None),
+            "principio_ativo": (str(_pick(d, ["principio_ativo", "PRINCIPIO_ATIVO", "PRINCIPIO ATIVO"])) if _pick(d, ["principio_ativo", "PRINCIPIO_ATIVO", "PRINCIPIO ATIVO"]) is not None else None),
+            "saldo": (_pick(d, ["saldo", "SALDO"]) if _pick(d, ["saldo", "SALDO"]) is not None else None),
         })
     if not to_insert:
         return jsonify({"error": "items sem cod_item válido"}), 400
@@ -2094,6 +2146,7 @@ def upsert_fertilizantes_bulk():
         index_elements=[FertilizanteCatalog.cod_item],
         set_={
             "item": stmt.excluded.item,
+            "grupo": stmt.excluded.grupo,
             "marca": stmt.excluded.marca,
             "principio_ativo": stmt.excluded.principio_ativo,
             "saldo": stmt.excluded.saldo,
@@ -2110,6 +2163,7 @@ def sync_fertilizantes():
         return ("", 204)
     ensure_system_config_schema()
     ensure_fertilizantes_schema()
+    stage = "start"
     payload = request.get_json(silent=True) or {}
     limpar = bool(payload.get("limparAntes"))
     cfg = get_config_map([
@@ -2118,16 +2172,23 @@ def sync_fertilizantes():
         "api_fertilizantes_url",
         "api_fertilizantes_exp",
     ])
-    missing = [k for k in ["api_fertilizantes_cliente_id","api_fertilizantes_secret","api_fertilizantes_url","api_fertilizantes_exp"] if k not in cfg or not cfg[k]]
-    if missing:
-        return jsonify({"error": f"Config ausente: {', '.join(missing)}"}), 400
-    try:
-        url_cfg = (cfg["api_fertilizantes_url"] or "").strip().strip("`")
-        token = _make_jwt(cfg["api_fertilizantes_cliente_id"], int(cfg["api_fertilizantes_exp"]), cfg["api_fertilizantes_secret"], None)
-    except Exception as e:
-        return jsonify({"error": f"Falha ao gerar JWT: {e}"}), 400
-    url = url_cfg
-    req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+    stage = "config"
+    url = str(cfg.get("api_fertilizantes_url") or "").strip().strip("`")
+    if not url:
+        return jsonify({"error": "Config api_fertilizantes_url ausente"}), 400
+    headers = {"Accept": "application/json"}
+    # Só envia Authorization se todas as chaves de JWT estiverem presentes
+    if cfg.get("api_fertilizantes_cliente_id") and cfg.get("api_fertilizantes_secret") and cfg.get("api_fertilizantes_exp"):
+        try:
+            client_id = str(cfg.get("api_fertilizantes_cliente_id") or "").strip()
+            secret = str(cfg.get("api_fertilizantes_secret") or "").strip()
+            exp = str(cfg.get("api_fertilizantes_exp") or "").strip()
+            token = _make_jwt(client_id, int(exp), secret, None)
+            headers["Authorization"] = f"Bearer {token}"
+        except Exception:
+            pass
+    req = Request(url, headers=headers)
+    stage = "http"
     try:
         with urlopen(req, timeout=30) as resp:
             raw = resp.read()
@@ -2152,6 +2213,7 @@ def sync_fertilizantes():
     except Exception as e:
         return jsonify({"error": f"Erro ao ler resposta da API externa: {e}"}), 500
 
+    stage = "normalize"
     items = data.get("items") if isinstance(data, dict) else data
     if not isinstance(items, list):
         return jsonify({"error": "Resposta da API externa inválida", "url": url, "preview": data}), 500
@@ -2168,56 +2230,76 @@ def sync_fertilizantes():
         cod_item = pick(d, ["cod_item", "COD_ITEM", "CODITEM", "COD ITEM", "COD. ITEM", "COD"])
         item_val = pick(d, ["item", "ITEM"]) or None
         marca_val = pick(d, ["marca", "MARCA"]) or None
+        grupo_val = pick(d, ["grupo", "GRUPO"]) or None
         princ_val = pick(d, ["principio_ativo", "PRINCIPIO_ATIVO", "PRINCIPIO ATIVO"]) or None
         saldo_val = pick(d, ["saldo", "SALDO"]) or None
 
         if not cod_item:
             ignored += 1
             continue
-        normalized.append([cod_item, item_val, marca_val, princ_val, saldo_val])
+        normalized.append([cod_item, item_val, grupo_val, marca_val, princ_val, saldo_val])
 
-    session = get_session()
-    if limpar:
-        session.execute(delete(FertilizanteCatalog))
-    to_insert = []
-    for r in normalized:
-        to_insert.append({
-            "cod_item": r[0],
-            "item": r[1],
-            "marca": r[2],
-            "principio_ativo": r[3],
-            "saldo": r[4],
-        })
-    if to_insert:
-        stmt = _pg_insert(FertilizanteCatalog.__table__).values(to_insert)
-        upsert_stmt = stmt.on_conflict_do_update(
-            index_elements=[FertilizanteCatalog.cod_item],
-            set_={
-                "item": stmt.excluded.item,
-                "marca": stmt.excluded.marca,
-                "principio_ativo": stmt.excluded.principio_ativo,
-                "saldo": stmt.excluded.saldo,
-                "updated_at": text("now()"),
-            },
-        )
-        session.execute(upsert_stmt)
-    session.commit()
-    return jsonify({"ok": True, "imported": len(to_insert), "ignored": ignored})
+    stage = "db"
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                if limpar:
+                    cur.execute("DELETE FROM public.fertilizantes_catalog")
+                if normalized:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO public.fertilizantes_catalog (cod_item, item, grupo, marca, principio_ativo, saldo)
+                        VALUES %s
+                        ON CONFLICT (cod_item) DO UPDATE SET
+                          item = EXCLUDED.item,
+                          grupo = EXCLUDED.grupo,
+                          marca = EXCLUDED.marca,
+                          principio_ativo = EXCLUDED.principio_ativo,
+                          saldo = EXCLUDED.saldo,
+                          updated_at = now()
+                        """,
+                        [
+                            [
+                                (str(r[0]) if r[0] is not None else None),
+                                (str(r[1]) if r[1] is not None else None),
+                                (str(r[2]) if r[2] is not None else None),
+                                (str(r[3]) if r[3] is not None else None),
+                                (str(r[4]) if r[4] is not None else None),
+                                (float(r[5]) if r[5] is not None else None),
+                            ]
+                            for r in normalized
+                        ],
+                    )
+        return jsonify({"ok": True, "imported": len(normalized), "ignored": ignored})
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": "DBError",
+            "details": str(e),
+            "trace": traceback.format_exc(),
+            "stage": "fertilizantes_sync_db"
+        }), 500
+    finally:
+        pool.putconn(conn)
+
 
 @app.route("/fertilizantes/sync/test", methods=["GET"])
 def sync_fertilizantes_test():
     ensure_system_config_schema()
     cfg = get_config_map(["api_fertilizantes_url", "api_fertilizantes_cliente_id", "api_fertilizantes_secret", "api_fertilizantes_exp"])
-    url = (cfg.get("api_fertilizantes_url") or "").strip()
-    client_id = cfg.get("api_fertilizantes_cliente_id") or ""
-    secret = cfg.get("api_fertilizantes_secret") or ""
-    exp = cfg.get("api_fertilizantes_exp") or ""
+    url = str(cfg.get("api_fertilizantes_url") or "").strip()
+    client_id = str(cfg.get("api_fertilizantes_cliente_id") or "").strip()
+    secret = str(cfg.get("api_fertilizantes_secret") or "").strip()
+    exp = str(cfg.get("api_fertilizantes_exp") or "").strip()
     if not url:
         return jsonify({"error": "Config api_fertilizantes_url ausente"}), 400
     if not client_id or not secret or not exp:
         return jsonify({"error": "Config JWT ausente (cliente_id/secret/exp)"}), 400
     try:
-        token = _make_jwt(client_id, int(str(exp)), secret, None)
+        token = _make_jwt(client_id, int(exp), secret, None)
         req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
         with urlopen(req, timeout=15) as resp:
             return jsonify({"status": resp.status, "ok": True})
@@ -2230,6 +2312,49 @@ def sync_fertilizantes_test():
     except URLError as e:
         details = str(getattr(e, 'reason', e))
         return jsonify({"error": "URLError", "details": details}), 502
+
+@app.route("/debug/fertilizantes_columns", methods=["GET"])
+def debug_fertilizantes_columns():
+    ensure_fertilizantes_schema()
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='fertilizantes_catalog' ORDER BY ordinal_position")
+            cols = [r[0] for r in cur.fetchall()]
+            return jsonify({"columns": cols})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/debug/pg_stat_activity", methods=["GET"])
+def debug_pg_stat_activity():
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT pid, usename, state, query_start, LEFT(query, 400) AS query
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                ORDER BY query_start DESC
+                """
+            )
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            items = [dict(zip(cols, r)) for r in rows]
+            return jsonify({"items": items, "count": len(items)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/debug/fert_sync_version", methods=["GET"])
+def debug_fert_sync_version():
+    # Marker to verify deployed code path
+    return jsonify({
+        "sync_impl": "psycopg_execute_values",
+        "pick_strategy": "exact_keys_only",
+        "has_dberror_literal": False
+    })
 
 @app.route("/defensivos/<cod_item>", methods=["PUT"])
 def update_defensivo(cod_item: str):
@@ -2306,7 +2431,7 @@ def app_versions():
     if request.method == "GET":
         session = get_session()
         items = session.execute(select(AppVersion).order_by(AppVersion.created_at.desc())).scalars().all()
-        return jsonify({
+        out = jsonify({
             "items": [
                 {
                     "id": it.id,
@@ -2319,6 +2444,8 @@ def app_versions():
             ],
             "count": len(items),
         })
+        session.close()
+        return out
     else:
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
@@ -2627,12 +2754,10 @@ def upsert_defensivos_bulk():
     ensure_defensivos_schema()
     payload = request.get_json(silent=True) or {}
     items = payload.get("items") or []
-    limpar = bool(payload.get("limparAntes"))
+    limpar = False
     if not isinstance(items, list) or len(items) == 0:
         return jsonify({"error": "items vazio"}), 400
     session = get_session()
-    if limpar:
-        session.execute(delete(DefensivoCatalog))
     to_insert = []
     for d in items:
         if not d.get("cod_item"):

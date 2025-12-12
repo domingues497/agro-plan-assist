@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 _pool = None
 _sa_engine = None
 _SessionLocal = None
+_ensured = set()
 Base = declarative_base()
 
 def get_pool():
@@ -41,6 +42,8 @@ def get_sa_session():
     return _SessionLocal()
 
 def ensure_defensivos_schema():
+    if 'defensivos_catalog' in _ensured:
+        return
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -60,10 +63,13 @@ def ensure_defensivos_schema():
                     );
                     """
                 )
+                _ensured.add('defensivos_catalog')
     finally:
         pool.putconn(conn)
 
 def ensure_aplicacoes_defensivos_schema():
+    if 'aplicacoes_defensivos' in _ensured:
+        return
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -99,6 +105,7 @@ def ensure_aplicacoes_defensivos_schema():
                     );
                     """
                 )
+                _ensured.add('aplicacoes_defensivos')
                 # Garantir coluna numerocm_consultor para segregação por consultor
                 try:
                     cur.execute("ALTER TABLE public.programacao_defensivos ADD COLUMN IF NOT EXISTS numerocm_consultor TEXT")
@@ -108,6 +115,8 @@ def ensure_aplicacoes_defensivos_schema():
         pool.putconn(conn)
 
 def ensure_fertilizantes_schema():
+    if 'fertilizantes_catalog' in _ensured:
+        return
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -118,6 +127,7 @@ def ensure_fertilizantes_schema():
                     CREATE TABLE IF NOT EXISTS public.fertilizantes_catalog (
                       cod_item TEXT PRIMARY KEY,
                       item TEXT,
+                      grupo TEXT,
                       marca TEXT,
                       principio_ativo TEXT,
                       saldo NUMERIC,
@@ -126,10 +136,13 @@ def ensure_fertilizantes_schema():
                     );
                     """
                 )
+                _ensured.add('fertilizantes_catalog')
     finally:
         pool.putconn(conn)
 
 def ensure_system_config_schema():
+    if 'system_config' in _ensured:
+        return
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -146,10 +159,13 @@ def ensure_system_config_schema():
                     );
                     """
                 )
+                _ensured.add('system_config')
     finally:
         pool.putconn(conn)
 
 def ensure_gestor_consultores_schema():
+    if 'gestor_consultores' in _ensured:
+        return
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -165,10 +181,14 @@ def ensure_gestor_consultores_schema():
                     );
                     """
                 )
+                _ensured.add('gestor_consultores')
+                _ensured.add('consultores')
     finally:
         pool.putconn(conn)
 
 def ensure_consultores_schema():
+    if 'consultores' in _ensured:
+        return
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -713,7 +733,7 @@ def get_config_map(keys):
                 (keys,),
             )
             rows = cur.fetchall()
-            out = {k: v for k, v in rows}
+            out = {k: (str(v) if v is not None else "") for k, v in rows}
             return out
     finally:
         pool.putconn(conn)

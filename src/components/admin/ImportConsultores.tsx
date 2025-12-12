@@ -25,7 +25,7 @@ export function ImportConsultores() {
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
-  const [limparAntes, setLimparAntes] = useState(false);
+  
   const [deletedRows, setDeletedRows] = useState(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,7 +86,6 @@ export function ImportConsultores() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          limpar_antes: limparAntes,
           items: uniquePayload,
           user_id: null,
           arquivo_nome: file.name
@@ -105,7 +104,6 @@ export function ImportConsultores() {
 
       toast.success(`Importação de consultores concluída (${json?.imported ?? uniquePayload.length} de ${uniquePayload.length})`);
       setShowSummary(true);
-      setLimparAntes(false);
     } catch (err: any) {
       console.error(err);
       toast.error(`Erro ao importar consultores: ${err.message}`);
@@ -126,17 +124,7 @@ export function ImportConsultores() {
           <Input type="file" accept=".xlsx,.xls" onChange={handleFileChange} />
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="limpar-antes"
-            checked={limparAntes}
-            onCheckedChange={(checked) => setLimparAntes(checked as boolean)}
-            disabled={isImporting}
-          />
-          <Label htmlFor="limpar-antes" className="cursor-pointer text-sm">
-            Limpar todos os registros antes de importar
-          </Label>
-        </div>
+        
 
         <Button onClick={handleImport} disabled={isImporting || !file}>
           {isImporting ? "Importando..." : "Importar"}
