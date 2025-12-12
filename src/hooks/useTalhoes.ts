@@ -39,14 +39,16 @@ export const useTalhoes = (fazendaId?: string, safraId?: string) => {
         const txt = await res.text();
         throw new Error(txt);
       }
-      const json = await res.json();
-      const items = (json?.items || []) as any[];
-      items.forEach((t) => {
-        if (typeof t.geojson === "string" && t.geojson) {
-          try { t.geojson = JSON.parse(t.geojson); } catch {}
-        }
-      });
-      return items as Talhao[];
+  const json = await res.json();
+  const items = (json?.items || []) as any[];
+  items.forEach((t) => {
+    t.id = String(t.id);
+    t.fazenda_id = String(t.fazenda_id);
+    if (typeof t.geojson === "string" && t.geojson) {
+      try { t.geojson = JSON.parse(t.geojson); } catch {}
+    }
+  });
+  return items as Talhao[];
     },
     enabled: !!fazendaId,
   });

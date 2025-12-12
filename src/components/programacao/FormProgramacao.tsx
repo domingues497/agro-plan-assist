@@ -566,7 +566,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
   const { data: produtores = [] } = useProdutores();
   const [safraId, setSafraId] = useState(initialData?.safra_id || "");
-  const { data: fazendas = [] } = useFazendas(undefined, safraId);
+  const isEditing = !!initialData;
+  const initialProdutorNumerocm = (initialData?.produtor_numerocm || undefined) as string | undefined;
+  const { data: fazendas = [] } = useFazendas(initialProdutorNumerocm, isEditing ? undefined : safraId);
   const { data: cultivares = [] } = useCultivaresCatalog();
   const { data: fertilizantes = [] } = useFertilizantesCatalog();
   const { safras = [], defaultSafra } = useSafras();
@@ -680,6 +682,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       ? initialData.adubacao
       : [{ formulacao: "", dose: 0, percentual_cobertura: 0 }]
   );
+  const [openFormulacaoIndex, setOpenFormulacaoIndex] = useState<number | null>(null);
 
   const [fazendaFiltrada, setFazendaFiltrada] = useState<any[]>([]);
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
@@ -687,9 +690,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   // Ref para rastrear se estamos carregando initialData
   const isLoadingInitialData = useRef(false);
   
-  // Busca os talhões da fazenda selecionada
-  const fazendaSelecionadaId = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda)?.id;
-  const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaId, safraId);
+  // Busca os talhões da fazenda selecionada (robusto na primeira carga)
+  const fazendaSelecionadaId = (
+    (fazendas || []).find((f: any) => f.idfazenda === fazendaIdfazenda)?.id
+    || (fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda)?.id)
+    || undefined
+  );
+  const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaId, isEditing ? undefined : safraId);
 
   // Seleciona automaticamente a safra padrão, se disponível
   useEffect(() => {
@@ -717,8 +724,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
     if (typeof (initialData as any).epoca_id === "string") setEpocaId((initialData as any).epoca_id);
-    // Carregar talhões selecionados
-    if (Array.isArray((initialData as any).talhao_ids)) setTalhaoIds((initialData as any).talhao_ids);
+    // Carregar talhões selecionados (normaliza para string)
+    if (Array.isArray((initialData as any).talhao_ids)) {
+      const norm = ((initialData as any).talhao_ids || []).map((id: any) => String(id));
+      setTalhaoIds(norm);
+    }
     if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => {
       const tipo = normalizeTipoTratamento((c as any).tipo_tratamento);
       const base: ItemCultivar & { uiId: string } = { ...(c as ItemCultivar), tipo_tratamento: tipo, uiId: makeUiId() };
@@ -739,12 +749,26 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       const temJustificativa = initialData.adubacao.some((a) => !!(a as ItemAdubacao).justificativa_nao_adubacao_id);
       setNaoFazerAdubacao(!!temJustificativa && !temFormulacao);
     }
-    
-    // Aguarda um pouco mais para garantir que todos os efeitos colaterais foram processados
-    setTimeout(() => {
-      isLoadingInitialData.current = false;
-    }, 100);
   }, [initialData, fazendas]);
+
+  // Garante consistência: quando as fazendas carregarem, refiltra para o produtor atual
+  useEffect(() => {
+    const cm = String(produtorNumerocm || "").trim();
+    if (!cm) {
+      setFazendaFiltrada(fazendas);
+      return;
+    }
+    const filtered = (fazendas || []).filter((f: any) => String(f.numerocm || "").trim() === cm);
+    setFazendaFiltrada(filtered);
+  }, [fazendas, produtorNumerocm]);
+
+  // Finaliza fase de carregamento inicial apenas quando já temos a fazenda selecionada resolvida
+  useEffect(() => {
+    if (!initialData) return;
+    if (fazendaSelecionadaId) {
+      isLoadingInitialData.current = false;
+    }
+  }, [fazendaSelecionadaId, initialData]);
 
   // Ajusta itens de adubação quando alterna entre os modos
   useEffect(() => {
@@ -767,11 +791,14 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (produtorNumerocm) {
       const filtered = fazendas.filter(f => f.numerocm === produtorNumerocm);
       setFazendaFiltrada(filtered);
-      setFazendaIdfazenda("");
-      setArea("");
-      setTalhaoIds([]);
-      // Resetar hectares ao trocar de produtor para evitar resquícios
-      setAreaHectares("");
+      // Em modo edição, não limpar automaticamente os campos
+      if (!initialData) {
+        setFazendaIdfazenda("");
+        setArea("");
+        setTalhaoIds([]);
+        // Resetar hectares ao trocar de produtor para evitar resquícios
+        setAreaHectares("");
+      }
     }
   }, [produtorNumerocm, fazendas]);
 
@@ -785,14 +812,18 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     // Sincroniza o campo de "área" (nome da fazenda) com a fazenda selecionada
     setArea(fazendaSelecionada?.nomefazenda || "");
     // Limpa talhões selecionados ao trocar de fazenda
-    setTalhaoIds([]);
-    setAreaHectares("");
+    if (!initialData) {
+      setTalhaoIds([]);
+      setAreaHectares("");
+    }
   }, [fazendaIdfazenda, fazendaFiltrada]);
 
   useEffect(() => {
     if (isLoadingInitialData.current) return;
-    setTalhaoIds([]);
-    setAreaHectares("");
+    if (!initialData) {
+      setTalhaoIds([]);
+      setAreaHectares("");
+    }
   }, [safraId]);
 
   // Calcula automaticamente a área total dos talhões selecionados
@@ -1242,26 +1273,54 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                     <div className="space-y-2 sm:col-span-2 lg:col-span-2">
                       <Label>Formulação</Label>
-                      <Select
-                        value={item.formulacao}
-                        onValueChange={(value) => handleAdubacaoChange(index, "formulacao", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {/* Fallback: inclui a formulação salva mesmo que não esteja no catálogo */}
-                        {item.formulacao && !fertilizantesDistinct.some((f) => (f.item || "") === item.formulacao) && (
-                          <SelectItem value={item.formulacao}>{item.formulacao}</SelectItem>
-                        )}
-                        {fertilizantesDistinct.map((f) => (
-                          <SelectItem key={f.cod_item ?? f.item} value={f.item || ""}>
-                            {f.item}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      <Popover open={openFormulacaoIndex === index} onOpenChange={(o) => setOpenFormulacaoIndex(o ? index : null)}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" role="combobox" aria-expanded={openFormulacaoIndex === index} className="w-full justify-between">
+                            {item.formulacao ? item.formulacao : "Selecione"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Buscar formulação..." />
+                            <CommandList>
+                              <CommandEmpty>Nenhuma formulação encontrada.</CommandEmpty>
+                              <CommandGroup>
+                                {item.formulacao && !fertilizantesDistinct.some((f) => (f.item || "") === item.formulacao) && (
+                                  <CommandItem
+                                    key={`saved-${index}`}
+                                    value={item.formulacao}
+                                    onSelect={(currentValue) => {
+                                      handleAdubacaoChange(index, "formulacao", currentValue);
+                                      setOpenFormulacaoIndex(null);
+                                    }}
+                                  >
+                                    <Check className={cn("mr-2 h-4 w-4", item.formulacao === item.formulacao ? "opacity-100" : "opacity-0")} />
+                                    {item.formulacao}
+                                  </CommandItem>
+                                )}
+                                {fertilizantesDistinct.map((f) => (
+                                  <CommandItem
+                                    key={f.cod_item ?? f.item ?? `${index}-f`}
+                                    value={`${f.item || ""}${f.marca ? ` ${f.marca}` : ""}`}
+                                    onSelect={(currentValue) => {
+                                      handleAdubacaoChange(index, "formulacao", String(f.item || currentValue));
+                                      setOpenFormulacaoIndex(null);
+                                    }}
+                                  >
+                                    <Check className={cn("mr-2 h-4 w-4", item.formulacao === f.item ? "opacity-100" : "opacity-0")} />
+                                    {f.item}
+                                    {f.marca && (
+                                      <span className="ml-2 text-xs text-muted-foreground">({f.marca})</span>
+                                    )}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
 
                   <div className="space-y-2">
                     <Label>Dose (kg/ha)</Label>
