@@ -81,6 +81,7 @@ export default function Programacao() {
   const [fazendaParaTalhoes, setFazendaParaTalhoes] = useState<{ id: string; nome: string } | null>(null);
   const [openGerenciarSelector, setOpenGerenciarSelector] = useState(false);
   const [onlyFazendasComTalhao, setOnlyFazendasComTalhao] = useState(false);
+  const [onlyFazendasSemTalhao, setOnlyFazendasSemTalhao] = useState(false);
 
   const temAreasCadastradas = fazendas.length > 0;
 
@@ -156,14 +157,28 @@ export default function Programacao() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[420px] p-0">
-                <div className="flex items-center justify-between px-3 py-2 border-b">
-                  <label className="text-sm flex items-center gap-2">
+                <div className="flex flex-col gap-2 px-3 py-2 border-b">
+                  <label className="text-sm flex items-center gap-2 cursor-pointer">
                     <Checkbox
                       checked={onlyFazendasComTalhao}
-                      onCheckedChange={(c) => setOnlyFazendasComTalhao(!!c)}
+                      onCheckedChange={(c) => {
+                        setOnlyFazendasComTalhao(!!c);
+                        if (c) setOnlyFazendasSemTalhao(false);
+                      }}
                       className="h-4 w-4"
                     />
                     Somente com talhão
+                  </label>
+                  <label className="text-sm flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={onlyFazendasSemTalhao}
+                      onCheckedChange={(c) => {
+                        setOnlyFazendasSemTalhao(!!c);
+                        if (c) setOnlyFazendasComTalhao(false);
+                      }}
+                      className="h-4 w-4"
+                    />
+                    Somente sem talhão
                   </label>
                 </div>
                 <Command>
@@ -172,7 +187,11 @@ export default function Programacao() {
                     <CommandEmpty>Nenhuma fazenda encontrada.</CommandEmpty>
                     <CommandGroup>
                       {fazendas
-                        .filter((f: any) => !onlyFazendasComTalhao || Number(f.area_cultivavel || 0) > 0)
+                        .filter((f: any) => {
+                          if (onlyFazendasComTalhao) return Number(f.area_cultivavel || 0) > 0;
+                          if (onlyFazendasSemTalhao) return Number(f.area_cultivavel || 0) === 0;
+                          return true;
+                        })
                         .map((f: any) => (
                           <CommandItem
                             key={`${f.id}`}

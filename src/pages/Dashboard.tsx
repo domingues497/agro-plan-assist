@@ -64,6 +64,7 @@ const Dashboard = () => {
   const [fazendaSelecionada, setFazendaSelecionada] = useState<{ id: string; nome: string } | null>(null);
   const [searchProdutor, setSearchProdutor] = useState<string>("");
   const [onlyComTalhao, setOnlyComTalhao] = useState<boolean>(false);
+  const [onlySemTalhao, setOnlySemTalhao] = useState<boolean>(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [editNome, setEditNome] = useState("");
   const [editCmConsultor, setEditCmConsultor] = useState("");
@@ -89,11 +90,18 @@ const Dashboard = () => {
     const cmSet = new Set((allFazendas || []).map((f: any) => String(f.numerocm || "")));
     cmSet.forEach((cm) => {
       grouped[cm] = allFazendas.filter(
-        (f: any) => String(f.numerocm || "") === cm && (!onlyComTalhao || Number(f.area_cultivavel || 0) > 0)
+        (f: any) => {
+          const matchCm = String(f.numerocm || "") === cm;
+          const hasTalhao = Number(f.area_cultivavel || 0) > 0;
+          if (!matchCm) return false;
+          if (onlyComTalhao && !hasTalhao) return false;
+          if (onlySemTalhao && hasTalhao) return false;
+          return true;
+        }
       );
     });
     return grouped;
-  }, [allFazendas, onlyComTalhao]);
+  }, [allFazendas, onlyComTalhao, onlySemTalhao]);
 
   const produtoresParaRenderizar = useMemo(() => {
     const q = searchProdutor.trim().toLowerCase();
@@ -326,10 +334,30 @@ const Dashboard = () => {
                   className="w-[240px]"
                 />
               </div>
-              <label className="text-sm flex items-center gap-2 whitespace-nowrap">
-                <Checkbox checked={onlyComTalhao} onCheckedChange={(c) => setOnlyComTalhao(!!c)} className="h-4 w-4" />
-                Somente fazendas com talhão
-              </label>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm flex items-center gap-2 whitespace-nowrap cursor-pointer">
+                  <Checkbox
+                    checked={onlyComTalhao}
+                    onCheckedChange={(c) => {
+                      setOnlyComTalhao(!!c);
+                      if (c) setOnlySemTalhao(false);
+                    }}
+                    className="h-4 w-4"
+                  />
+                  Somente com talhão
+                </label>
+                <label className="text-sm flex items-center gap-2 whitespace-nowrap cursor-pointer">
+                  <Checkbox
+                    checked={onlySemTalhao}
+                    onCheckedChange={(c) => {
+                      setOnlySemTalhao(!!c);
+                      if (c) setOnlyComTalhao(false);
+                    }}
+                    className="h-4 w-4"
+                  />
+                  Somente sem talhão
+                </label>
+              </div>
             </div>
           </div>
 
