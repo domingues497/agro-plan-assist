@@ -458,7 +458,8 @@ def list_produtores():
                     except Exception:
                         pass
                 if cm_val:
-                    where.append("numerocm_consultor = %s")
+                    where.append("(numerocm_consultor = %s OR numerocm IN (SELECT numerocm FROM public.fazendas WHERE numerocm_consultor = %s))")
+                    params.append(cm_val)
                     params.append(cm_val)
                 else:
                     where.append("1=0")
