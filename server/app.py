@@ -3972,6 +3972,291 @@ def remove_gestor_consultor(id: str):
     session.commit()
     return jsonify({"ok": True})
 
+@app.route("/produtores/sync", methods=["GET", "POST", "OPTIONS"])
+def sync_produtores():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    ensure_system_config_schema()
+    ensure_produtores_schema()
+    payload = request.get_json(silent=True) or {}
+    limpar = bool(payload.get("limparAntes"))
+    cfg = get_config_map([
+        "api_produtores_client_id",
+        "api_produtores_secret",
+        "api_produtores_url",
+        "api_produtores_exp",
+    ])
+    url = str(cfg.get("api_produtores_url") or "").strip().strip("`")
+    if not url:
+        return jsonify({"error": "Config api_produtores_url ausente"}), 400
+    headers = {"Accept": "application/json"}
+    if cfg.get("api_produtores_client_id") and cfg.get("api_produtores_secret") and cfg.get("api_produtores_exp"):
+        try:
+            token = _make_jwt(str(cfg.get("api_produtores_client_id")), int(cfg.get("api_produtores_exp")), str(cfg.get("api_produtores_secret")), None)
+            headers["Authorization"] = f"Bearer {token}"
+        except Exception:
+            pass
+    req = Request(url, headers=headers)
+    try:
+        with urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+            data = json.loads(raw.decode("utf-8"))
+    except HTTPError as e:
+        try:
+            body = e.read().decode("utf-8")
+        except Exception:
+            body = ""
+        return jsonify({
+            "error": "HTTPError",
+            "status": e.code,
+            "details": body or str(e),
+            "url": url
+        }), 502
+    except URLError as e:
+        return jsonify({
+            "error": "URLError",
+            "details": getattr(e, 'reason', str(e)),
+            "url": url
+        }), 502
+    except Exception as e:
+        return jsonify({"error": f"Erro ao ler resposta da API externa: {e}"}), 500
+
+    items = data.get("items") if isinstance(data, dict) else data
+    if not isinstance(items, list):
+        return jsonify({"error": "Resposta da API externa inválida", "url": url, "preview": data}), 500
+
+    def pick(obj, keys):
+        for k in keys:
+            if k in obj and obj[k] not in (None, ""):
+                return obj[k]
+        return None
+
+    pool = get_pool()
+    conn = pool.getconn()
+    imported = 0
+    ignored = 0
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT LOWER(TRIM(consultor)) AS nome, numerocm_consultor FROM public.consultores")
+                rows = cur.fetchall()
+                consultores_map = {r[0]: r[1] for r in rows if r and r[0]}
+                cur.execute("SELECT MIN(numerocm_consultor) FROM public.consultores")
+                default_cm_row = cur.fetchone()
+                default_cm = default_cm_row[0] if default_cm_row and default_cm_row[0] else None
+                if limpar:
+                    cur.execute("DELETE FROM public.produtores")
+                values = []
+                seen = set()
+                for d in items:
+                    numerocm = str(pick(d, ["numerocm", "NUMEROCM", "NUMERO_CM", "NUMERO_CM_PRODUTOR"])) if pick(d, ["numerocm", "NUMEROCM", "NUMERO_CM", "NUMERO_CM_PRODUTOR"]) is not None else None
+                    nome = str(pick(d, ["nome", "NOME", "NOME_PRODUTOR"])) if pick(d, ["nome", "NOME", "NOME_PRODUTOR"]) is not None else None
+                    cm_cons = str(pick(d, ["numerocmconsultor", "numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM", "NUMEROCMCONSULTOR", "CONSULTORCM", "CM_CONSULTOR", "CONSULTOR_NUMEROCM"])) if pick(d, ["numerocmconsultor", "numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM", "NUMEROCMCONSULTOR", "CONSULTORCM", "CM_CONSULTOR", "CONSULTOR_NUMEROCM"]) is not None else None
+                    consultor = pick(d, ["consultor", "CONSULTOR"]) or None
+                    if (not cm_cons) and consultor:
+                        key_nome = str(consultor).strip().lower()
+                        cm_lookup = consultores_map.get(key_nome)
+                        if cm_lookup:
+                            cm_cons = str(cm_lookup)
+                    if (not cm_cons) and consultor and not cm_cons:
+                        key_nome = str(consultor).strip().lower()
+                        cm_lookup = consultores_map.get(key_nome)
+                        if cm_lookup:
+                            cm_cons = str(cm_lookup)
+                    if (not cm_cons) and default_cm:
+                        cm_cons = str(default_cm)
+                    if not numerocm or not nome or not cm_cons:
+                        ignored += 1
+                        continue
+                    key = numerocm
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    values.append([str(uuid.uuid4()), numerocm, nome, cm_cons, consultor])
+                if values:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO public.produtores (id, numerocm, nome, numerocm_consultor, consultor)
+                        VALUES %s
+                        ON CONFLICT (numerocm) DO UPDATE SET
+                          nome = EXCLUDED.nome,
+                          numerocm_consultor = EXCLUDED.numerocm_consultor,
+                          consultor = EXCLUDED.consultor,
+                          updated_at = now()
+                        """,
+                        values,
+                    )
+                    imported = len(values)
+        return jsonify({"ok": True, "imported": imported, "ignored": ignored})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/produtores/sync/test", methods=["GET"])
+def sync_produtores_test():
+    ensure_system_config_schema()
+    cfg = get_config_map(["api_produtores_url", "api_produtores_client_id", "api_produtores_secret", "api_produtores_exp"])
+    url = str(cfg.get("api_produtores_url") or "").strip()
+    client_id = str(cfg.get("api_produtores_client_id") or "").strip()
+    secret = str(cfg.get("api_produtores_secret") or "").strip()
+    exp = str(cfg.get("api_produtores_exp") or "").strip()
+    if not url:
+        return jsonify({"error": "Config api_produtores_url ausente"}), 400
+    if not client_id or not secret or not exp:
+        return jsonify({"error": "Config JWT ausente (cliente_id/secret/exp)"}), 400
+    try:
+        token = _make_jwt(client_id, int(exp), secret, None)
+        req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+        with urlopen(req, timeout=15) as resp:
+            raw = resp.read()
+            sample = None
+            try:
+                data = json.loads(raw.decode("utf-8"))
+                items = data.get("items") if isinstance(data, dict) else data
+                if isinstance(items, list) and items:
+                    if isinstance(items[0], dict):
+                        sample = list(items[0].keys())[:20]
+            except Exception:
+                sample = None
+            return jsonify({"status": resp.status, "ok": True, "sample_keys": sample})
+    except HTTPError as e:
+        try:
+            body = e.read().decode("utf-8")
+        except Exception:
+            body = ""
+        return jsonify({"error": "HTTPError", "status": e.code, "details": body or str(e)}), 502
+    except URLError as e:
+        details = str(getattr(e, 'reason', e))
+        return jsonify({"error": "URLError", "details": details}), 502
+
+@app.route("/fazendas/sync", methods=["GET", "POST", "OPTIONS"])
+def sync_fazendas():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    ensure_system_config_schema()
+    ensure_fazendas_schema()
+    payload = request.get_json(silent=True) or {}
+    limpar = bool(payload.get("limparAntes"))
+    cfg = get_config_map([
+        "api_fazendas_client_id",
+        "api_fazendas_secret",
+        "api_fazendas_url",
+        "api_fazendas_exp",
+    ])
+    url = str(cfg.get("api_fazendas_url") or "").strip().strip("`")
+    if not url:
+        return jsonify({"error": "Config api_fazendas_url ausente"}), 400
+    headers = {"Accept": "application/json"}
+    if cfg.get("api_fazendas_client_id") and cfg.get("api_fazendas_secret") and cfg.get("api_fazendas_exp"):
+        try:
+            token = _make_jwt(str(cfg.get("api_fazendas_client_id")), int(cfg.get("api_fazendas_exp")), str(cfg.get("api_fazendas_secret")), None)
+            headers["Authorization"] = f"Bearer {token}"
+        except Exception:
+            pass
+    req = Request(url, headers=headers)
+    try:
+        with urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+            data = json.loads(raw.decode("utf-8"))
+    except HTTPError as e:
+        try:
+            body = e.read().decode("utf-8")
+        except Exception:
+            body = ""
+        return jsonify({
+            "error": "HTTPError",
+            "status": e.code,
+            "details": body or str(e),
+            "url": url
+        }), 502
+    except URLError as e:
+        return jsonify({
+            "error": "URLError",
+            "details": getattr(e, 'reason', str(e)),
+            "url": url
+        }), 502
+    except Exception as e:
+        return jsonify({"error": f"Erro ao ler resposta da API externa: {e}"}), 500
+
+    items = data.get("items") if isinstance(data, dict) else data
+    if not isinstance(items, list):
+        return jsonify({"error": "Resposta da API externa inválida", "url": url, "preview": data}), 500
+
+    def pick(obj, keys):
+        for k in keys:
+            if k in obj and obj[k] not in (None, ""):
+                return obj[k]
+        return None
+
+    pool = get_pool()
+    conn = pool.getconn()
+    imported = 0
+    ignored = 0
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                if limpar:
+                    cur.execute("DELETE FROM public.fazendas")
+                values = []
+                seen = set()
+                for d in items:
+                    numerocm = str(pick(d, ["numerocm", "NUMEROCM", "NUMERO_CM"])) if pick(d, ["numerocm", "NUMEROCM", "NUMERO_CM"]) is not None else None
+                    idfazenda = str(pick(d, ["idfazenda", "IDFAZENDA", "ID_FAZENDA"])) if pick(d, ["idfazenda", "IDFAZENDA", "ID_FAZENDA"]) is not None else None
+                    nomefazenda = str(pick(d, ["nomefazenda", "NOMEFAZENDA", "NOME_FAZENDA"])) if pick(d, ["nomefazenda", "NOMEFAZENDA", "NOME_FAZENDA"]) is not None else None
+                    cm_cons = str(pick(d, ["numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM"])) if pick(d, ["numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM"]) is not None else None
+                    if not numerocm or not idfazenda or not nomefazenda or not cm_cons:
+                        ignored += 1
+                        continue
+                    key = numerocm + "|" + idfazenda
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    values.append([str(uuid.uuid4()), numerocm, idfazenda, nomefazenda, cm_cons])
+                if values:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO public.fazendas (id, numerocm, idfazenda, nomefazenda, numerocm_consultor)
+                        VALUES %s
+                        ON CONFLICT (numerocm, idfazenda) DO UPDATE SET
+                          nomefazenda = EXCLUDED.nomefazenda,
+                          numerocm_consultor = EXCLUDED.numerocm_consultor,
+                          updated_at = now()
+                        """,
+                        values,
+                    )
+                    imported = len(values)
+        return jsonify({"ok": True, "imported": imported, "ignored": ignored})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/fazendas/sync/test", methods=["GET"])
+def sync_fazendas_test():
+    ensure_system_config_schema()
+    cfg = get_config_map(["api_fazendas_url", "api_fazendas_client_id", "api_fazendas_secret", "api_fazendas_exp"])
+    url = str(cfg.get("api_fazendas_url") or "").strip()
+    client_id = str(cfg.get("api_fazendas_client_id") or "").strip()
+    secret = str(cfg.get("api_fazendas_secret") or "").strip()
+    exp = str(cfg.get("api_fazendas_exp") or "").strip()
+    if not url:
+        return jsonify({"error": "Config api_fazendas_url ausente"}), 400
+    if not client_id or not secret or not exp:
+        return jsonify({"error": "Config JWT ausente (cliente_id/secret/exp)"}), 400
+    try:
+        token = _make_jwt(client_id, int(exp), secret, None)
+        req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+        with urlopen(req, timeout=15) as resp:
+            return jsonify({"status": resp.status, "ok": True})
+    except HTTPError as e:
+        try:
+            body = e.read().decode("utf-8")
+        except Exception:
+            body = ""
+        return jsonify({"error": "HTTPError", "status": e.code, "details": body or str(e)}), 502
+    except URLError as e:
+        details = str(getattr(e, 'reason', e))
+        return jsonify({"error": "URLError", "details": details}), 502
+
 if __name__ == "__main__":
     ensure_app_versions_schema()
     app.run(host="0.0.0.0", port=5000)

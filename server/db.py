@@ -136,6 +136,16 @@ def ensure_fertilizantes_schema():
                     );
                     """
                 )
+                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fertilizantes_catalog'")
+                cols = {r[0] for r in cur.fetchall()}
+                if "grupo" not in cols:
+                    cur.execute("ALTER TABLE public.fertilizantes_catalog ADD COLUMN grupo TEXT")
+                if "marca" not in cols:
+                    cur.execute("ALTER TABLE public.fertilizantes_catalog ADD COLUMN marca TEXT")
+                if "principio_ativo" not in cols:
+                    cur.execute("ALTER TABLE public.fertilizantes_catalog ADD COLUMN principio_ativo TEXT")
+                if "saldo" not in cols:
+                    cur.execute("ALTER TABLE public.fertilizantes_catalog ADD COLUMN saldo NUMERIC")
                 _ensured.add('fertilizantes_catalog')
     finally:
         pool.putconn(conn)

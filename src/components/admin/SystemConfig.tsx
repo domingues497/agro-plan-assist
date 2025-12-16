@@ -28,6 +28,18 @@ export const SystemConfig = () => {
   const [fertSecret, setFertSecret] = useState("");
   const [fertExp, setFertExp] = useState("");
   const [fertUrl, setFertUrl] = useState("");
+  const [prodClientId, setProdClientId] = useState("");
+  const [prodSecret, setProdSecret] = useState("");
+  const [prodExp, setProdExp] = useState("");
+  const [prodUrl, setProdUrl] = useState("");
+  const [fazClientId, setFazClientId] = useState("");
+  const [fazSecret, setFazSecret] = useState("");
+  const [fazExp, setFazExp] = useState("");
+  const [fazUrl, setFazUrl] = useState("");
+  const [prodSyncInterval, setProdSyncInterval] = useState("30");
+  const [fazSyncInterval, setFazSyncInterval] = useState("30");
+  const [prodSyncEnabled, setProdSyncEnabled] = useState(false);
+  const [fazSyncEnabled, setFazSyncEnabled] = useState(false);
 
   useEffect(() => {
     setDefClientId(map["api_defensivos_client_id"] ?? "");
@@ -41,6 +53,18 @@ export const SystemConfig = () => {
     setFertSecret(map["api_fertilizantes_secret"] ?? "");
     setFertExp(map["api_fertilizantes_exp"] ?? "");
     setFertUrl(map["api_fertilizantes_url"] ?? "");
+    setProdClientId(map["api_produtores_client_id"] ?? "");
+    setProdSecret(map["api_produtores_secret"] ?? "");
+    setProdExp(map["api_produtores_exp"] ?? "");
+    setProdUrl(map["api_produtores_url"] ?? "");
+    setFazClientId(map["api_fazendas_client_id"] ?? "");
+    setFazSecret(map["api_fazendas_secret"] ?? "");
+    setFazExp(map["api_fazendas_exp"] ?? "");
+    setFazUrl(map["api_fazendas_url"] ?? "");
+    setProdSyncEnabled((map["produtores_sync_enabled"] ?? "").toLowerCase() === "true" || (map["produtores_sync_enabled"] ?? "") === "1");
+    setFazSyncEnabled((map["fazendas_sync_enabled"] ?? "").toLowerCase() === "true" || (map["fazendas_sync_enabled"] ?? "") === "1");
+    setProdSyncInterval(map["produtores_sync_interval_minutes"] ?? "30");
+    setFazSyncInterval(map["fazendas_sync_interval_minutes"] ?? "30");
   }, [map]);
 
   const onSave = async () => {
@@ -56,6 +80,18 @@ export const SystemConfig = () => {
       { config_key: "api_fertilizantes_secret", config_value: fertSecret, description: "Secret para geração do JWT da API de fertilizantes" },
       { config_key: "api_fertilizantes_exp", config_value: fertExp, description: "Timestamp de expiração do JWT para API de fertilizantes" },
       { config_key: "api_fertilizantes_url", config_value: fertUrl, description: "URL da API externa para sincronização de fertilizantes" },
+      { config_key: "api_produtores_client_id", config_value: prodClientId, description: "Client ID para autenticação JWT na API de produtores" },
+      { config_key: "api_produtores_secret", config_value: prodSecret, description: "Secret para geração do JWT da API de produtores" },
+      { config_key: "api_produtores_exp", config_value: prodExp, description: "Timestamp de expiração do JWT para API de produtores" },
+      { config_key: "api_produtores_url", config_value: prodUrl, description: "URL da API externa para sincronização de produtores" },
+      { config_key: "produtores_sync_enabled", config_value: prodSyncEnabled ? "true" : "false", description: "Ativar sincronização automática de produtores" },
+      { config_key: "produtores_sync_interval_minutes", config_value: prodSyncInterval || "30", description: "Intervalo da sincronização automática de produtores (min)" },
+      { config_key: "api_fazendas_client_id", config_value: fazClientId, description: "Client ID para autenticação JWT na API de fazendas" },
+      { config_key: "api_fazendas_secret", config_value: fazSecret, description: "Secret para geração do JWT da API de fazendas" },
+      { config_key: "api_fazendas_exp", config_value: fazExp, description: "Timestamp de expiração do JWT para API de fazendas" },
+      { config_key: "api_fazendas_url", config_value: fazUrl, description: "URL da API externa para sincronização de fazendas" },
+      { config_key: "fazendas_sync_enabled", config_value: fazSyncEnabled ? "true" : "false", description: "Ativar sincronização automática de fazendas" },
+      { config_key: "fazendas_sync_interval_minutes", config_value: fazSyncInterval || "30", description: "Intervalo da sincronização automática de fazendas (min)" },
     ];
     try {
       await upsertSystemConfig(items);
@@ -124,6 +160,64 @@ export const SystemConfig = () => {
             <div className="space-y-2">
               <Label>URL API (Fertilizantes)</Label>
               <Input value={fertUrl} onChange={(e) => setFertUrl(e.target.value)} />
+            </div>
+
+            <div className="col-span-1 md:col-span-2 border-t pt-4" />
+            <div className="space-y-2">
+              <Label>Client ID (Produtores)</Label>
+              <Input value={prodClientId} onChange={(e) => setProdClientId(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Secret (Produtores)</Label>
+              <Input value={prodSecret} onChange={(e) => setProdSecret(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Expiração JWT Produtores (timestamp)</Label>
+              <Input value={prodExp} onChange={(e) => setProdExp(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>URL API (Produtores)</Label>
+              <Input value={prodUrl} onChange={(e) => setProdUrl(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Sincronização automática (Produtores)</Label>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={prodSyncEnabled} onChange={(e) => setProdSyncEnabled(e.target.checked)} />
+                <span className="text-sm">Ativar</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Intervalo Produtores (minutos)</Label>
+              <Input value={prodSyncInterval} onChange={(e) => setProdSyncInterval(e.target.value)} />
+            </div>
+
+            <div className="col-span-1 md:col-span-2 border-t pt-4" />
+            <div className="space-y-2">
+              <Label>Client ID (Fazendas)</Label>
+              <Input value={fazClientId} onChange={(e) => setFazClientId(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Secret (Fazendas)</Label>
+              <Input value={fazSecret} onChange={(e) => setFazSecret(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Expiração JWT Fazendas (timestamp)</Label>
+              <Input value={fazExp} onChange={(e) => setFazExp(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>URL API (Fazendas)</Label>
+              <Input value={fazUrl} onChange={(e) => setFazUrl(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Sincronização automática (Fazendas)</Label>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={fazSyncEnabled} onChange={(e) => setFazSyncEnabled(e.target.checked)} />
+                <span className="text-sm">Ativar</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Intervalo Fazendas (minutos)</Label>
+              <Input value={fazSyncInterval} onChange={(e) => setFazSyncInterval(e.target.value)} />
             </div>
           </div>
         )}

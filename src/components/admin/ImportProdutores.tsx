@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Wifi, WifiOff, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -21,6 +23,8 @@ import { getApiBaseUrl } from "@/lib/utils";
 export function ImportProdutores() {
   const [file, setFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSyncingApi, setIsSyncingApi] = useState(false);
+  const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("offline");
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
@@ -113,6 +117,64 @@ export function ImportProdutores() {
     }
   };
 
+  const checkApiConnectivity = async () => {
+    try {
+      setApiStatus("checking");
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/produtores/sync/test`, { method: "GET" });
+      if (!res.ok) {
+        setApiStatus("offline");
+        return false;
+      }
+      const j = await res.json().catch(() => null);
+      const ok = j && (j.ok || j.status === 200);
+      setApiStatus(ok ? "online" : "offline");
+      return !!ok;
+    } catch {
+      setApiStatus("offline");
+      return false;
+    }
+  };
+
+  const handleSyncApi = async () => {
+    try {
+      const connected = await checkApiConnectivity();
+      if (!connected) {
+        toast.error("API de Produtores indisponível");
+        return;
+      }
+      setIsSyncingApi(true);
+      setShowSummary(false);
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/produtores/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const ct = res.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const j = await res.json().catch(() => null);
+          const msg = j?.error || "Erro ao sincronizar via API";
+          const details = j?.details ? ` Detalhes: ${j.details}` : "";
+          const status = j?.status ? ` (status ${j.status})` : "";
+          toast.error(`${msg}${status}${details}`);
+        } else {
+          const t = await res.text().catch(() => "");
+          toast.error(`Erro ao sincronizar via API (HTTP ${res.status}). ${t}`);
+        }
+        return;
+      }
+      const json = await res.json();
+      const imported = Number(json?.imported || 0);
+      toast.success(`Produtores sincronizados: ${imported}`);
+    } catch (err: any) {
+      toast.error(`Erro ao sincronizar produtores: ${err.message || err}`);
+    } finally {
+      setIsSyncingApi(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -124,18 +186,47 @@ export function ImportProdutores() {
           <Label>Arquivo XLSX</Label>
           <Input type="file" accept=".xlsx,.xls" onChange={handleFileChange} />
         </div>
-        
-        
 
-        <Button onClick={handleImport} disabled={isImporting || !file}>
-          {isImporting ? "Importando..." : "Importar"}
-        </Button>
-        {isImporting && (
+        <div className="flex items-center gap-3">
+          {apiStatus === "checking" && (
+            <Badge variant="secondary">
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              Verificando...
+            </Badge>
+          )}
+          {apiStatus === "online" && (
+            <Badge variant="secondary">
+              <Wifi className="mr-1 h-3 w-3" />
+              Online
+            </Badge>
+          )}
+          {apiStatus === "offline" && (
+            <Badge variant="destructive">
+              <WifiOff className="mr-1 h-3 w-3" />
+              Offline
+            </Badge>
+          )}
+          <Button variant="ghost" size="sm" onClick={checkApiConnectivity} disabled={apiStatus === "checking"}>
+            Verificar Conexão
+          </Button>
+        </div>
+
+        <div className="flex gap-3">
+          <Button onClick={handleImport} disabled={isImporting || isSyncingApi || !file}>
+            {isImporting && !isSyncingApi ? "Importando..." : "Importar"}
+          </Button>
+          <Button variant="secondary" onClick={handleSyncApi} disabled={isImporting || isSyncingApi}>
+            {isSyncingApi ? "Sincronizando..." : "Sincronizar via API"}
+          </Button>
+        </div>
+        {(isImporting || isSyncingApi) && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Importando {importedRows} de {totalRows} linhas...
+              {isSyncingApi ? "Sincronizando com API externa..." : `Importando ${importedRows} de ${totalRows} linhas...`}
             </p>
-            <Progress value={totalRows ? Math.round((importedRows / totalRows) * 100) : 0} />
+            {!isSyncingApi && (
+              <Progress value={totalRows ? Math.round((importedRows / totalRows) * 100) : 0} />
+            )}
           </div>
         )}
       </CardContent>
