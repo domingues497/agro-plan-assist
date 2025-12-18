@@ -122,12 +122,35 @@ const Dashboard = () => {
       }
     });
     return base.filter((p: any) => {
-      if (!q) return true;
-      const nome = String(p.nome || "").toLowerCase();
-      const cm = String(p.numerocm || "").toLowerCase();
-      return nome.includes(q) || cm.includes(q);
+      // Filter by search term
+      let matchSearch = true;
+      if (q) {
+        const nome = String(p.nome || "").toLowerCase();
+        const cm = String(p.numerocm || "").toLowerCase();
+        matchSearch = nome.includes(q) || cm.includes(q);
+      }
+      
+      // Filter by having matching farms (respecting checkboxes)
+      const fazendas = fazendasPorProdutor[p.numerocm] || [];
+      const hasFazendas = fazendas.length > 0;
+
+      return matchSearch && hasFazendas;
     });
-  }, [produtoresDisponiveis, allFazendas, searchProdutor]);
+  }, [produtoresDisponiveis, allFazendas, searchProdutor, fazendasPorProdutor]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchProdutor, onlyComTalhao, onlySemTalhao, produtoresParaRenderizar.length]);
+
+  const paginatedProdutores = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return produtoresParaRenderizar.slice(startIndex, startIndex + itemsPerPage);
+  }, [produtoresParaRenderizar, currentPage]);
+
+  const totalPages = Math.ceil(produtoresParaRenderizar.length / itemsPerPage);
 
   // Área agora é calculada pelos talhões - modal de edição removido
 
@@ -367,7 +390,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {produtoresParaRenderizar.map((produtor) => {
+              {paginatedProdutores.map((produtor) => {
                 const fazendas = fazendasPorProdutor[produtor.numerocm] || [];
                 if (fazendas.length === 0) return null;
 
@@ -404,6 +427,32 @@ const Dashboard = () => {
                   </div>
                 );
               })}
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between py-4 border-t mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </Card>

@@ -46,6 +46,8 @@ export default function Programacao() {
   const canEditProgramacao = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const { defaultSafra } = useSafras();
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const filteredProgramacoes = useMemo(() => {
     if (!searchTerm) return programacoes;
@@ -61,6 +63,18 @@ export default function Programacao() {
       return matchNumerocm || matchNome || matchFazenda;
     });
   }, [programacoes, searchTerm, produtores, fazendas]);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, programacoes.length]);
+
+  const paginatedProgramacoes = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredProgramacoes.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProgramacoes, currentPage]);
+
+  const totalPages = Math.ceil(filteredProgramacoes.length / itemsPerPage);
 
   const areasSafrasComDefensivo = useMemo(() => {
     const set = new Set<string>();
@@ -346,19 +360,20 @@ export default function Programacao() {
         {isLoading ? (
           <p className="text-muted-foreground">Carregando programações...</p>
         ) : (
-          <div className="grid gap-4">
-            {filteredProgramacoes.length === 0 ? (
-              <Card className="p-6">
-                <p className="text-muted-foreground">Nenhuma programação encontrada.</p>
-              </Card>
-            ) : (
-              filteredProgramacoes.map((prog) => {
-                const produtor = produtores.find(p => p.numerocm === prog.produtor_numerocm);
-                const fazenda = fazendas.find(f => f.idfazenda === prog.fazenda_idfazenda && f.numerocm === prog.produtor_numerocm);
-                
-                return (
-                  <Card key={prog.id} className="p-6 hover:shadow-lg transition-shadow">
-                    <div className="flex items-start justify-between gap-4">
+          <div className="space-y-4">
+            <div className="grid gap-4">
+              {filteredProgramacoes.length === 0 ? (
+                <Card className="p-6">
+                  <p className="text-muted-foreground">Nenhuma programação encontrada.</p>
+                </Card>
+              ) : (
+                paginatedProgramacoes.map((prog) => {
+                  const produtor = produtores.find(p => p.numerocm === prog.produtor_numerocm);
+                  const fazenda = fazendas.find(f => f.idfazenda === prog.fazenda_idfazenda && f.numerocm === prog.produtor_numerocm);
+                  
+                  return (
+                    <Card key={prog.id} className="p-6 hover:shadow-lg transition-shadow">
+                      <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
                           <Calendar className="h-5 w-5 text-primary" />
@@ -486,7 +501,33 @@ export default function Programacao() {
                 );
               })
             )}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between py-4">
+                <div className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
+        </div>
         )}
       </main>
     {/* Dialog de Replicação */}

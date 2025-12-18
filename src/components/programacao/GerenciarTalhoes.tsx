@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,20 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
   const [geoPreview, setGeoPreview] = useState<any | null>(null);
   const [pendingKml, setPendingKml] = useState<any | null>(null);
   const [selectedKmlName, setSelectedKmlName] = useState<string | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const paginatedTalhoes = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return talhoes.slice(startIndex, startIndex + itemsPerPage);
+  }, [talhoes, currentPage]);
+
+  const totalPages = Math.ceil(talhoes.length / itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [talhoes.length]);
 
   const handleSalvar = async () => {
     if (!editando) return;
@@ -584,53 +598,81 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
           )}
 
           {!editando && (
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {talhoes.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhum talhão cadastrado
-                </p>
-              ) : (
-                talhoes.map((talhao) => (
-                  <Card key={talhao.id} className="p-3 flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{talhao.nome}</p>
-                        {talhao.arrendado && (
-                          <span className="text-xs bg-muted px-2 py-0.5 rounded">Arrendado</span>
-                        )}
-                        {(talhao as any).tem_programacao_safra && (
-                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Com Programação nesta safra</span>
-                        )}
-                        {((talhao as any).safras_todas || ((talhao as any).allowed_safras || []).length === 0) ? (
-                          <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: Todas</span>
-                        ) : (
-                          <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: {((talhao as any).allowed_safras || []).length}</span>
-                        )}
+            <>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {talhoes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhum talhão cadastrado
+                  </p>
+                ) : (
+                  paginatedTalhoes.map((talhao) => (
+                    <Card key={talhao.id} className="p-3 flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{talhao.nome}</p>
+                          {talhao.arrendado && (
+                            <span className="text-xs bg-muted px-2 py-0.5 rounded">Arrendado</span>
+                          )}
+                          {(talhao as any).tem_programacao_safra && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Com Programação nesta safra</span>
+                          )}
+                          {((talhao as any).safras_todas || ((talhao as any).allowed_safras || []).length === 0) ? (
+                            <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: Todas</span>
+                          ) : (
+                            <span className="text-xs bg-muted px-2 py-0.5 rounded">Safras: {((talhao as any).allowed_safras || []).length}</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{Number(talhao.area).toFixed(2)} ha</p>
                       </div>
-                      <p className="text-sm text-muted-foreground">{Number(talhao.area).toFixed(2)} ha</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString(), arrendado: talhao.arrendado, safras_todas: Boolean((talhao as any).safras_todas), safras_sel: [ ...(((talhao as any).allowed_safras || []) as string[]) ] })}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleExcluir(talhao.id)}
-                        disabled={(talhao as any).tem_programacao}
-                        title={(talhao as any).tem_programacao ? "Talhão com programação não pode ser excluído" : undefined}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setEditando({ id: talhao.id, nome: talhao.nome, area: talhao.area.toString(), arrendado: talhao.arrendado, safras_todas: Boolean((talhao as any).safras_todas), safras_sel: [ ...(((talhao as any).allowed_safras || []) as string[]) ] })}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleExcluir(talhao.id)}
+                          disabled={(talhao as any).tem_programacao}
+                          title={(talhao as any).tem_programacao ? "Talhão com programação não pode ser excluído" : undefined}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+
+              {talhoes.length > 0 && totalPages > 1 && (
+                <div className="flex items-center justify-between py-2 border-t mt-2">
+                  <div className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
 

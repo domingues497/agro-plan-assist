@@ -70,6 +70,20 @@ const Defensivos = () => {
     });
   }, [aplicacoes, searchTerm, produtores]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, aplicacoes.length]);
+
+  const paginatedAplicacoes = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAplicacoes.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAplicacoes, currentPage]);
+
+  const totalPages = Math.ceil(filteredAplicacoes.length / itemsPerPage);
+
   useEffect(() => {
     const loadAreas = async () => {
       try {
@@ -304,7 +318,7 @@ const Defensivos = () => {
                 <p className="text-muted-foreground">Nenhuma programação cadastrada.</p>
               </Card>
             ) : (
-              filteredAplicacoes.map((aplicacao) => (
+              paginatedAplicacoes.map((aplicacao) => (
                 <Card key={aplicacao.id} className="hover:shadow-lg transition-shadow">
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1" className="border-none">
@@ -461,6 +475,31 @@ const Defensivos = () => {
                   </Accordion>
                 </Card>
               ))
+            )}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between py-4">
+                <div className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         )}
