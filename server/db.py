@@ -343,6 +343,7 @@ def ensure_produtores_schema():
                       nome TEXT NOT NULL,
                       numerocm_consultor TEXT NOT NULL,
                       consultor TEXT,
+                      tipocooperado TEXT,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
@@ -635,6 +636,7 @@ def ensure_programacao_schema():
                       area TEXT,
                       area_hectares NUMERIC,
                       numerocm_consultor TEXT,
+                      cultura TEXT,
                       cultivar TEXT,
                       quantidade NUMERIC,
                       unidade TEXT,
@@ -720,6 +722,10 @@ def ensure_programacao_schema():
                 # Garantir colunas em bases existentes
                 try:
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS numerocm_consultor TEXT")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS cultura TEXT")
                 except Exception:
                     pass
                 try:

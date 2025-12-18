@@ -6,6 +6,7 @@ export type Produtor = {
   nome: string;
   numerocm_consultor: string;
   consultor: string | null;
+  tipocooperado: string | null;
   created_at: string | null;
   updated_at: string | null;
 };

@@ -1043,6 +1043,14 @@ def create_programacao():
                 )
                 for item in cultivares:
                     cult_id = item.get("id") or str(uuid.uuid4())
+                    cultura_val = item.get("cultura")
+                    if not cultura_val and item.get("cultivar"):
+                        try:
+                            cur.execute("SELECT cultura FROM public.cultivares_catalog WHERE cultivar = %s", [item.get("cultivar")])
+                            r_cat = cur.fetchone()
+                            if r_cat: cultura_val = r_cat[0]
+                        except Exception:
+                            pass
                     tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
                     first_tr = None if str(item.get("tipo_tratamento")).upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
                     cur.execute(
@@ -1050,13 +1058,13 @@ def create_programacao():
                         INSERT INTO public.programacao_cultivares (
                           id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                           percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
-                          semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                          semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         [cult_id, prog_id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                          item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                          item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
-                         item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0]
+                         item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, cultura_val]
                     )
                     for tid in (tr_ids or []):
                         if not tid: continue
@@ -1182,11 +1190,31 @@ def get_programacao_children(id: str):
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT talhao_id FROM public.programacao_talhoes WHERE programacao_id = %s", [id])
-            talhoes = [r[0] for r in cur.fetchall()]
+            cur.execute("""
+                SELECT pt.talhao_id, t.nome 
+                FROM public.programacao_talhoes pt
+                LEFT JOIN public.talhoes t ON t.id = pt.talhao_id
+                WHERE pt.programacao_id = %s
+            """, [id])
+            rows = cur.fetchall()
+            talhoes = [r[0] for r in rows]
+            talhoes_map = {r[0]: (r[1] or r[0]) for r in rows}
+
             cur.execute("SELECT * FROM public.programacao_cultivares WHERE programacao_id = %s", [id])
             cols = [d[0] for d in cur.description]
             cults = [dict(zip(cols, r)) for r in cur.fetchall()]
+            
+            # Se cultura estiver vazio, tentar buscar do catalogo
+            for c in cults:
+                if not c.get("cultura") and c.get("cultivar"):
+                    try:
+                        cur.execute("SELECT cultura FROM public.cultivares_catalog WHERE cultivar = %s", [c.get("cultivar")])
+                        r_cat = cur.fetchone()
+                        if r_cat:
+                            c["cultura"] = r_cat[0]
+                    except Exception:
+                        pass
+
             cur.execute("SELECT programacao_cultivar_id, tratamento_id FROM public.programacao_cultivares_tratamentos WHERE programacao_cultivar_id IN (SELECT id FROM public.programacao_cultivares WHERE programacao_id = %s)", [id])
             trat_rows = cur.fetchall()
             tratamentos = {}
@@ -1200,7 +1228,7 @@ def get_programacao_children(id: str):
             ad_cols = [d[0] for d in cur.description]
             ad_rows = cur.fetchall()
             adubacao = [dict(zip(ad_cols, r)) for r in ad_rows] if ad_rows else []
-            return jsonify({"talhoes": talhoes, "cultivares": cults, "tratamentos": tratamentos, "defensivos": defensivos, "adubacao": adubacao})
+            return jsonify({"talhoes": talhoes, "talhoes_nomes": talhoes_map, "cultivares": cults, "tratamentos": tratamentos, "defensivos": defensivos, "adubacao": adubacao})
     finally:
         pool.putconn(conn)
 
@@ -2856,6 +2884,7 @@ def run_sync_produtores(limpar: bool = False):
                     nome = str(pick(d, ["nome", "NOME", "NOME_PRODUTOR"])) if pick(d, ["nome", "NOME", "NOME_PRODUTOR"]) is not None else None
                     cm_cons = str(pick(d, ["numerocmconsultor", "numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM", "NUMEROCMCONSULTOR", "CONSULTORCM", "CM_CONSULTOR", "CONSULTOR_NUMEROCM"])) if pick(d, ["numerocmconsultor", "numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM", "NUMEROCMCONSULTOR", "CONSULTORCM", "CM_CONSULTOR", "CONSULTOR_NUMEROCM"]) is not None else None
                     consultor = pick(d, ["consultor", "CONSULTOR"]) or None
+                    tipocooperado = pick(d, ["tipocooperado", "TIPOCOOPERADO", "TIPO_COOPERADO"]) or None
                     if (not cm_cons) and consultor:
                         key_nome = str(consultor).strip().lower()
                         cm_lookup = consultores_map.get(key_nome)
@@ -2875,17 +2904,18 @@ def run_sync_produtores(limpar: bool = False):
                     if key in seen:
                         continue
                     seen.add(key)
-                    values.append([str(uuid.uuid4()), numerocm, nome, cm_cons, consultor])
+                    values.append([str(uuid.uuid4()), numerocm, nome, cm_cons, consultor, tipocooperado])
                 if values:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO public.produtores (id, numerocm, nome, numerocm_consultor, consultor)
+                        INSERT INTO public.produtores (id, numerocm, nome, numerocm_consultor, consultor, tipocooperado)
                         VALUES %s
                         ON CONFLICT (numerocm) DO UPDATE SET
                           nome = EXCLUDED.nome,
                           numerocm_consultor = EXCLUDED.numerocm_consultor,
                           consultor = EXCLUDED.consultor,
+                          tipocooperado = EXCLUDED.tipocooperado,
                           updated_at = now()
                         """,
                         values,
