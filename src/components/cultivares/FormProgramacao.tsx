@@ -194,6 +194,30 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.semente_propria) {
+      if (defensivosFazenda.length === 0) {
+        toast({
+          title: "Erro de validação",
+          description: "Para semente própria (na fazenda), é necessário adicionar pelo menos um defensivo.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const temDefensivoValido = defensivosFazenda.some(
+        (d) => !!d.defensivo && String(d.defensivo).trim().length > 0
+      );
+      if (!temDefensivoValido) {
+        toast({
+          title: "Erro de validação",
+          description: "Para semente própria (na fazenda), é necessário selecionar o defensivo.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     onSubmit({ ...formData, defensivos_fazenda: defensivosFazenda });
   };
 

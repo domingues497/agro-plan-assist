@@ -1076,6 +1076,26 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       }
     }
 
+    // Validação: Tratamento na Fazenda exige pelo menos um defensivo válido
+    const cultsNaFazendaSemDefensivo = itensCultivar.filter((it) => {
+      if (it.tipo_tratamento !== "NA FAZENDA") return false;
+      const defs = it.defensivos_fazenda as DefensivoNaFazenda[] | undefined;
+      // Se não tem lista ou lista vazia, é inválido
+      if (!defs || defs.length === 0) return true;
+      // Se tem lista, verifica se pelo menos um tem nome de defensivo preenchido
+      const temValido = defs.some((d) => !!d.defensivo && String(d.defensivo).trim().length > 0);
+      return !temValido;
+    });
+
+    if (cultsNaFazendaSemDefensivo.length > 0) {
+      toast({
+        title: "Erro de validação",
+        description: "Para tratamento na fazenda, é necessário adicionar pelo menos um defensivo válido em cada cultivar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const defensivosSnapshot = (data.cultivares || []).flatMap((c: any) => c?.defensivos_fazenda || []);
       if (defensivosSnapshot.length > 0) {
