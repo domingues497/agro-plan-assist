@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ArrowLeft, Trash2, Pencil, Copy, Check, ChevronsUpDown, Settings } from "lucide-react";
+import { Calendar, ArrowLeft, Trash2, Pencil, Copy, Check, ChevronsUpDown, Settings, Search } from "lucide-react";
 import { useProgramacoes } from "@/hooks/useProgramacoes";
 import { useProfile } from "@/hooks/useProfile";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -18,6 +18,7 @@ import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
 import { cn, safeRandomUUID, getApiBaseUrl } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -44,6 +45,22 @@ export default function Programacao() {
   const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
   const canEditProgramacao = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const { defaultSafra } = useSafras();
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredProgramacoes = useMemo(() => {
+    if (!searchTerm) return programacoes;
+    const lower = searchTerm.toLowerCase();
+    return programacoes.filter((prog) => {
+      const produtor = produtores.find(p => p.numerocm === prog.produtor_numerocm);
+      const fazenda = fazendas.find(f => f.idfazenda === prog.fazenda_idfazenda && f.numerocm === prog.produtor_numerocm);
+      
+      const matchNumerocm = String(prog.produtor_numerocm || "").toLowerCase().includes(lower);
+      const matchNome = String(produtor?.nome || "").toLowerCase().includes(lower);
+      const matchFazenda = String(fazenda?.nomefazenda || "").toLowerCase().includes(lower);
+      
+      return matchNumerocm || matchNome || matchFazenda;
+    });
+  }, [programacoes, searchTerm, produtores, fazendas]);
 
   const areasSafrasComDefensivo = useMemo(() => {
     const set = new Set<string>();
@@ -220,6 +237,18 @@ export default function Programacao() {
           </div>
         </div>
 
+        <div className="flex justify-end items-center gap-2 mb-6">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, fazenda ou CM..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        </div>
+
         {!temAreasCadastradas && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-yellow-800 font-medium">
@@ -305,12 +334,12 @@ export default function Programacao() {
           <p className="text-muted-foreground">Carregando programações...</p>
         ) : (
           <div className="grid gap-4">
-            {programacoes.length === 0 ? (
+            {filteredProgramacoes.length === 0 ? (
               <Card className="p-6">
                 <p className="text-muted-foreground">Nenhuma programação encontrada.</p>
               </Card>
             ) : (
-              programacoes.map((prog) => {
+              filteredProgramacoes.map((prog) => {
                 const produtor = produtores.find(p => p.numerocm === prog.produtor_numerocm);
                 const fazenda = fazendas.find(f => f.idfazenda === prog.fazenda_idfazenda && f.numerocm === prog.produtor_numerocm);
                 

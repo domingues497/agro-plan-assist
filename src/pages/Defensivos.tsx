@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Shield, ArrowLeft, Copy, Trash2, Plus, Pencil, ChevronDown, Check, ChevronsUpDown } from "lucide-react";
+import { Shield, ArrowLeft, Copy, Trash2, Plus, Pencil, ChevronDown, Check, ChevronsUpDown, Search } from "lucide-react";
 import { useAplicacoesDefensivos, AplicacaoDefensivo } from "@/hooks/useAplicacoesDefensivos";
 import { FormAplicacaoDefensivo } from "@/components/defensivos/FormAplicacaoDefensivo";
 import { useProdutores } from "@/hooks/useProdutores";
@@ -14,6 +14,7 @@ import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
 import { cn, getApiBaseUrl } from "@/lib/utils";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useProfile } from "@/hooks/useProfile";
@@ -55,6 +56,19 @@ const Defensivos = () => {
   const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
   const canEditDefensivos = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const [areasCalc, setAreasCalc] = useState<Record<string, number>>({});
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredAplicacoes = useMemo(() => {
+    if (!searchTerm) return aplicacoes;
+    const lower = searchTerm.toLowerCase();
+    return aplicacoes.filter((ap) => {
+      const produtor = produtores.find(p => p.numerocm === ap.produtor_numerocm);
+      const matchNumerocm = String(ap.produtor_numerocm || "").toLowerCase().includes(lower);
+      const matchNome = String(produtor?.nome || "").toLowerCase().includes(lower);
+      const matchArea = String(ap.area || "").toLowerCase().includes(lower);
+      return matchNumerocm || matchNome || matchArea;
+    });
+  }, [aplicacoes, searchTerm, produtores]);
 
   useEffect(() => {
     const loadAreas = async () => {
@@ -220,6 +234,18 @@ const Defensivos = () => {
           </Button>
         </div>
 
+        <div className="flex justify-end items-center gap-2 mb-6">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, área ou CM..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        </div>
+
         {!temProgramacoes && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-yellow-800 font-medium">
@@ -260,12 +286,12 @@ const Defensivos = () => {
           <p className="text-muted-foreground">Carregando programação...</p>
         ) : (
           <div className="grid gap-4">
-            {aplicacoes.length === 0 ? (
+            {filteredAplicacoes.length === 0 ? (
               <Card className="p-6">
                 <p className="text-muted-foreground">Nenhuma programação cadastrada.</p>
               </Card>
             ) : (
-              aplicacoes.map((aplicacao) => (
+              filteredAplicacoes.map((aplicacao) => (
                 <Card key={aplicacao.id} className="hover:shadow-lg transition-shadow">
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1" className="border-none">
