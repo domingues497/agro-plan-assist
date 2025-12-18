@@ -140,11 +140,24 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
         const { getApiBaseUrl } = await import("@/lib/utils");
         const baseUrl = getApiBaseUrl();
         const selected = (cultivares || []).find((c) => String(c.cultivar || "").trim() === String(formData.cultivar || "").trim());
-        const cultura = selected?.cultura ? `&cultura=${encodeURIComponent(String(selected.cultura))}` : "";
-        const res = await fetch(`${baseUrl}/embalagens?scope=cultivar${cultura}`);
+        const culturaSelected = selected?.cultura ? String(selected.cultura).trim() : "";
+        
+        // Busca todas as embalagens para filtrar no cliente (suporta "Soja, Milho")
+        const res = await fetch(`${baseUrl}/embalagens?scope=cultivar`);
         if (!res.ok) return;
         const j = await res.json();
-        const names = (j?.items || []).map((x: any) => String(x.nome || "").trim()).filter(Boolean);
+        
+        const names = (j?.items || [])
+          .filter((x: any) => {
+            const ec = String(x.cultura || "").trim();
+            const ecs = ec ? ec.split(",").map((s) => s.trim()).filter(Boolean) : [];
+            // Se embalagem não tem cultura definida, serve para todas.
+            // Se tem, precisa incluir a cultura selecionada.
+            return ecs.length === 0 || (culturaSelected && ecs.includes(culturaSelected));
+          })
+          .map((x: any) => String(x.nome || "").trim())
+          .filter(Boolean);
+          
         setEmbalagensDb(names);
       } catch {}
     };
@@ -310,7 +323,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     return true;
   });
   const grupos = Array.from(
-    new Set((cultivares || []).map((c) => (c.cultivar || "").trim()).filter(Boolean))
+    new Set((cultivares || []).map((c) => String(c.cultivar || "").trim()).filter((x) => x.length > 0))
   ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
   return (
     <Card className="p-6 mb-6">
@@ -324,7 +337,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="produtor">Produtor *</Label>
+            <Label htmlFor="produtor">Produtor **</Label>
             <Popover open={openProdutor} onOpenChange={setOpenProdutor}>
               <PopoverTrigger asChild>
                 <Button

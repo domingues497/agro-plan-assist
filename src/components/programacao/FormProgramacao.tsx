@@ -82,7 +82,8 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
     const filtered = (embalagensCultivar || []).filter((e) => {
       const ec = String(e?.cultura || "").trim();
       const cc = String(culturaSelecionada || "").trim();
-      return !ec || (cc && ec === cc);
+      const ecs = ec ? ec.split(",").map((s) => s.trim()).filter(Boolean) : [];
+      return ecs.length === 0 || (cc && ecs.includes(cc));
     });
     const sel = String(item.tipo_embalagem || "");
     if (sel && !filtered.some((e) => e.nome === sel)) {
