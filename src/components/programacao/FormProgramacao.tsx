@@ -306,6 +306,11 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
             value={item.tipo_tratamento}
             onValueChange={(value) => {
               onChange(index, "tipo_tratamento", value);
+
+              if (value !== "NA FAZENDA") {
+                setDefensivosFazenda([]);
+              }
+
               // Se usuário escolher "NÃO", limpamos os tratamentos específicos selecionados
               if (value === "NÃO") {
                 onChange(index, "tratamento_ids" as any, []);
@@ -872,9 +877,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   };
 
   const handleCultivarChange = (index: number, field: keyof ItemCultivar, value: any) => {
-    const newItems = [...itensCultivar];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setItensCultivar(newItems);
+    setItensCultivar((prev) => {
+      const newItems = [...prev];
+      newItems[index] = { ...newItems[index], [field]: value };
+      return newItems;
+    });
   };
 
   const handleAddAdubacao = () => {

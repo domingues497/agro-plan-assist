@@ -733,7 +733,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
             <Checkbox
               id="semente_propria"
               checked={formData.semente_propria}
-              onCheckedChange={(checked) => setFormData({ ...formData, semente_propria: !!checked })}
+              onCheckedChange={(checked) => {
+                const isChecked = !!checked;
+                setFormData({ ...formData, semente_propria: isChecked });
+                if (!isChecked) {
+                  setDefensivosFazenda([]);
+                }
+              }}
             />
             <Label htmlFor="semente_propria" className="font-medium">
               Semente proria
