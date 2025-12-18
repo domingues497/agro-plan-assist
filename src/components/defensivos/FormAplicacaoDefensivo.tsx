@@ -451,7 +451,7 @@ export const FormAplicacaoDefensivo = ({
 
   return (
     <Card className="p-6 mb-6">
-      <h3 className="text-lg font-semibold mb-4">{title}</h3>
+      {title && <h3 className="text-lg font-semibold mb-4">{title}</h3>}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Alerta de regra de negócio */}
         {produtorNumerocm && area && !isCultLoading && !isAdubLoading && !(hasCultivarProgram && hasAdubacaoProgram) && (

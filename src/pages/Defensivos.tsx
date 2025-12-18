@@ -254,33 +254,46 @@ const Defensivos = () => {
           </div>
         )}
 
-        {showForm && !editing && (
-          <FormAplicacaoDefensivo
-            onSubmit={handleSubmit}
-            onCancel={() => setShowForm(false)}
-            isLoading={isCreating}
-          />
-        )}
+        <Dialog open={showForm || !!editing} onOpenChange={(open) => {
+          if (!open) {
+            setShowForm(false);
+            setEditing(null);
+          }
+        }}>
+          <DialogContent className="max-w-[90vw] w-full max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editing ? "Editar Programação de Defensivo" : "Nova Programação de Defensivo"}</DialogTitle>
+            </DialogHeader>
+            {showForm && !editing && (
+              <FormAplicacaoDefensivo
+                title=""
+                onSubmit={handleSubmit}
+                onCancel={() => setShowForm(false)}
+                isLoading={isCreating}
+              />
+            )}
 
-        {editing && (
-          <FormAplicacaoDefensivo
-            title="Editar Programação de Defensivo"
-            submitLabel="Salvar alterações"
-            initialData={{
-              id: editing.id,
-              produtor_numerocm: editing.produtor_numerocm || getProdutorNumerocmFallback(editing.id),
-              area: editing.area,
-              defensivos: editing.defensivos,
-            }}
-            readOnly={isConsultor && !canEditDefensivos}
-            onSubmit={(data) => {
-              update({ id: editing.id, ...data });
-              setEditing(null);
-            }}
-            onCancel={() => setEditing(null)}
-            isLoading={isUpdating}
-          />
-        )}
+            {editing && (
+              <FormAplicacaoDefensivo
+                title=""
+                submitLabel="Salvar alterações"
+                initialData={{
+                  id: editing.id,
+                  produtor_numerocm: editing.produtor_numerocm || getProdutorNumerocmFallback(editing.id),
+                  area: editing.area,
+                  defensivos: editing.defensivos,
+                }}
+                readOnly={isConsultor && !canEditDefensivos}
+                onSubmit={(data) => {
+                  update({ id: editing.id, ...data });
+                  setEditing(null);
+                }}
+                onCancel={() => setEditing(null)}
+                isLoading={isUpdating}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         {isLoading ? (
           <p className="text-muted-foreground">Carregando programação...</p>

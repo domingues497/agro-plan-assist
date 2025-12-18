@@ -257,78 +257,91 @@ export default function Programacao() {
           </div>
         )}
 
-        {showForm && !editing && (
-          <FormProgramacao
-            onSubmit={(data) => {
-              create(data);
-              setShowForm(false);
-            }}
-            onCancel={() => setShowForm(false)}
-          />
-        )}
+        <Dialog open={showForm || !!editing} onOpenChange={(open) => {
+          if (!open) {
+            setShowForm(false);
+            setEditing(null);
+            setEditingTratamentos({});
+            setEditingDefensivos({});
+          }
+        }}>
+          <DialogContent className="max-w-[90vw] w-full max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editing ? "Editar Programação" : "Nova Programação"}</DialogTitle>
+            </DialogHeader>
+            {showForm && !editing && (
+              <FormProgramacao
+                onSubmit={(data) => {
+                  create(data);
+                  setShowForm(false);
+                }}
+                onCancel={() => setShowForm(false)}
+              />
+            )}
 
-        {editing && (
-          <FormProgramacao
-            title="Editar Programação"
-            submitLabel={isUpdating ? "Salvando..." : "Salvar alterações"}
-            readOnly={isConsultor && !canEditProgramacao}
-            initialData={{
-              produtor_numerocm: editing.produtor_numerocm,
-              fazenda_idfazenda: editing.fazenda_idfazenda,
-              area: editing.area,
-              area_hectares: editing.area_hectares,
-              safra_id: editing.safra_id || undefined,
-              epoca_id: editing.epoca_id || undefined,
-              talhao_ids: editing.talhao_ids || [],
-              cultivares: (() => {
-                const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
-                return cults.map((c: any) => {
-                  // Buscar a cultura do catálogo baseado no cultivar
-                  const cultivarInfo = cultivaresCatalog.find(cat => cat.cultivar === c.cultivar);
-                  return {
-                    cultivar: c.cultivar,
-                    cultura: cultivarInfo?.cultura || "",
-                    percentual_cobertura: Number(c.percentual_cobertura) || 0,
-                    tipo_embalagem: c.tipo_embalagem,
-                    tipo_tratamento: c.tipo_tratamento,
-                    tratamento_ids: (editingTratamentos as Record<string, string[]>)[c.id]
-                      ?? (Array.isArray(c.tratamento_ids) ? c.tratamento_ids : (c.tratamento_id ? [c.tratamento_id] : [])),
-                    tratamento_id: c.tratamento_id || undefined,
-                    data_plantio: c.data_plantio || undefined,
-                    populacao_recomendada: Number(c.populacao_recomendada) || 0,
-                    semente_propria: Boolean(c.semente_propria),
-                    referencia_rnc_mapa: c.referencia_rnc_mapa || undefined,
-                    sementes_por_saca: Number(c.sementes_por_saca) || 0,
-                    defensivos_fazenda: editingDefensivos[c.id] || []
-                  };
-                });
-              })(),
-              adubacao: (() => {
-                const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
-                return adubs.map((a: any) => ({
-                  formulacao: a.formulacao,
-                  dose: Number(a.dose) || 0,
-                  percentual_cobertura: Number(a.percentual_cobertura) || 0,
-                  data_aplicacao: a.data_aplicacao || undefined,
-                  embalagem: a.embalagem || undefined,
-                  justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
-                }));
-              })()
-            }}
-            onSubmit={(data) => {
-              update({ id: editing.id, ...data }).then(() => {
-                setEditing(null);
-                setEditingTratamentos({});
-                setEditingDefensivos({});
-              });
-            }}
-            onCancel={() => {
-              setEditing(null);
-              setEditingTratamentos({});
-              setEditingDefensivos({});
-            }}
-          />
-        )}
+            {editing && (
+              <FormProgramacao
+                submitLabel={isUpdating ? "Salvando..." : "Salvar alterações"}
+                readOnly={isConsultor && !canEditProgramacao}
+                initialData={{
+                  produtor_numerocm: editing.produtor_numerocm,
+                  fazenda_idfazenda: editing.fazenda_idfazenda,
+                  area: editing.area,
+                  area_hectares: editing.area_hectares,
+                  safra_id: editing.safra_id || undefined,
+                  epoca_id: editing.epoca_id || undefined,
+                  talhao_ids: editing.talhao_ids || [],
+                  cultivares: (() => {
+                    const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
+                    return cults.map((c: any) => {
+                      // Buscar a cultura do catálogo baseado no cultivar
+                      const cultivarInfo = cultivaresCatalog.find(cat => cat.cultivar === c.cultivar);
+                      return {
+                        cultivar: c.cultivar,
+                        cultura: cultivarInfo?.cultura || "",
+                        percentual_cobertura: Number(c.percentual_cobertura) || 0,
+                        tipo_embalagem: c.tipo_embalagem,
+                        tipo_tratamento: c.tipo_tratamento,
+                        tratamento_ids: (editingTratamentos as Record<string, string[]>)[c.id]
+                          ?? (Array.isArray(c.tratamento_ids) ? c.tratamento_ids : (c.tratamento_id ? [c.tratamento_id] : [])),
+                        tratamento_id: c.tratamento_id || undefined,
+                        data_plantio: c.data_plantio || undefined,
+                        populacao_recomendada: Number(c.populacao_recomendada) || 0,
+                        semente_propria: Boolean(c.semente_propria),
+                        referencia_rnc_mapa: c.referencia_rnc_mapa || undefined,
+                        sementes_por_saca: Number(c.sementes_por_saca) || 0,
+                        defensivos_fazenda: editingDefensivos[c.id] || []
+                      };
+                    });
+                  })(),
+                  adubacao: (() => {
+                    const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
+                    return adubs.map((a: any) => ({
+                      formulacao: a.formulacao,
+                      dose: Number(a.dose) || 0,
+                      percentual_cobertura: Number(a.percentual_cobertura) || 0,
+                      data_aplicacao: a.data_aplicacao || undefined,
+                      embalagem: a.embalagem || undefined,
+                      justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
+                    }));
+                  })()
+                }}
+                onSubmit={(data) => {
+                  update({ id: editing.id, ...data }).then(() => {
+                    setEditing(null);
+                    setEditingTratamentos({});
+                    setEditingDefensivos({});
+                  });
+                }}
+                onCancel={() => {
+                  setEditing(null);
+                  setEditingTratamentos({});
+                  setEditingDefensivos({});
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         {isLoading ? (
           <p className="text-muted-foreground">Carregando programações...</p>
