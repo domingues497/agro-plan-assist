@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowLeft, Download, FileDown } from "lucide-react";
+import { FileText, ArrowLeft, Download, FileDown, Check, ChevronsUpDown } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
@@ -14,8 +14,21 @@ import { PDFDownloadLink } from "@react-pdf/renderer";
 import { RelatorioPDF } from "@/components/relatorios/RelatorioPDF";
 import { useProgramacoes } from "@/hooks/useProgramacoes";
 import { useQuery } from "@tanstack/react-query";
-import { getApiBaseUrl } from "@/lib/utils";
+import { getApiBaseUrl, cn } from "@/lib/utils";
 import { RelatorioDetalhadoPDF, DetailedReportItem, ProductItem, CultivarItem } from "@/components/relatorios/RelatorioDetalhadoPDF";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const parseNumber = (value: unknown): number => {
   const numeric = Number(value);
@@ -32,6 +45,7 @@ const Relatorios = () => {
   const { data: allFazendas = [] } = useFazendas();
   const [safraFilter, setSafraFilter] = useState<string>("");
   const [produtorFilter, setProdutorFilter] = useState<string>("");
+  const [openCombobox, setOpenCombobox] = useState(false);
 
   // Fetch detailed data for the selected produtor
   const { data: detailedReportData = [], isLoading: loadingDetailed } = useQuery({
@@ -494,16 +508,49 @@ const Relatorios = () => {
           <div className="flex flex-col md:flex-row gap-4 items-end">
             <div className="w-full md:w-1/3">
               <label className="text-sm block mb-1">Selecione o Produtor</label>
-              <select
-                className="w-full border rounded h-9 px-2 text-sm"
-                value={produtorFilter}
-                onChange={(e) => setProdutorFilter(e.target.value)}
-              >
-                <option value="">Selecione...</option>
-                {produtores.map((p) => (
-                  <option key={p.id} value={p.numerocm}>{p.numerocm} - {p.nome}</option>
-                ))}
-              </select>
+              <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openCombobox}
+                    className="w-full justify-between"
+                  >
+                    {produtorFilter
+                      ? produtores.find((p) => p.numerocm === produtorFilter)?.nome || produtorFilter
+                      : "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[350px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar produtor..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {produtores.map((p) => (
+                          <CommandItem
+                            key={p.id}
+                            value={`${p.numerocm} - ${p.nome}`}
+                            onSelect={() => {
+                              setProdutorFilter(p.numerocm === produtorFilter ? "" : p.numerocm);
+                              setOpenCombobox(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                produtorFilter === p.numerocm ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {p.numerocm} - {p.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div>
