@@ -9,11 +9,19 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/utils";
+import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 
 export const ImportTratamentos = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [nome, setNome] = useState("");
+  const { data: cultivares = [] } = useCultivaresCatalog();
+
+  const culturasDisponiveis = Array.from(new Set(
+    (cultivares as any[])
+      .map((c: any) => c.cultura ? String(c.cultura).toUpperCase().trim() : "")
+      .filter((c: string) => c.length > 0)
+  )).sort() as string[];
 
   const { data: tratamentos = [] } = useQuery({
     queryKey: ["admin-tratamentos"],
@@ -160,11 +168,14 @@ export const ImportTratamentos = () => {
                       <select
                         defaultValue={t.cultura || ""}
                         onChange={(e) => updateMutation.mutate({ id: t.id, cultura: e.target.value || null })}
-                        className="border rounded px-2 py-1"
+                        className="border rounded px-2 py-1 max-w-[150px]"
                       >
                         <option value="">Sem cultura</option>
-                        <option value="MILHO">MILHO</option>
-                        <option value="SOJA">SOJA</option>
+                        {culturasDisponiveis.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
                       </select>
                       <Button
                         variant={t.ativo ? "secondary" : "default"}
