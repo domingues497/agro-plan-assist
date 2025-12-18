@@ -50,7 +50,14 @@ const Relatorios = () => {
       const baseUrl = getApiBaseUrl();
 
       // Pre-fetch all talhoes for the produtor's fazendas to avoid N+1 on talhoes list?
-      const fazendaIds = Array.from(new Set(filteredProgs.map(p => p.fazenda_idfazenda).filter(Boolean)));
+      // We need to map from fazenda_idfazenda (external code) to fazenda.id (internal UUID) because talhoes are linked by UUID
+      const fazendaIds = Array.from(new Set(
+        filteredProgs.map(p => {
+          const fazenda = allFazendas.find(f => f.idfazenda === p.fazenda_idfazenda && f.numerocm === p.produtor_numerocm);
+          return fazenda ? fazenda.id : null;
+        }).filter(Boolean)
+      ));
+      
       let talhoesMap: Record<string, { nome: string, area: number }> = {}; // id -> { nome, area }
       
       if (fazendaIds.length > 0) {

@@ -2885,6 +2885,7 @@ def run_sync_produtores(limpar: bool = False):
                     cm_cons = str(pick(d, ["numerocmconsultor", "numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM", "NUMEROCMCONSULTOR", "CONSULTORCM", "CM_CONSULTOR", "CONSULTOR_NUMEROCM"])) if pick(d, ["numerocmconsultor", "numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM", "NUMEROCMCONSULTOR", "CONSULTORCM", "CM_CONSULTOR", "CONSULTOR_NUMEROCM"]) is not None else None
                     consultor = pick(d, ["consultor", "CONSULTOR"]) or None
                     tipocooperado = pick(d, ["tipocooperado", "TIPOCOOPERADO", "TIPO_COOPERADO"]) or None
+                    assistencia = pick(d, ["assistencia", "ASSISTENCIA", "TIPO_ASSISTENCIA"]) or None
                     if (not cm_cons) and consultor:
                         key_nome = str(consultor).strip().lower()
                         cm_lookup = consultores_map.get(key_nome)
@@ -2904,18 +2905,19 @@ def run_sync_produtores(limpar: bool = False):
                     if key in seen:
                         continue
                     seen.add(key)
-                    values.append([str(uuid.uuid4()), numerocm, nome, cm_cons, consultor, tipocooperado])
+                    values.append([str(uuid.uuid4()), numerocm, nome, cm_cons, consultor, tipocooperado, assistencia])
                 if values:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO public.produtores (id, numerocm, nome, numerocm_consultor, consultor, tipocooperado)
+                        INSERT INTO public.produtores (id, numerocm, nome, numerocm_consultor, consultor, tipocooperado, assistencia)
                         VALUES %s
                         ON CONFLICT (numerocm) DO UPDATE SET
                           nome = EXCLUDED.nome,
                           numerocm_consultor = EXCLUDED.numerocm_consultor,
                           consultor = EXCLUDED.consultor,
                           tipocooperado = EXCLUDED.tipocooperado,
+                          assistencia = EXCLUDED.assistencia,
                           updated_at = now()
                         """,
                         values,

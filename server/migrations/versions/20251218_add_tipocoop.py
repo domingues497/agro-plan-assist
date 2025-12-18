@@ -1,6 +1,6 @@
 from alembic import op
 
-revision = "20251218_add_tipocooperado_produtores"
+revision = "20251218_add_tipocoop"
 down_revision = "20251212_add_cod_item_columns"
 branch_labels = None
 depends_on = None

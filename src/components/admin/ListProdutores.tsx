@@ -123,6 +123,7 @@ export const ListProdutores = () => {
                   <button className="flex items-center gap-1" onClick={() => toggleSort("nome")}>Produtor {sortKey === "nome" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
                   </button>
                 </TableHead>
+                <TableHead>Assistência</TableHead>
 
                 <TableHead className="w-[120px]">Ação</TableHead>
               </TableRow>
@@ -134,6 +135,9 @@ export const ListProdutores = () => {
                     <span className="block whitespace-normal break-words" title={`${p.numerocm ?? ""} - ${p.nome ?? ""}`}>
                       {p.numerocm}{p.nome ? ` - ${p.nome}` : ""}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    {p.assistencia || "-"}
                   </TableCell>
 
                   <TableCell>
