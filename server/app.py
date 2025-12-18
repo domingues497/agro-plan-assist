@@ -4,7 +4,7 @@ from alembic.config import Config as _AlembicConfig
 from alembic import command as _alembic_command
 from flask_cors import CORS
 from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema, ensure_gestor_consultores_schema, ensure_app_versions_schema, ensure_embalagens_schema
-from sqlalchemy import text, select, delete
+from sqlalchemy import text, select, delete, or_
 from sqlalchemy.dialects.postgresql import insert as _pg_insert
 from sa import get_engine, get_session
 from models import AppVersion, SystemConfig, ImportHistory, DefensivoCatalog, FertilizanteCatalog, CultivarCatalog, TratamentoSemente, CultivarTratamento, Epoca, JustificativaAdubacao, Embalagem, UserFazenda, GestorConsultor, Consultor, CalendarioAplicacao
@@ -2032,12 +2032,30 @@ def list_cultivares_tratamentos():
     if not cultivar:
         return jsonify({"items": [], "count": 0})
     session = get_session()
-    q = (
-        select(TratamentoSemente)
-        .join(CultivarTratamento, CultivarTratamento.tratamento_id == TratamentoSemente.id)
-        .where(CultivarTratamento.cultivar == cultivar, TratamentoSemente.ativo == True)
-        .order_by(TratamentoSemente.nome)
+    
+    # Tenta descobrir a cultura do cultivar
+    cultura_row = session.execute(
+        select(CultivarCatalog.cultura).where(CultivarCatalog.cultivar == cultivar)
+    ).first()
+    cultura_val = cultura_row[0] if cultura_row else None
+
+    q = select(TratamentoSemente).where(TratamentoSemente.ativo == True)
+    
+    # Condição 1: Vínculo explícito
+    cond_explicit = TratamentoSemente.id.in_(
+        select(CultivarTratamento.tratamento_id).where(CultivarTratamento.cultivar == cultivar)
     )
+
+    if cultura_val:
+        # Condição 2: Tratamento da mesma cultura
+        # (tratamento não mais por cultivar, mas pela cultura)
+        cond_culture = (TratamentoSemente.cultura == cultura_val)
+        q = q.where(or_(cond_explicit, cond_culture))
+    else:
+        q = q.where(cond_explicit)
+
+    q = q.order_by(TratamentoSemente.nome)
+
     items = session.execute(q).scalars().all()
     return jsonify({
         "items": [
