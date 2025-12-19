@@ -26,7 +26,7 @@ export default defineConfig(async ({ mode }) => {
     plugins: [react(), ...taggerPlugin],
     server: {
       host: true,
-      port: devPort,
+      port: 8080,
       strictPort: true,
       ...(hmr ? { hmr } : {}),
       proxy: {
