@@ -4,7 +4,7 @@ import { getApiBaseUrl } from "@/lib/utils";
 export type TratamentoSemente = {
   id: string;
   nome: string;
-  cultura: "MILHO" | "SOJA";
+  cultura: string;
   ativo: boolean;
   created_at: string;
   updated_at: string;

@@ -3,13 +3,83 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Edit2 } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/utils";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
+
+const TratamentoCulturaEdit = ({ tratamento, culturasDisponiveis, onSave }: { tratamento: any, culturasDisponiveis: string[], onSave: (id: string, cultura: string | null) => void }) => {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+
+  // Sincroniza estado quando abre
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      const current = tratamento.cultura 
+        ? String(tratamento.cultura).split(",").map((s: string) => s.trim()).filter(Boolean)
+        : [];
+      setSelected(current);
+    }
+    setOpen(isOpen);
+  };
+
+  const handleToggle = (cultura: string) => {
+    setSelected(prev => 
+      prev.includes(cultura) 
+        ? prev.filter(c => c !== cultura)
+        : [...prev, cultura]
+    );
+  };
+
+  const handleSave = () => {
+    const newVal = selected.length > 0 ? selected.join(", ") : null;
+    onSave(tratamento.id, newVal);
+    setOpen(false);
+  };
+
+  const displayValue = tratamento.cultura || "Sem cultura";
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-auto py-1 px-2 min-w-[120px] justify-start text-left font-normal whitespace-normal">
+          {displayValue}
+          <Edit2 className="ml-2 h-3 w-3 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-4" align="start">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h4 className="font-medium leading-none">Culturas</h4>
+            <p className="text-sm text-muted-foreground">Selecione as culturas para este tratamento.</p>
+          </div>
+          <div className="grid gap-2 max-h-[200px] overflow-y-auto">
+            {culturasDisponiveis.map((c) => (
+              <div key={c} className="flex items-center space-x-2">
+                <Checkbox 
+                  id={`treat-${tratamento.id}-${c}`}
+                  checked={selected.includes(c)}
+                  onCheckedChange={() => handleToggle(c)}
+                />
+                <Label htmlFor={`treat-${tratamento.id}-${c}`} className="cursor-pointer font-normal">
+                  {c}
+                </Label>
+              </div>
+            ))}
+          </div>
+          <Button onClick={handleSave} className="w-full size-sm">
+            Salvar Alterações
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 export const ImportTratamentos = () => {
   const { toast } = useToast();
@@ -155,6 +225,7 @@ export const ImportTratamentos = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>Cultura(s)</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
@@ -164,23 +235,19 @@ export const ImportTratamentos = () => {
                 <TableRow key={t.id}>
                   <TableCell>{t.nome}</TableCell>
                   <TableCell>
+                    <TratamentoCulturaEdit 
+                      tratamento={t} 
+                      culturasDisponiveis={culturasDisponiveis}
+                      onSave={(id, cultura) => updateMutation.mutate({ id, cultura })}
+                    />
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-2">
-                      <select
-                        defaultValue={t.cultura || ""}
-                        onChange={(e) => updateMutation.mutate({ id: t.id, cultura: e.target.value || null })}
-                        className="border rounded px-2 py-1 max-w-[150px]"
-                      >
-                        <option value="">Sem cultura</option>
-                        {culturasDisponiveis.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
                       <Button
                         variant={t.ativo ? "secondary" : "default"}
                         onClick={() => updateMutation.mutate({ id: t.id, ativo: !t.ativo })}
                         disabled={updateMutation.isPending}
+                        size="sm"
                       >
                         {t.ativo ? "Desativar" : "Ativar"}
                       </Button>
