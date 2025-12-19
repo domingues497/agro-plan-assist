@@ -93,8 +93,22 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
   }, [embalagensCultivar, culturaSelecionada]);
   
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
-  const cultivarNome = cultivarSelecionado?.cultivar;
-  const { data: tratamentosDisponiveis = [] } = useTratamentosPorCultivar(cultivarNome);
+  // const cultivarNome = cultivarSelecionado?.cultivar; 
+  
+  // Busca todos os tratamentos e filtra no cliente para suportar múltiplas culturas (separadas por vírgula)
+  const { data: todosTratamentos = [] } = useTratamentosSementes();
+  
+  const tratamentosDisponiveis = useMemo(() => {
+    if (!culturaSelecionada) return [];
+    const culturaTarget = String(culturaSelecionada).trim().toUpperCase();
+    
+    return todosTratamentos.filter((t) => {
+      if (!t.cultura) return false;
+      // Quebra a string "MILHO, SOJA, AVEIA" em array e verifica se inclui a cultura selecionada
+      const culturas = t.cultura.split(",").map((c) => c.trim().toUpperCase());
+      return culturas.includes(culturaTarget);
+    });
+  }, [todosTratamentos, culturaSelecionada]);
   const { data: defensivosCatalog = [] } = useDefensivosCatalog();
   
   // Obter culturas únicas do catálogo (todas as culturas importadas)

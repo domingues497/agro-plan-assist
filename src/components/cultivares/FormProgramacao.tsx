@@ -17,6 +17,7 @@ import { useFazendas } from "@/hooks/useFazendas";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
 import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
+import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
 import { useToast } from "@/hooks/use-toast";
 
 type FormProgramacaoProps = {
@@ -71,7 +72,17 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     tratamento_ids: initialData?.tratamento_ids ?? [],
   });
 
-  const { data: tratamentosIndustriais } = useTratamentosPorCultivar(formData.cultivar);
+  const selectedCultivarForTratamento = (cultivares || []).find((c) => String(c.cultivar || "").trim() === String(formData.cultivar || "").trim());
+  const culturaSelectedForTratamento = selectedCultivarForTratamento?.cultura ? String(selectedCultivarForTratamento.cultura).trim() : "";
+
+  const { data: todosTratamentos = [] } = useTratamentosSementes();
+  const tratamentosIndustriais = todosTratamentos.filter(t => {
+      if (!culturaSelectedForTratamento) return false;
+      if (!t.cultura) return false;
+      const target = culturaSelectedForTratamento.toUpperCase();
+      const culturas = t.cultura.split(",").map(c => c.trim().toUpperCase());
+      return culturas.includes(target);
+  });
   const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoFazenda[]>([]);
   const [temTratamentoIndustrial, setTemTratamentoIndustrial] = useState(false);
 
