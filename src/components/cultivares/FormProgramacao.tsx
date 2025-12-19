@@ -16,6 +16,7 @@ import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
+import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { useToast } from "@/hooks/use-toast";
 
 type FormProgramacaoProps = {
@@ -51,8 +52,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const safrasAtivas = (safras || []).filter((s) => s.ativa);
   const { data: defensivosCatalog } = useDefensivosCatalog();
   const { data: calendarioAplicacoes } = useCalendarioAplicacoes();
-  const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoFazenda[]>([]);
-  
+
   const [formData, setFormData] = useState<CreateProgramacaoCultivar>({
     cultivar: initialData?.cultivar ?? "",
     area: initialData?.area ?? "",
@@ -68,7 +68,12 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     populacao_recomendada: initialData?.populacao_recomendada ?? 0,
     sementes_por_saca: initialData?.sementes_por_saca ?? 0,
     defensivos_fazenda: initialData?.defensivos_fazenda ?? [],
+    tratamento_ids: initialData?.tratamento_ids ?? [],
   });
+
+  const { data: tratamentosIndustriais } = useTratamentosPorCultivar(formData.cultivar);
+  const [defensivosFazenda, setDefensivosFazenda] = useState<DefensivoFazenda[]>([]);
+  const [temTratamentoIndustrial, setTemTratamentoIndustrial] = useState(false);
 
   // Seleciona automaticamente a safra padrão ao iniciar nova programação
   useEffect(() => {
@@ -187,6 +192,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
       if (initialData.defensivos_fazenda) {
         setDefensivosFazenda(initialData.defensivos_fazenda);
       }
+      if (initialData.tratamento_ids && initialData.tratamento_ids.length > 0) {
+        setTemTratamentoIndustrial(true);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData?.produtor_numerocm, initialData?.cultivar]);
@@ -208,23 +216,103 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.semente_propria) {
-      if (defensivosFazenda.length === 0) {
+    if (!formData.produtor_numerocm) {
+      toast({
+        title: "Erro de validação",
+        description: "O campo Produtor é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.area) {
+      toast({
+        title: "Erro de validação",
+        description: "O campo Fazenda é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.cultivar) {
+      toast({
+        title: "Erro de validação",
+        description: "O campo Cultivar é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.data_plantio) {
+      toast({
+        title: "Erro de validação",
+        description: "A Data provável de plantio é obrigatória.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.populacao_recomendada || formData.populacao_recomendada <= 0) {
+      toast({
+        title: "Erro de validação",
+        description: "O campo Sementes por m² (População Recomendada) é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação de Embalagem (verifica se há quantidade calculada ou unidade definida)
+    if (!formData.quantidade || formData.quantidade <= 0 || !formData.unidade) {
+      toast({
+        title: "Erro de validação",
+        description: "Verifique a configuração de Embalagem/Área. A quantidade calculada não pode ser zero e a unidade deve ser definida.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação de Defensivos (Tratamento)
+    if (defensivosFazenda.length > 0) {
+      const temDefensivoInvalido = defensivosFazenda.some(
+        (d) => !d.defensivo || String(d.defensivo).trim().length === 0
+      );
+      if (temDefensivoInvalido) {
         toast({
           title: "Erro de validação",
-          description: "Para semente própria (na fazenda), é necessário adicionar pelo menos um defensivo.",
+          description: "O campo Tratamento (Defensivo) não pode estar vazio.",
           variant: "destructive",
         });
         return;
       }
 
-      const temDefensivoValido = defensivosFazenda.some(
-        (d) => !!d.defensivo && String(d.defensivo).trim().length > 0
+      const temCoberturaInvalida = defensivosFazenda.some(
+        (d) => d.cobertura === undefined || d.cobertura === null || d.cobertura <= 0
       );
-      if (!temDefensivoValido) {
+      if (temCoberturaInvalida) {
         toast({
           title: "Erro de validação",
-          description: "Para semente própria (na fazenda), é necessário selecionar o defensivo.",
+          description: "O campo % Cobertura não pode estar vazio ou zerado nos tratamentos adicionados.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    if (formData.semente_propria) {
+      if (defensivosFazenda.length === 0) {
+        toast({
+          title: "Erro de validação",
+          description: "Para semente própria (na fazenda), é necessário adicionar pelo menos um tratamento (defensivo).",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      // Validação de Tratamento Industrial
+      if (temTratamentoIndustrial && (!formData.tratamento_ids || formData.tratamento_ids.length === 0)) {
+        toast({
+          title: "Erro de validação",
+          description: "Selecione o tratamento industrial ou desmarque a opção 'Semente com Tratamento Industrial'.",
           variant: "destructive",
         });
         return;
@@ -322,8 +410,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
     
     return true;
   });
-  const grupos = Array.from(
-    new Set((cultivares || []).map((c) => String(c.cultivar || "").trim()).filter((x) => x.length > 0))
+  const grupos = Array.from<string>(
+    new Set((cultivares || []).map((c: any) => String(c?.cultivar || "").trim()).filter((x: string) => x.length > 0))
   ).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
   return (
     <Card className="p-6 mb-6">
@@ -445,14 +533,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="populacao_recomendada">População Recomendada (plantas/m²)</Label>
+            <Label htmlFor="populacao_recomendada">População Recomendada (plantas/m²) *</Label>
             <Input
               id="populacao_recomendada"
               type="number"
               step="0.01"
+              min="0.01"
               placeholder="Ex: 28"
               value={formData.populacao_recomendada || ""}
               onChange={(e) => setFormData({ ...formData, populacao_recomendada: parseFloat(e.target.value) || 0 })}
+              required
             />
             <p className="text-xs text-muted-foreground">
               {formData.populacao_recomendada > 0 && `${(formData.populacao_recomendada * 10000).toLocaleString('pt-BR')} plantas/ha`}
@@ -731,12 +821,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="data_plantio">Data Plantio</Label>
+            <Label htmlFor="data_plantio">Data Plantio *</Label>
             <Input
               id="data_plantio"
               type="date"
               value={formData.data_plantio || ""}
               onChange={(e) => setFormData({ ...formData, data_plantio: e.target.value || null })}
+              required
             />
           </div>
         </div>
@@ -824,6 +915,55 @@ export const FormProgramacao = ({ onSubmit, onCancel, isLoading, initialData, ti
               <p className="text-xs text-muted-foreground">
                 Porcentagem da área que usará semente salva
               </p>
+            </div>
+          )}
+
+          {!formData.semente_propria && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="tem_tratamento_industrial"
+                  checked={temTratamentoIndustrial}
+                  onCheckedChange={(checked) => {
+                    const isChecked = !!checked;
+                    setTemTratamentoIndustrial(isChecked);
+                    if (!isChecked) {
+                      setFormData((prev) => ({ ...prev, tratamento_ids: [] }));
+                    }
+                  }}
+                />
+                <Label htmlFor="tem_tratamento_industrial" className="font-medium">
+                  Semente com Tratamento Industrial
+                </Label>
+              </div>
+
+              {temTratamentoIndustrial && (
+                <div className="space-y-2 pl-6">
+                  <Label htmlFor="tratamento_industrial">Tratamento Industrial *</Label>
+                  <Select
+                    value={formData.tratamento_ids?.[0] || ""}
+                    onValueChange={(value) => setFormData({ ...formData, tratamento_ids: [value] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tratamento..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tratamentosIndustriais?.length === 0 ? (
+                         <div className="p-2 text-sm text-muted-foreground">Nenhum tratamento cadastrado para esta cultura.</div>
+                      ) : (
+                         tratamentosIndustriais?.map((t: any) => (
+                           <SelectItem key={t.id} value={t.id}>
+                             {t.nome}
+                           </SelectItem>
+                         ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Selecione o tratamento aplicado na indústria.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

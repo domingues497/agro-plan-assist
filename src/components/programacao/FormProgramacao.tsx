@@ -1060,12 +1060,39 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
         : adubacaoNormal
     };
 
-    // Validação: cada cultivar deve ter embalagem selecionada
-    const cultsSemEmbalagem = itensCultivar.filter((it) => !!it.cultivar && !String(it.tipo_embalagem || "").trim());
-    if (cultsSemEmbalagem.length > 0) {
+    // Validação: campos obrigatórios por cultivar
+    const cultsIncompletas = itensCultivar.some((it) => {
+      // Cultura, Cultivar, Embalagem, Tratamento (tipo), Data Plantio, Sementes/m², % Cobertura
+      if (!it.cultura) return true;
+      if (!it.cultivar) return true;
+      if (!it.tipo_embalagem) return true;
+      if (!it.tipo_tratamento) return true;
+      if (!it.data_plantio) return true;
+      if (!it.populacao_recomendada || it.populacao_recomendada <= 0) return true;
+      if (!it.percentual_cobertura || it.percentual_cobertura <= 0) return true;
+      return false;
+    });
+
+    if (cultsIncompletas) {
       toast({
         title: "Erro de validação",
-        description: "Selecione a embalagem para cada cultivar",
+        description: "Em Cultivares / Sementes, tem que ser obrigatório: Cultura, Cultivar, Embalagem, Tratamento, Data Provável de plantio, Sementes por M2 e % Cobertura.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação: Tratamento Industrial exige seleção do tratamento
+    const cultsIndustrialSemTratamento = itensCultivar.some((it) => {
+      if (it.tipo_tratamento !== "INDUSTRIAL") return false;
+      const ids = it.tratamento_ids;
+      return !ids || ids.length === 0;
+    });
+
+    if (cultsIndustrialSemTratamento) {
+      toast({
+        title: "Erro de validação",
+        description: "Se tiver tratamento INDUSTRIAL tem que selecionar qual tratamento.",
         variant: "destructive",
       });
       return;

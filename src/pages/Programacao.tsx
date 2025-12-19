@@ -286,8 +286,11 @@ export default function Programacao() {
             {showForm && !editing && (
               <FormProgramacao
                 onSubmit={(data) => {
-                  create(data);
-                  setShowForm(false);
+                  create(data, {
+                    onSuccess: () => {
+                      setShowForm(false);
+                    }
+                  });
                 }}
                 onCancel={() => setShowForm(false)}
               />
