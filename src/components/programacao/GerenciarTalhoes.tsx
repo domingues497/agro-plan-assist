@@ -455,7 +455,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, open, onOpen
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Gerenciar Talhões - {fazendaNome}</DialogTitle>
+          <DialogTitle>Gerenciar Talhões- {fazendaNome}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

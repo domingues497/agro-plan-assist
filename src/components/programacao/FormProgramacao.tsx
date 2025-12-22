@@ -15,7 +15,6 @@ import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { useFertilizantesCatalog } from "@/hooks/useFertilizantesCatalog";
 import { useSafras } from "@/hooks/useSafras";
 import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
-import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useTalhoes } from "@/hooks/useTalhoes";
