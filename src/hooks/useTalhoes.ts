@@ -20,6 +20,7 @@ export type Talhao = {
   created_at: string;
   updated_at: string;
   tem_programacao?: boolean;
+  tem_programacao_safra?: boolean;
 };
 
 export const useTalhoes = (fazendaId?: string, safraId?: string) => {

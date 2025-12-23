@@ -106,6 +106,8 @@ export default function Programacao() {
   const [replicateTargets, setReplicateTargets] = useState<Array<{ produtor_numerocm: string; fazenda_idfazenda: string; area_hectares: number }>>([]);
   const { data: fazendasReplicate = [] } = useFazendas(replicateProdutorNumerocm);
   const [areasCalc, setAreasCalc] = useState<Record<string, number>>({});
+  const [talhoesCount, setTalhoesCount] = useState<Record<string, number>>({});
+  const [lockedInitialData, setLockedInitialData] = useState<any>(undefined);
 
   // Gerenciar talhões
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
@@ -123,32 +125,110 @@ export default function Programacao() {
         const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const updates: Record<string, number> = {};
+        const countUpdates: Record<string, number> = {};
+        
         for (const p of programacoes) {
-          if (areasCalc[p.id] !== undefined) continue;
+          // Se já calculou área e contagem, pula
+          if (areasCalc[p.id] !== undefined && talhoesCount[p.id] !== undefined) continue;
+          
           const res = await fetch(`${base}/programacoes/${p.id}/children`, { headers });
-          if (!res.ok) continue;
+          if (!res.ok) {
+            countUpdates[p.id] = 0;
+            updates[p.id] = 0;
+            continue;
+          }
           const children = await res.json();
           const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
-          if (!talhoes || talhoes.length === 0) continue;
+          
+          countUpdates[p.id] = talhoes.length;
+          
+          if (!talhoes || talhoes.length === 0) {
+            updates[p.id] = 0;
+            continue;
+          }
           const fazendaObj = fazendas.find((f: any) => f.idfazenda === p.fazenda_idfazenda && f.numerocm === p.produtor_numerocm);
           const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
           const params = new URLSearchParams();
           if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
           if (p.safra_id) params.set("safra_id", String(p.safra_id));
           const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
-          if (!r2.ok) continue;
+          if (!r2.ok) {
+            updates[p.id] = 0;
+            continue;
+          }
           const j2 = await r2.json();
           const items = ((j2?.items || []) as any[]).filter((t: any) => talhoes.includes(String(t.id)));
           const sum = items.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
-          if (sum > 0) updates[p.id] = sum;
+          updates[p.id] = sum;
         }
         if (Object.keys(updates).length > 0) {
           setAreasCalc((prev) => ({ ...prev, ...updates }));
         }
+        if (Object.keys(countUpdates).length > 0) {
+          setTalhoesCount((prev) => ({ ...prev, ...countUpdates }));
+        }
       } catch {}
     };
     loadAreas();
-  }, [programacoes, areasCalc]);
+  }, [programacoes, areasCalc, talhoesCount]);
+
+  const initialDataMemo = useMemo(() => {
+    if (!editing) return undefined;
+
+    return {
+      produtor_numerocm: editing.produtor_numerocm,
+      fazenda_idfazenda: editing.fazenda_idfazenda,
+      area: editing.area,
+      area_hectares: editing.area_hectares,
+      safra_id: editing.safra_id || undefined,
+      epoca_id: editing.epoca_id || undefined,
+      talhao_ids: editing.talhao_ids || [],
+      cultivares: (() => {
+        const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
+        return cults.map((c: any) => {
+          // Buscar a cultura do catálogo baseado no cultivar
+          const cultivarInfo = cultivaresCatalog.find(cat => cat.cultivar === c.cultivar);
+          return {
+            cultivar: c.cultivar,
+            cultura: cultivarInfo?.cultura || "",
+            percentual_cobertura: Number(c.percentual_cobertura) || 0,
+            tipo_embalagem: c.tipo_embalagem,
+            tipo_tratamento: c.tipo_tratamento,
+            tratamento_ids: (editingTratamentos as Record<string, string[]>)[c.id]
+              ?? (Array.isArray(c.tratamento_ids) ? c.tratamento_ids : (c.tratamento_id ? [c.tratamento_id] : [])),
+            tratamento_id: c.tratamento_id || undefined,
+            data_plantio: c.data_plantio || undefined,
+            populacao_recomendada: Number(c.populacao_recomendada) || 0,
+            semente_propria: Boolean(c.semente_propria),
+            referencia_rnc_mapa: c.referencia_rnc_mapa || undefined,
+            sementes_por_saca: Number(c.sementes_por_saca) || 0,
+            defensivos_fazenda: editingDefensivos[c.id] || []
+          };
+        });
+      })(),
+      adubacao: (() => {
+        const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
+        return adubs.map((a: any) => ({
+          formulacao: a.formulacao,
+          dose: Number(a.dose) || 0,
+          percentual_cobertura: Number(a.percentual_cobertura) || 0,
+          data_aplicacao: a.data_aplicacao || undefined,
+          embalagem: a.embalagem || undefined,
+          justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
+        }));
+      })()
+    };
+  }, [editing, cultivaresList, cultivaresCatalog, editingTratamentos, editingDefensivos, adubacaoList]);
+
+  // Lock initialData to prevent updates from background refreshes
+  useEffect(() => {
+    if (editing && !lockedInitialData && initialDataMemo) {
+      setLockedInitialData(initialDataMemo);
+    }
+    if (!editing) {
+      setLockedInitialData(undefined);
+    }
+  }, [editing, initialDataMemo, lockedInitialData]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -298,51 +378,10 @@ export default function Programacao() {
 
             {editing && (
               <FormProgramacao
+                key={editing.id}
                 submitLabel={isUpdating ? "Salvando..." : "Salvar alterações"}
                 readOnly={isConsultor && !canEditProgramacao}
-                initialData={{
-                  produtor_numerocm: editing.produtor_numerocm,
-                  fazenda_idfazenda: editing.fazenda_idfazenda,
-                  area: editing.area,
-                  area_hectares: editing.area_hectares,
-                  safra_id: editing.safra_id || undefined,
-                  epoca_id: editing.epoca_id || undefined,
-                  talhao_ids: editing.talhao_ids || [],
-                  cultivares: (() => {
-                    const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
-                    return cults.map((c: any) => {
-                      // Buscar a cultura do catálogo baseado no cultivar
-                      const cultivarInfo = cultivaresCatalog.find(cat => cat.cultivar === c.cultivar);
-                      return {
-                        cultivar: c.cultivar,
-                        cultura: cultivarInfo?.cultura || "",
-                        percentual_cobertura: Number(c.percentual_cobertura) || 0,
-                        tipo_embalagem: c.tipo_embalagem,
-                        tipo_tratamento: c.tipo_tratamento,
-                        tratamento_ids: (editingTratamentos as Record<string, string[]>)[c.id]
-                          ?? (Array.isArray(c.tratamento_ids) ? c.tratamento_ids : (c.tratamento_id ? [c.tratamento_id] : [])),
-                        tratamento_id: c.tratamento_id || undefined,
-                        data_plantio: c.data_plantio || undefined,
-                        populacao_recomendada: Number(c.populacao_recomendada) || 0,
-                        semente_propria: Boolean(c.semente_propria),
-                        referencia_rnc_mapa: c.referencia_rnc_mapa || undefined,
-                        sementes_por_saca: Number(c.sementes_por_saca) || 0,
-                        defensivos_fazenda: editingDefensivos[c.id] || []
-                      };
-                    });
-                  })(),
-                  adubacao: (() => {
-                    const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
-                    return adubs.map((a: any) => ({
-                      formulacao: a.formulacao,
-                      dose: Number(a.dose) || 0,
-                      percentual_cobertura: Number(a.percentual_cobertura) || 0,
-                      data_aplicacao: a.data_aplicacao || undefined,
-                      embalagem: a.embalagem || undefined,
-                      justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
-                    }));
-                  })()
-                }}
+                initialData={lockedInitialData}
                 onSubmit={(data) => {
                   update({ id: editing.id, ...data }).then(() => {
                     setEditing(null);
@@ -383,6 +422,12 @@ export default function Programacao() {
                           <h3 className="font-semibold text-lg">
                             {prog.produtor_numerocm} - {produtor?.nome || ""}
                           </h3>
+                          {talhoesCount[prog.id] === 0 && (
+                            <Badge variant="destructive" className="text-xs">
+                              Programação Replicada Favor Informar Talhão
+                            </Badge>
+                          )}
+                        </div>
                           <p className="flex items-center gap-2">
                             <span className="font-medium">Fazenda:</span>
                             <span>
@@ -423,8 +468,6 @@ export default function Programacao() {
                         </div>
                         
                         
-                      </div>
-                      
                    <div className="flex items-center gap-2">
                     <Button
                       variant="outline"

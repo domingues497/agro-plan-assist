@@ -36,8 +36,12 @@ const parseNumber = (value: unknown): number => {
   return Number.isFinite(numeric) ? numeric : 0;
 };
 
+import { useAdminRole } from "@/hooks/useAdminRole";
+
 const Relatorios = () => {
-  const { programacoes: cultivares } = useProgramacaoCultivares();
+  const { data: adminRole } = useAdminRole();
+  const isAdmin = !!adminRole?.isAdmin;
+  const { programacoes: cultProgramacoes = [] } = useProgramacaoCultivares();
   const { programacoes: adubacoes } = useProgramacaoAdubacao();
   const { aplicacoes: defensivos } = useAplicacoesDefensivos();
   const { safras = [] } = useSafras() as any;
@@ -567,7 +571,7 @@ const Relatorios = () => {
     }
   });
 
-  const cultivaresList = cultivares ?? [];
+  const cultivaresList = cultProgramacoes ?? [];
   const adubacoesList = adubacoes ?? [];
   const defensivosList = defensivos ?? [];
 
@@ -844,6 +848,7 @@ const Relatorios = () => {
           </div>
         </div>
 
+        {isAdmin && (
         <div className="mb-6 p-4 border rounded-lg bg-card">
           <h2 className="text-lg font-bold mb-4">Relatório Detalhado por Consultor</h2>
           <div className="flex flex-col md:flex-row gap-4 items-end">
@@ -923,6 +928,7 @@ const Relatorios = () => {
             </div>
           </div>
         </div>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="p-6">

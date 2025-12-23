@@ -304,7 +304,7 @@ Talhões: ${nomes}.`
         area_hectares,
         safra_id: original.safra_id || undefined,
         epoca_id: undefined,
-        talhao_ids: children?.talhoes || [],
+        talhao_ids: [],
         cultivares: cultivaresSrc.map(c => ({
           cultivar: c.cultivar,
           percentual_cobertura: Number(c.percentual_cobertura) || 0,

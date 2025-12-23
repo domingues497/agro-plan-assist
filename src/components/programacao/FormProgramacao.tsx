@@ -77,19 +77,26 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
     }
   }, [item.cultura]);
 
-  useEffect(() => {
-    const filtered = (embalagensCultivar || []).filter((e) => {
+  // Filtra embalagens disponíveis para a cultura selecionada
+  const embalagensDisponiveis = useMemo(() => {
+    const list = (embalagensCultivar || []).filter((e) => {
       const ec = String(e?.cultura || "").trim();
       const cc = String(culturaSelecionada || "").trim();
       const ecs = ec ? ec.split(",").map((s) => s.trim()).filter(Boolean) : [];
       return ecs.length === 0 || (cc && ecs.includes(cc));
     });
-    const sel = String(item.tipo_embalagem || "");
-    if (sel && !filtered.some((e) => e.nome === sel)) {
-      onChange(index, "tipo_embalagem", "");
+    
+    // Se houver uma embalagem selecionada que não está na lista (ex: inativa ou erro de carga),
+    // adiciona ela temporariamente para não quebrar a visualização no Select
+    const atual = String(item.tipo_embalagem || "").trim();
+    if (atual && !list.some(e => e.nome === atual)) {
+      return [...list, { id: 'temp-legacy', nome: atual, cultura: null }];
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [embalagensCultivar, culturaSelecionada]);
+    
+    return list;
+  }, [embalagensCultivar, culturaSelecionada, item.tipo_embalagem]);
+
+  // Removido useEffect que limpava tipo_embalagem automaticamente para evitar perda de dados em race conditions
   
   const cultivarSelecionado = cultivaresCatalog.find(c => c.cultivar === item.cultivar);
   // const cultivarNome = cultivarSelecionado?.cultivar; 
@@ -298,16 +305,9 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
                 <SelectValue placeholder="Selecione a embalagem" />
               </SelectTrigger>
               <SelectContent>
-                {(embalagensCultivar || [])
-                  .filter((e) => {
-                    const ec = String(e?.cultura || "").trim();
-                    const cc = String(culturaSelecionada || "").trim();
-                    const ecs = ec ? ec.split(",").map((s) => s.trim()).filter(Boolean) : [];
-                    return ecs.length === 0 || (cc && ecs.includes(cc));
-                  })
-                  .map((e) => (
-                    <SelectItem key={e.id} value={e.nome}>{e.nome}</SelectItem>
-                  ))}
+                {embalagensDisponiveis.map((e) => (
+                  <SelectItem key={e.id} value={e.nome}>{e.nome}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -745,28 +745,27 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     // Marca que estamos carregando initialData
     isLoadingInitialData.current = true;
     
-    // Primeiro filtra as fazendas do produtor
+    // Configura campos básicos
     if (typeof initialData.produtor_numerocm === "string") {
       setProdutorNumerocm(initialData.produtor_numerocm);
-      const filtered = fazendas.filter(f => f.numerocm === initialData.produtor_numerocm);
-      setFazendaFiltrada(filtered);
+      // Nota: fazendaFiltrada será atualizada pelo useEffect dedicado a [fazendas, produtorNumerocm]
     }
     
     if (typeof initialData.fazenda_idfazenda === "string") {
       setFazendaIdfazenda(initialData.fazenda_idfazenda);
-      const f0 = (fazendas || []).find((f: any) => String(f.idfazenda) === String(initialData.fazenda_idfazenda))
-        || fazendaFiltrada.find((f: any) => String(f.idfazenda) === String(initialData.fazenda_idfazenda));
-      setSelectedFazendaUuid(f0?.id);
     }
+    
     if (typeof initialData.area === "string") setArea(initialData.area);
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
     if (typeof (initialData as any).epoca_id === "string") setEpocaId((initialData as any).epoca_id);
+    
     // Carregar talhões selecionados (normaliza para string)
     if (Array.isArray((initialData as any).talhao_ids)) {
       const norm = ((initialData as any).talhao_ids || []).map((id: any) => String(id));
       setTalhaoIds(norm);
     }
+    
     if (Array.isArray(initialData.cultivares)) setItensCultivar(initialData.cultivares.map((c) => {
       const tipo = normalizeTipoTratamento((c as any).tipo_tratamento);
       const base: ItemCultivar & { uiId: string } = { ...(c as ItemCultivar), tipo_tratamento: tipo, uiId: makeUiId() };
@@ -777,17 +776,31 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       }
       return base;
     }));
+    
     if (Array.isArray(initialData.adubacao)) setItensAdubacao((initialData.adubacao as ItemAdubacao[]).map((a: any) => ({
       ...a,
       data_aplicacao: normalizeDateInput(a?.data_aplicacao)
     })));
+    
     // Detecta caso de "não fazer adubação" quando há apenas justificativa sem formulação
     if (Array.isArray(initialData.adubacao)) {
       const temFormulacao = initialData.adubacao.some((a) => !!(a as ItemAdubacao).formulacao);
       const temJustificativa = initialData.adubacao.some((a) => !!(a as ItemAdubacao).justificativa_nao_adubacao_id);
       setNaoFazerAdubacao(!!temJustificativa && !temFormulacao);
     }
-  }, [initialData, fazendas]);
+  }, [initialData]); // Removido fazendas da dependência para evitar reset ao atualizar lista
+
+  // Resolve o UUID da fazenda selecionada (necessário para buscar talhões)
+  useEffect(() => {
+    if (!initialData?.fazenda_idfazenda) return;
+    
+    const f0 = (fazendas || []).find((f: any) => String(f.idfazenda) === String(initialData.fazenda_idfazenda))
+      || fazendaFiltrada.find((f: any) => String(f.idfazenda) === String(initialData.fazenda_idfazenda));
+      
+    if (f0?.id) {
+      setSelectedFazendaUuid(f0.id);
+    }
+  }, [fazendas, fazendaFiltrada, initialData]);
 
   // Garante consistência: quando as fazendas carregarem, refiltra para o produtor atual
   useEffect(() => {
@@ -831,6 +844,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       setFazendaFiltrada(filtered);
       // Em modo edição, não limpar automaticamente os campos
       if (!initialData) {
+        console.log("Clearing fields due to produtor change");
         setFazendaIdfazenda("");
         setArea("");
         setTalhaoIds([]);
@@ -839,6 +853,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       }
     }
   }, [produtorNumerocm, fazendas]);
+
+  // Ref para rastrear mudança de fazenda
+  const prevFazendaIdRef = useRef<string | undefined>(undefined);
 
   // Limpa talhões ao trocar de fazenda e atualiza o nome da área
   useEffect(() => {
@@ -849,10 +866,15 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
     // Sincroniza o campo de "área" (nome da fazenda) com a fazenda selecionada
     setArea(fazendaSelecionada?.nomefazenda || "");
-    // Limpa talhões selecionados ao trocar de fazenda
-    if (!initialData) {
-      setTalhaoIds([]);
-      setAreaHectares("");
+    
+    // Limpa talhões selecionados APENAS se trocou de fazenda (ID mudou)
+    // Se for apenas atualização da lista de fazendas (refetch), mantém a seleção
+    if (prevFazendaIdRef.current !== fazendaIdfazenda) {
+      if (!initialData) {
+        setTalhaoIds([]);
+        setAreaHectares("");
+      }
+      prevFazendaIdRef.current = fazendaIdfazenda;
     }
   }, [fazendaIdfazenda, fazendaFiltrada]);
 
@@ -1146,9 +1168,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
     try {
       const defensivosSnapshot = (data.cultivares || []).flatMap((c: any) => c?.defensivos_fazenda || []);
-      if (defensivosSnapshot.length > 0) {
-        console.log("[programacao:submit] defensivos_fazenda:", defensivosSnapshot);
-      }
     } catch {}
     onSubmit(data);
   };
@@ -1250,6 +1269,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
               <div className="border rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
                 {talhoesDaFazenda
                   .filter((t) => !fazendaSelecionadaId || String(t.fazenda_id) === String(fazendaSelecionadaId))
+                  .filter((t) => isEditing || !t.tem_programacao_safra)
                   .map((talhao) => (
                   <div key={talhao.id} className="flex items-center space-x-2 py-1">
                     <Checkbox
