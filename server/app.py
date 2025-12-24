@@ -418,7 +418,7 @@ def list_produtores():
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            base = "SELECT id, numerocm, nome, numerocm_consultor, consultor, created_at, updated_at FROM public.produtores"
+            base = "SELECT id, numerocm, nome, numerocm_consultor, consultor, assistencia, compra_insumos, entrega_producao, paga_assistencia, observacao_flags, created_at, updated_at FROM public.produtores"
             params = []
             where = []
             role = None
@@ -551,6 +551,59 @@ def import_produtores():
                     [str(uuid.uuid4()), user_id, "produtores", imported, 0, arquivo_nome, False]
                 )
         return jsonify({"ok": True, "imported": imported, "deleted": 0})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
+@app.route("/produtores/<id>", methods=["PUT"])
+def update_produtor(id: str):
+    ensure_produtores_schema()
+    payload = request.get_json(silent=True) or {}
+    
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM public.produtores WHERE id = %s", [id])
+                if not cur.fetchone():
+                    return jsonify({"error": "não encontrado"}), 404
+
+                set_clauses = []
+                values = []
+
+                if "compra_insumos" in payload:
+                    set_clauses.append("compra_insumos = %s")
+                    values.append(bool(payload.get("compra_insumos")))
+
+                if "entrega_producao" in payload:
+                    set_clauses.append("entrega_producao = %s")
+                    values.append(bool(payload.get("entrega_producao")))
+
+                if "entrega_producao_destino" in payload:
+                    set_clauses.append("entrega_producao_destino = %s")
+                    values.append(payload.get("entrega_producao_destino"))
+                    
+                if "paga_assistencia" in payload:
+                    set_clauses.append("paga_assistencia = %s")
+                    values.append(bool(payload.get("paga_assistencia")))
+                    
+                if "observacao_flags" in payload:
+                    set_clauses.append("observacao_flags = %s")
+                    values.append(payload.get("observacao_flags"))
+
+                if not set_clauses:
+                    return jsonify({"ok": True, "msg": "Nada a atualizar"})
+                
+                set_clauses.append("updated_at = now()")
+                
+                query = f"UPDATE public.produtores SET {', '.join(set_clauses)} WHERE id = %s"
+                values.append(id)
+                
+                cur.execute(query, values)
+                
+        return jsonify({"ok": True, "id": id})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
     finally:

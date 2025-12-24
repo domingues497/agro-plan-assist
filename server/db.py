@@ -345,11 +345,24 @@ def ensure_produtores_schema():
                       consultor TEXT,
                       tipocooperado TEXT,
                       assistencia TEXT,
+                      compra_insumos BOOLEAN DEFAULT true,
+                      entrega_producao BOOLEAN DEFAULT true,
+                      paga_assistencia BOOLEAN DEFAULT true,
+                      observacao_flags TEXT,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
                     """
                 )
+                # Adicionar colunas caso nao existam (migracao)
+                try:
+                    cur.execute("ALTER TABLE public.produtores ADD COLUMN IF NOT EXISTS compra_insumos BOOLEAN DEFAULT true")
+                    cur.execute("ALTER TABLE public.produtores ADD COLUMN IF NOT EXISTS entrega_producao BOOLEAN DEFAULT true")
+                    cur.execute("ALTER TABLE public.produtores ADD COLUMN IF NOT EXISTS entrega_producao_destino TEXT")
+                    cur.execute("ALTER TABLE public.produtores ADD COLUMN IF NOT EXISTS paga_assistencia BOOLEAN DEFAULT true")
+                    cur.execute("ALTER TABLE public.produtores ADD COLUMN IF NOT EXISTS observacao_flags TEXT")
+                except Exception:
+                    pass
     finally:
         pool.putconn(conn)
 

@@ -28,6 +28,11 @@ class Produtor(Base):
     consultor = Column(String)
     tipocooperado = Column(String)
     assistencia = Column(String)
+    compra_insumos = Column(Boolean, default=True)
+    entrega_producao = Column(Boolean, default=True)
+    entrega_producao_destino = Column(String)
+    paga_assistencia = Column(Boolean, default=True)
+    observacao_flags = Column(String)
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 

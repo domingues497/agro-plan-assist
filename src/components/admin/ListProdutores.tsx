@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,8 +17,9 @@ import {
 import { Label } from "@/components/ui/label";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2, Flag } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/utils";
+import { GerenciarFlagsDialog } from "@/components/programacao/GerenciarFlagsDialog";
 
 export const ListProdutores = () => {
   const { data = [], isLoading, error } = useProdutores();
@@ -28,7 +29,15 @@ export const ListProdutores = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [openDeleteId, setOpenDeleteId] = useState<string | null>(null);
+  
+  // State for Flags Dialog
+  const [flagsProdutorId, setFlagsProdutorId] = useState<string | null>(null);
+
   const qc = useQueryClient();
+
+  const handleOpenFlags = (p: any) => {
+    setFlagsProdutorId(p.id);
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -142,6 +151,14 @@ export const ListProdutores = () => {
 
                   <TableCell>
                     <div className="flex items-center gap-2">
+                      <Button 
+                        variant={(p.compra_insumos === false || p.entrega_producao === false || p.paga_assistencia === false) ? "destructive" : "outline"}
+                        size="sm" 
+                        onClick={() => handleOpenFlags(p)}
+                        title={(p.compra_insumos === false || p.entrega_producao === false || p.paga_assistencia === false) ? "Pendências nos flags" : "Gerenciar flags"}
+                      >
+                        <Flag className="h-3.5 w-3.5 mr-1" /> Flags
+                      </Button>
                       <Button variant="destructive" size="sm" onClick={() => setOpenDeleteId(p.id)}>
                         <Trash2 className="h-3.5 w-3.5" /> Excluir
                       </Button>
@@ -180,6 +197,13 @@ export const ListProdutores = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Dialog de Flags */}
+        <GerenciarFlagsDialog
+          produtorId={flagsProdutorId || undefined}
+          open={!!flagsProdutorId}
+          onOpenChange={(open) => !open && setFlagsProdutorId(null)}
+        />
 
         {/* Ação de editar removida */}
       </CardContent>

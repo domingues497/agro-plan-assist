@@ -111,7 +111,7 @@ export default function Programacao() {
 
   // Gerenciar talhões
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
-  const [fazendaParaTalhoes, setFazendaParaTalhoes] = useState<{ id: string; nome: string } | null>(null);
+  const [fazendaParaTalhoes, setFazendaParaTalhoes] = useState<{ id: string; nome: string; produtorId?: string; produtorNumerocm?: string } | null>(null);
   const [openGerenciarSelector, setOpenGerenciarSelector] = useState(false);
   const [onlyFazendasComTalhao, setOnlyFazendasComTalhao] = useState(false);
   const [onlyFazendasSemTalhao, setOnlyFazendasSemTalhao] = useState(false);
@@ -308,7 +308,8 @@ export default function Programacao() {
                             key={`${f.id}`}
                             value={`${f.numerocm} ${f.nomefazenda}`}
                             onSelect={() => {
-                              setFazendaParaTalhoes({ id: f.id, nome: f.nomefazenda });
+                              const produtor = produtores.find(p => String(p.numerocm).trim() === String(f.numerocm).trim());
+                              setFazendaParaTalhoes({ id: f.id, nome: f.nomefazenda, produtorId: produtor?.id, produtorNumerocm: f.numerocm });
                               setGerenciarTalhoesOpen(true);
                               setOpenGerenciarSelector(false);
                             }}
@@ -456,7 +457,7 @@ export default function Programacao() {
                               className="h-6 w-6"
                               onClick={() => {
                                 if (fazenda) {
-                                  setFazendaParaTalhoes({ id: fazenda.id, nome: fazenda.nomefazenda });
+                                  setFazendaParaTalhoes({ id: fazenda.id, nome: fazenda.nomefazenda, produtorId: produtor?.id });
                                   setGerenciarTalhoesOpen(true);
                                 }
                               }}
@@ -782,6 +783,8 @@ export default function Programacao() {
       <GerenciarTalhoes
         fazendaId={fazendaParaTalhoes.id}
         fazendaNome={fazendaParaTalhoes.nome}
+        produtorId={fazendaParaTalhoes.produtorId}
+        produtorNumerocm={fazendaParaTalhoes.produtorNumerocm}
         safraId={defaultSafra?.id}
         open={gerenciarTalhoesOpen}
         onOpenChange={setGerenciarTalhoesOpen}

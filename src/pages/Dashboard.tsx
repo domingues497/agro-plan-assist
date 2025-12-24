@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
+import { GerenciarFlagsDialog } from "@/components/programacao/GerenciarFlagsDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { getApiBaseUrl } from "@/lib/utils";
@@ -60,8 +61,10 @@ const Dashboard = () => {
 
   // Estados do modal de área removidos - agora gerenciado via talhões
   const [gerenciarTalhoesOpen, setGerenciarTalhoesOpen] = useState(false);
+  const [gerenciarFlagsOpen, setGerenciarFlagsOpen] = useState(false);
+  const [produtorSelecionadoParaFlags, setProdutorSelecionadoParaFlags] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
-  const [fazendaSelecionada, setFazendaSelecionada] = useState<{ id: string; nome: string } | null>(null);
+  const [fazendaSelecionada, setFazendaSelecionada] = useState<{ id: string; nome: string; produtorNumerocm?: string } | null>(null);
   const [searchProdutor, setSearchProdutor] = useState<string>("");
   const [onlyComTalhao, setOnlyComTalhao] = useState<boolean>(false);
   const [onlySemTalhao, setOnlySemTalhao] = useState<boolean>(false);
@@ -396,8 +399,22 @@ const Dashboard = () => {
 
                 return (
                   <div key={produtor.numerocm} className="border rounded-lg p-4 space-y-3">
-                    <div className="font-medium text-sm text-muted-foreground">
-                      {produtor.nome}
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-sm text-muted-foreground">
+                        {produtor.nome}
+                      </div>
+                      <Button
+                        variant={(produtor.compra_insumos === false || produtor.entrega_producao === false || produtor.paga_assistencia === false) ? "destructive" : "ghost"}
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          setProdutorSelecionadoParaFlags(produtor.numerocm);
+                          setGerenciarFlagsOpen(true);
+                        }}
+                        title="Configurar Flags do Produtor"
+                      >
+                        <Settings className="h-3 w-3" />
+                      </Button>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {fazendas.map((fazenda) => (
@@ -415,11 +432,16 @@ const Dashboard = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              setFazendaSelecionada({ id: fazenda.id, nome: fazenda.nomefazenda });
+                              setFazendaSelecionada({ 
+                                id: fazenda.id, 
+                                nome: fazenda.nomefazenda,
+                                produtorNumerocm: produtor.numerocm 
+                              });
                               setGerenciarTalhoesOpen(true);
                             }}
+                            title="Gerenciar Talhões"
                           >
-                            <Settings className="h-4 w-4" />
+                            <MapPin className="h-4 w-4" />
                           </Button>
                         </div>
                       ))}
@@ -460,10 +482,19 @@ const Dashboard = () => {
         {/* Bloco 'Safra atual' removido conforme solicitado */}
       </main>
 
+      {produtorSelecionadoParaFlags && (
+        <GerenciarFlagsDialog
+          produtorNumerocm={produtorSelecionadoParaFlags}
+          open={gerenciarFlagsOpen}
+          onOpenChange={setGerenciarFlagsOpen}
+        />
+      )}
+
       {fazendaSelecionada && (
         <GerenciarTalhoes
           fazendaId={fazendaSelecionada.id}
           fazendaNome={fazendaSelecionada.nome}
+          produtorNumerocm={fazendaSelecionada.produtorNumerocm}
           open={gerenciarTalhoesOpen}
           onOpenChange={setGerenciarTalhoesOpen}
         />

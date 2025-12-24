@@ -8,12 +8,17 @@ export type Produtor = {
   consultor: string | null;
   tipocooperado: string | null;
   assistencia: string | null;
+  compra_insumos?: boolean;
+  entrega_producao?: boolean;
+  entrega_producao_destino?: string;
+  paga_assistencia?: boolean;
+  observacao_flags?: string;
   created_at: string | null;
   updated_at: string | null;
 };
 
 export const useProdutores = () => {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["produtores", "by-consultor"],
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
@@ -34,5 +39,5 @@ export const useProdutores = () => {
     },
   });
 
-  return { data: data ?? [], isLoading, error };
+  return { data: data ?? [], isLoading, error, refetch };
 };
