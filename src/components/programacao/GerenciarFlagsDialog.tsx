@@ -85,7 +85,7 @@ export function GerenciarFlagsDialog({ produtorNumerocm, produtorId, open, onOpe
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="p-6 pb-2 border-b shrink-0">
-          <DialogTitle>Gerenciar Flags - {produtor.nome}</DialogTitle>
+          <DialogTitle>{produtor.nome}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 py-4 min-h-0">
