@@ -128,38 +128,42 @@ export default function Programacao() {
         const countUpdates: Record<string, number> = {};
         
         for (const p of programacoes) {
-          // Se já calculou área e contagem, pula
-          if (areasCalc[p.id] !== undefined && talhoesCount[p.id] !== undefined) continue;
-          
-          const res = await fetch(`${base}/programacoes/${p.id}/children`, { headers });
-          if (!res.ok) {
-            countUpdates[p.id] = 0;
-            updates[p.id] = 0;
-            continue;
+          try {
+            // Se já calculou área e contagem, pula
+            if (areasCalc[p.id] !== undefined && talhoesCount[p.id] !== undefined) continue;
+            
+            const res = await fetch(`${base}/programacoes/${p.id}/children`, { headers });
+            if (!res.ok) {
+              countUpdates[p.id] = 0;
+              updates[p.id] = 0;
+              continue;
+            }
+            const children = await res.json();
+            const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
+            
+            countUpdates[p.id] = talhoes.length;
+            
+            if (!talhoes || talhoes.length === 0) {
+              updates[p.id] = 0;
+              continue;
+            }
+            const fazendaObj = fazendas.find((f: any) => f.idfazenda === p.fazenda_idfazenda && f.numerocm === p.produtor_numerocm);
+            const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
+            const params = new URLSearchParams();
+            if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
+            if (p.safra_id) params.set("safra_id", String(p.safra_id));
+            const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
+            if (!r2.ok) {
+              updates[p.id] = 0;
+              continue;
+            }
+            const j2 = await r2.json();
+            const items = ((j2?.items || []) as any[]).filter((t: any) => talhoes.includes(String(t.id)));
+            const sum = items.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
+            updates[p.id] = sum;
+          } catch (error) {
+            console.error(`Erro ao calcular área da programação ${p.id}:`, error);
           }
-          const children = await res.json();
-          const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
-          
-          countUpdates[p.id] = talhoes.length;
-          
-          if (!talhoes || talhoes.length === 0) {
-            updates[p.id] = 0;
-            continue;
-          }
-          const fazendaObj = fazendas.find((f: any) => f.idfazenda === p.fazenda_idfazenda && f.numerocm === p.produtor_numerocm);
-          const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
-          const params = new URLSearchParams();
-          if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
-          if (p.safra_id) params.set("safra_id", String(p.safra_id));
-          const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
-          if (!r2.ok) {
-            updates[p.id] = 0;
-            continue;
-          }
-          const j2 = await r2.json();
-          const items = ((j2?.items || []) as any[]).filter((t: any) => talhoes.includes(String(t.id)));
-          const sum = items.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
-          updates[p.id] = sum;
         }
         if (Object.keys(updates).length > 0) {
           setAreasCalc((prev) => ({ ...prev, ...updates }));
