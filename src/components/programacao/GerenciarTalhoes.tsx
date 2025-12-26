@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Trash2, Plus, Pencil, Upload, Flag, Settings } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useTalhoes } from "@/hooks/useTalhoes";
 import { useSafras } from "@/hooks/useSafras";
 import { useProdutores } from "@/hooks/useProdutores";
@@ -97,6 +98,16 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
   const [geoPreview, setGeoPreview] = useState<any | null>(null);
   const [pendingKml, setPendingKml] = useState<any | null>(null);
   const [selectedKmlName, setSelectedKmlName] = useState<string | null>(null);
+  
+  const [importMode, setImportMode] = useState<"kml" | "manual">("manual");
+  const [manualCoords, setManualCoords] = useState<{lat: number, lng: number} | null>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const importModeRef = useRef("manual");
+
+  useEffect(() => {
+    importModeRef.current = importMode;
+  }, [importMode]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -121,13 +132,37 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
       return;
     }
 
+    let manualGeoData: any = {};
+    if (importMode === "manual") {
+      if (!manualCoords) {
+        toast.error("É obrigatório selecionar a localização no mapa para salvar.");
+        return;
+      }
+      manualGeoData = {
+        centroid_lat: manualCoords.lat,
+        centroid_lng: manualCoords.lng,
+        geojson: {
+          type: "Point",
+          coordinates: [manualCoords.lng, manualCoords.lat]
+        }
+      };
+    }
+
     try {
       const baseUrl = getApiBaseUrl();
+      const basePayload = { 
+        nome: editando.nome, 
+        area, 
+        arrendado: editando.arrendado, 
+        safras_todas: editando.safras_todas, 
+        safras: editando.safras_sel 
+      };
+
       if (editando.id) {
         const res = await fetch(`${baseUrl}/talhoes/${editando.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nome: editando.nome, area, arrendado: editando.arrendado, safras_todas: editando.safras_todas, safras: editando.safras_sel }),
+          body: JSON.stringify({ ...basePayload, ...manualGeoData }),
         });
         if (!res.ok) {
           const txt = await res.text();
@@ -138,7 +173,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
         const res = await fetch(`${baseUrl}/talhoes`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fazenda_id: fazendaId, nome: editando.nome, area, arrendado: editando.arrendado, safras_todas: editando.safras_todas, safras: editando.safras_sel }),
+          body: JSON.stringify({ fazenda_id: fazendaId, ...basePayload, ...manualGeoData }),
         });
         if (!res.ok) {
           const txt = await res.text();
@@ -146,7 +181,8 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
         }
         const json = await res.json();
         const newId = json?.id as string;
-        if (pendingKml && newId) {
+        
+        if (importMode === "kml" && pendingKml && newId) {
           try {
             const putRes = await fetch(`${baseUrl}/talhoes/${newId}`, {
               method: "PUT",
@@ -208,98 +244,121 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
     leafletReadyRef.current = true;
   };
 
-  /**
-   * Renderiza o mapa usando:
-   * - Satélite (Esri World Imagery)
-   * - Ruas (OpenStreetMap)
-   * - Híbrido (Satélite + rótulos Esri)
-   * Tudo sem necessidade de chave de API.
-   */
-  const renderMap = async (geojson: any) => {
-    try {
-      await loadLeaflet();
-      const L = (window as any).L;
-      if (!mapRef.current) return;
-      mapRef.current.innerHTML = "";
-
-      const map = L.map(mapRef.current, { zoomControl: true });
-
-      // Camadas base (sem MapQuest, tudo free)
-      const satellite = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        {
-          attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
-          maxZoom: 19,
-        }
-      );
-
-      const roads = L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        {
-          attribution: "© OpenStreetMap",
-          maxZoom: 19,
-        }
-      );
-
-      const hybrid = L.layerGroup([
-        L.tileLayer(
-          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-          {
-            maxZoom: 19,
-          }
-        ),
-        L.tileLayer(
-          "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-          {
-            maxZoom: 19,
-          }
-        ),
-      ]);
-
-      const baseLayers: Record<string, any> = {
-        "Satélite": satellite,
-        "Ruas (OSM)": roads,
-        "Híbrido": hybrid,
-      };
-
-      // Satélite como padrão
-      satellite.addTo(map);
-
-      const layer = L.geoJSON(geojson, {
-        style: {
-          color: "#d00",
-          weight: 2,
-          fillColor: "#d00",
-          fillOpacity: 0.25,
-        },
-      });
-      layer.addTo(map);
-
-      L.control.layers(baseLayers, { "Área KML": layer }, { position: "topright", collapsed: false }).addTo(map);
-
-      try {
-        const b = layer.getBounds();
-        if (b && b.isValid()) map.fitBounds(b, { padding: [20, 20] });
-      } catch {}
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
+  // Effect to sync state from editando
   useEffect(() => {
     if (!editando?.id) {
       setGeoPreview(null);
+      setImportMode("manual");
+      setManualCoords(null);
       return;
     }
     const talhao = talhoes.find((t) => t.id === editando.id);
     const gj = (talhao as any)?.geojson;
-    if (gj) {
+    const hasKml = !!(talhao as any)?.kml_name;
+
+    if (hasKml) {
+      setImportMode("kml");
       setGeoPreview(gj);
-      renderMap(gj);
+      setManualCoords(null);
     } else {
+      setImportMode("manual");
       setGeoPreview(null);
+      const lat = (talhao as any)?.centroid_lat;
+      const lng = (talhao as any)?.centroid_lng;
+      if (lat && lng) {
+        setManualCoords({ lat, lng });
+      } else {
+        setManualCoords(null);
+      }
     }
   }, [editando?.id]);
+
+  // Initialize Map
+  useEffect(() => {
+    if (!editando) return;
+
+    let isActive = true;
+    const initMap = async () => {
+      await loadLeaflet();
+      if (!isActive) return;
+      
+      const L = (window as any).L;
+      if (!mapRef.current) return;
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+      }
+
+      const map = L.map(mapRef.current, { zoomControl: true });
+      mapInstanceRef.current = map;
+
+      const satellite = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "Tiles © Esri", maxZoom: 19 }
+      );
+      const roads = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        { attribution: "© OpenStreetMap", maxZoom: 19 }
+      );
+      const hybrid = L.layerGroup([
+        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 }),
+        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 }),
+      ]);
+
+      const baseLayers = { "Satélite": satellite, "Ruas (OSM)": roads, "Híbrido": hybrid };
+      satellite.addTo(map);
+      L.control.layers(baseLayers, {}, { position: "topright" }).addTo(map);
+
+      map.on('click', (e: any) => {
+        if (importModeRef.current === "manual") {
+           setManualCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
+        }
+      });
+
+      if (importMode === "kml" && geoPreview) {
+        const layer = L.geoJSON(geoPreview, {
+          style: { color: "#d00", weight: 2, fillColor: "#d00", fillOpacity: 0.25 },
+        });
+        layer.addTo(map);
+        try { map.fitBounds(layer.getBounds(), { padding: [20, 20] }); } catch {}
+      } else {
+         if (manualCoords) {
+            map.setView([manualCoords.lat, manualCoords.lng], 16);
+            markerRef.current = L.marker([manualCoords.lat, manualCoords.lng]).addTo(map);
+         } else {
+            map.setView([-15.79, -47.88], 4);
+         }
+      }
+    };
+
+    initMap();
+
+    return () => {
+      isActive = false;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [!!editando, editando?.id, importMode, geoPreview]); // Re-init map when mode or preview changes
+
+  // Update Marker separately
+  useEffect(() => {
+    if (!mapInstanceRef.current || importMode !== "manual") return;
+    const L = (window as any).L;
+    const map = mapInstanceRef.current;
+    
+    if (markerRef.current) {
+      markerRef.current.remove();
+      markerRef.current = null;
+    }
+    
+    if (manualCoords) {
+      markerRef.current = L.marker([manualCoords.lat, manualCoords.lng]).addTo(map);
+    }
+  }, [manualCoords, importMode]);
 
   const handleUploadKml = async (file: File) => {
     setSelectedKmlName(file.name || null);
@@ -414,7 +473,6 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
         setEditando({ ...editando, nome, area: areaStr });
       }
       setGeoPreview(parsed.geojson);
-      renderMap(parsed.geojson);
 
       if (editando?.id) {
         const fd = new FormData();
@@ -518,15 +576,14 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 pb-4 border-b shrink-0">
           <DialogTitle>Gerenciar Talhões - {fazendaNome}</DialogTitle>
         </DialogHeader>
 
-
-
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
+        <div className="flex-1 overflow-y-auto p-6 min-h-0">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               Área total: <span className="font-semibold">{areaTotal.toFixed(2)} ha</span>
             </p>
@@ -606,50 +663,86 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
                   </div>
                 </div>
                 {editando && (
-                  <div className="mt-4 space-y-2">
-                    <Label>Importar KML da área</Label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".kml,application/vnd.google-earth.kml+xml"
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) handleUploadKml(f);
-                          e.currentTarget.value = "";
-                        }}
-                      />
-                      <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                        <Upload className="h-4 w-4 mr-2" /> Selecionar arquivo KML
-                      </Button>
-                      {selectedKmlName && (
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded">{selectedKmlName}</span>
-                      )}
+                  <div className="mt-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label>Definição da Área</Label>
+                        <RadioGroup value={importMode} onValueChange={(v) => setImportMode(v as "kml" | "manual")} className="flex gap-4">
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="manual" id="mode-manual" />
+                                <Label htmlFor="mode-manual" className="cursor-pointer font-normal">Cadastro Manual (Mapa)</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="kml" id="mode-kml" />
+                                <Label htmlFor="mode-kml" className="cursor-pointer font-normal">Importar KML</Label>
+                            </div>
+                        </RadioGroup>
                     </div>
-                    {(() => {
-                      const t = editando?.id ? talhoes.find((tt) => tt.id === editando.id) : null;
-                      const hasKml = !!(t as any)?.kml_name;
-                      if (!hasKml) return null;
-                      const baseUrl = getApiBaseUrl();
-                      return (
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={`${baseUrl}/talhoes/${editando.id}/kml`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm underline"
-                          >
-                            Baixar KML atual
-                          </a>
-                          <span className="text-xs text-muted-foreground">({(t as any)?.kml_name})</span>
+
+                    {importMode === "kml" ? (
+                        <div className="space-y-2 p-4 border rounded-md bg-muted/20">
+                            <Label>Arquivo KML</Label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".kml,application/vnd.google-earth.kml+xml"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleUploadKml(f);
+                                  e.currentTarget.value = "";
+                                }}
+                              />
+                              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                                <Upload className="h-4 w-4 mr-2" /> Selecionar arquivo KML
+                              </Button>
+                              {selectedKmlName && (
+                                <span className="text-xs bg-muted px-2 py-0.5 rounded">{selectedKmlName}</span>
+                              )}
+                            </div>
+                            {(() => {
+                              const t = editando?.id ? talhoes.find((tt) => tt.id === editando.id) : null;
+                              const hasKml = !!(t as any)?.kml_name;
+                              if (!hasKml) return null;
+                              const baseUrl = getApiBaseUrl();
+                              return (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <a
+                                    href={`${baseUrl}/talhoes/${editando.id}/kml`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm underline"
+                                  >
+                                    Baixar KML atual
+                                  </a>
+                                  <span className="text-xs text-muted-foreground">({(t as any)?.kml_name})</span>
+                                </div>
+                              );
+                            })()}
                         </div>
-                      );
-                    })()}
+                    ) : (
+                        <div className="space-y-1">
+                             <div className="flex justify-between items-center">
+                                <Label>Localização (Clique no mapa)</Label>
+                                {manualCoords ? (
+                                    <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                                         <span className="w-2 h-2 rounded-full bg-green-600"/> Localização selecionada
+                                    </span>
+                                ) : (
+                                    <span className="text-xs text-red-500 font-medium flex items-center gap-1">
+                                         <span className="w-2 h-2 rounded-full bg-red-500"/> Obrigatório selecionar
+                                    </span>
+                                )}
+                             </div>
+                             <p className="text-xs text-muted-foreground">Clique no mapa para posicionar o marcador no centro do talhão.</p>
+                        </div>
+                    )}
+
                     <div className="mt-2">
-                      <div className="text-sm text-muted-foreground">Preview do mapa</div>
-                      <div ref={mapRef} style={{ height: 280 }} className="rounded border overflow-hidden" />
+                      <div className="text-sm text-muted-foreground mb-1">Preview do mapa</div>
+                      <div ref={mapRef} style={{ height: 350 }} className="rounded border overflow-hidden relative" />
                     </div>
+
                     <div className="mt-3 flex justify-end gap-2">
                       <Button onClick={handleSalvar} size="sm">
                         Salvar
@@ -666,7 +759,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
 
           {!editando && (
             <>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              <div className="space-y-2">
                 {talhoes.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     Nenhum talhão cadastrado
@@ -742,7 +835,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
             </>
           )}
         </div>
-
+        </div>
         
       </DialogContent>
     </Dialog>
