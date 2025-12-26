@@ -525,7 +525,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
 
 
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               Área total: <span className="font-semibold">{areaTotal.toFixed(2)} ha</span>
@@ -534,16 +534,16 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
               onClick={() => setEditando({ nome: "", area: "", arrendado: false, safras_todas: true, safras_sel: [] })}
               size="sm"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-6 w-6 mr-2" />
               Novo Talhão
             </Button>
           </div>
 
           {editando && (
-            <Card className="p-4 bg-muted/50">
+            <Card className="p-6 bg-muted/50">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-end gap-3">
-                  <div className="flex-1 min-w-[180px] max-w-[55%]">
+                  <div className="flex-1 min-w-[280px] max-w-[55%]">
                     <Label className="text-xs">Nome do Talhão</Label>
                     <Input
                       value={editando.nome}
