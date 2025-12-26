@@ -638,9 +638,12 @@ def ensure_programacao_schema():
                       area TEXT NOT NULL,
                       area_hectares NUMERIC,
                       safra_id TEXT,
+                      revisada BOOLEAN DEFAULT FALSE,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
+                    
+                    ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS revisada BOOLEAN DEFAULT FALSE;
 
                     CREATE TABLE IF NOT EXISTS public.programacao_cultivares (
                       id TEXT PRIMARY KEY,

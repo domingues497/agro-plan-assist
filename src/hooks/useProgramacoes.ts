@@ -52,6 +52,7 @@ export interface Programacao {
   area: string;
   area_hectares: number;
   safra_id: string | null;
+  revisada?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -204,11 +205,11 @@ Talhões: ${nomes}.`
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: string } & CreateProgramacao) => {
+    mutationFn: async ({ id, ...data }: { id: string } & Partial<CreateProgramacao> & { revisada?: boolean }) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const totalCultivares = data.cultivares.reduce((sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0);
-      if (Math.abs(totalCultivares - 100) > 0.1) {
+      const totalCultivares = data.cultivares ? data.cultivares.reduce((sum, item) => sum + (Number(item.percentual_cobertura) || 0), 0) : 0;
+      if (data.cultivares && Math.abs(totalCultivares - 100) > 0.1) {
         throw new Error("O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)");
       }
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;

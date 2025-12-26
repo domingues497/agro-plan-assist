@@ -222,3 +222,17 @@ class GestorConsultor(Base):
     user_id = Column(String, nullable=False)
     numerocm_consultor = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
+
+
+class Programacao(Base):
+    __tablename__ = "programacoes"
+    id = Column(String, primary_key=True)
+    user_id = Column(String)
+    produtor_numerocm = Column(String, nullable=False)
+    fazenda_idfazenda = Column(String, nullable=False)
+    area = Column(String, nullable=False)
+    area_hectares = Column(Numeric)
+    safra_id = Column(String)
+    revisada = Column(Boolean, nullable=False, server_default=text("false"))
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))

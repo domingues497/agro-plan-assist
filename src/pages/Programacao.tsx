@@ -503,6 +503,23 @@ export default function Programacao() {
                         
                         
                    <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <div className="flex items-center gap-2 mr-2" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          id={`revisada-${prog.id}`}
+                          checked={!!prog.revisada}
+                          onCheckedChange={(checked) => {
+                            update({ id: prog.id, revisada: !!checked });
+                          }}
+                        />
+                        <label
+                          htmlFor={`revisada-${prog.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          Revisada
+                        </label>
+                      </div>
+                    )}
                     <Button
                       variant="outline"
                       size="icon"

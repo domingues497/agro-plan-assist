@@ -1299,6 +1299,7 @@ def update_programacao(id: str):
     area = payload.get("area")
     area_hectares = payload.get("area_hectares")
     safra_id = payload.get("safra_id")
+    revisada = payload.get("revisada")
     epoca_id = payload.get("epoca_id")
     talhao_ids = payload.get("talhao_ids") or []
     cultivares = payload.get("cultivares") or []
@@ -1326,77 +1327,90 @@ def update_programacao(id: str):
                             "talhoes": [r[0] for r in rows_conf],
                             "talhoes_nomes": [r[1] for r in rows_conf if r[1] is not None]
                         }), 400
-                cur.execute(
-                    """
-                    UPDATE public.programacoes
-                    SET user_id = %s, produtor_numerocm = %s, fazenda_idfazenda = %s, area = %s, area_hectares = %s, safra_id = %s, updated_at = now()
-                    WHERE id = %s
-                    """,
-                    [user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, id]
-                )
-                cur.execute("DELETE FROM public.programacao_cultivares WHERE programacao_id = %s", [id])
-                cur.execute("DELETE FROM public.programacao_talhoes WHERE programacao_id = %s", [id])
-                cur.execute("DELETE FROM public.programacao_adubacao WHERE programacao_id = %s", [id])
-                for item in cultivares:
-                    cult_id = item.get("id") or str(uuid.uuid4())
-                    tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
-                    first_tr = None if str(item.get("tipo_tratamento") or "").upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
+
+                # Check if it's a partial update (e.g. only revisada flag)
+                is_partial = False
+                if not cultivares and not adubacao and not talhao_ids and revisada is not None:
+                    is_partial = True
+
+                if is_partial:
+                    cur.execute(
+                        "UPDATE public.programacoes SET revisada = %s, updated_at = now() WHERE id = %s",
+                        [bool(revisada), id]
+                    )
+                else:
                     cur.execute(
                         """
-                        INSERT INTO public.programacao_cultivares (
-                          id, programacao_id, user_id, produtor_numerocm, area, area_hectares, cultivar, quantidade, unidade,
-                          percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
-                          semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        UPDATE public.programacoes
+                        SET user_id = %s, produtor_numerocm = %s, fazenda_idfazenda = %s, area = %s, area_hectares = %s, safra_id = %s, revisada = %s, updated_at = now()
+                        WHERE id = %s
                         """,
-                        [cult_id, id, user_id, produtor_numerocm, area, area_hectares, item.get("cultivar"), 0, "kg",
-                         item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
-                         item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
-                         item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0]
+                        [user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, bool(revisada) if revisada is not None else False, id]
                     )
-                    for tid in (tr_ids or []):
-                        if not tid: continue
+                    cur.execute("DELETE FROM public.programacao_cultivares WHERE programacao_id = %s", [id])
+                    cur.execute("DELETE FROM public.programacao_talhoes WHERE programacao_id = %s", [id])
+                    cur.execute("DELETE FROM public.programacao_adubacao WHERE programacao_id = %s", [id])
+                    
+                    for item in cultivares:
+                        cult_id = item.get("id") or str(uuid.uuid4())
+                        tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
+                        first_tr = None if str(item.get("tipo_tratamento") or "").upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
                         cur.execute(
                             """
-                            INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
-                            VALUES (%s, %s, %s)
+                            INSERT INTO public.programacao_cultivares (
+                              id, programacao_id, user_id, produtor_numerocm, area, area_hectares, cultivar, quantidade, unidade,
+                              percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
+                              semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             """,
-                            [str(uuid.uuid4()), cult_id, tid]
+                            [cult_id, id, user_id, produtor_numerocm, area, area_hectares, item.get("cultivar"), 0, "kg",
+                             item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
+                             item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
+                             item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0]
                         )
-                    if str(item.get("tipo_tratamento") or "").upper() == "NA FAZENDA":
-                        for d in (item.get("defensivos_fazenda") or []):
-                            cod_val = None
-                            try:
-                                cur.execute(
-                                    "SELECT cod_item FROM public.defensivos_catalog WHERE item = %s AND (%s IS NULL OR grupo = %s) ORDER BY cod_item LIMIT 1",
-                                    [d.get("defensivo"), d.get("classe"), d.get("classe")]
-                                )
-                                r = cur.fetchone()
-                                if r:
-                                    cod_val = r[0]
-                            except Exception:
-                                cod_val = None
+                        for tid in (tr_ids or []):
+                            if not tid: continue
                             cur.execute(
                                 """
-                                INSERT INTO public.programacao_cultivares_defensivos
-                                (id, programacao_cultivar_id, classe, aplicacao, defensivo, cod_item, dose, cobertura, total, produto_salvo)
-                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                                INSERT INTO public.programacao_cultivares_tratamentos (id, programacao_cultivar_id, tratamento_id)
+                                VALUES (%s, %s, %s)
                                 """,
-                                [str(uuid.uuid4()), cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"), cod_val,
-                                 d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
+                                [str(uuid.uuid4()), cult_id, tid]
                             )
-                for a in adubacao:
-                    cod_val = None
-                    try:
-                        cur.execute(
-                            "SELECT cod_item FROM public.fertilizantes_catalog WHERE item = %s ORDER BY cod_item LIMIT 1",
-                            [a.get("formulacao")]
-                        )
-                        r = cur.fetchone()
-                        if r:
-                            cod_val = r[0]
-                    except Exception:
+                        if str(item.get("tipo_tratamento") or "").upper() == "NA FAZENDA":
+                            for d in (item.get("defensivos_fazenda") or []):
+                                cod_val = None
+                                try:
+                                    cur.execute(
+                                        "SELECT cod_item FROM public.defensivos_catalog WHERE item = %s AND (%s IS NULL OR grupo = %s) ORDER BY cod_item LIMIT 1",
+                                        [d.get("defensivo"), d.get("classe"), d.get("classe")]
+                                    )
+                                    r = cur.fetchone()
+                                    if r:
+                                        cod_val = r[0]
+                                except Exception:
+                                    cod_val = None
+                                cur.execute(
+                                    """
+                                    INSERT INTO public.programacao_cultivares_defensivos
+                                    (id, programacao_cultivar_id, classe, aplicacao, defensivo, cod_item, dose, cobertura, total, produto_salvo)
+                                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                                    """,
+                                    [str(uuid.uuid4()), cult_id, d.get("classe"), d.get("aplicacao"), d.get("defensivo"), cod_val,
+                                     d.get("dose"), d.get("cobertura"), d.get("total"), bool(d.get("produto_salvo"))]
+                                )
+                    for a in adubacao:
                         cod_val = None
+                        try:
+                            cur.execute(
+                                "SELECT cod_item FROM public.fertilizantes_catalog WHERE item = %s ORDER BY cod_item LIMIT 1",
+                                [a.get("formulacao")]
+                            )
+                            r = cur.fetchone()
+                            if r:
+                                cod_val = r[0]
+                        except Exception:
+                            cod_val = None
                     cur.execute(
                         """
                         INSERT INTO public.programacao_adubacao (
