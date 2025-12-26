@@ -17,6 +17,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Input } from "@/components/ui/input";
 import { cn, getApiBaseUrl } from "@/lib/utils";
 import { useFazendas } from "@/hooks/useFazendas";
+import { useSafras } from "@/hooks/useSafras";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useProfile } from "@/hooks/useProfile";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useConsultores } from "@/hooks/useConsultores";
@@ -57,18 +59,36 @@ const Defensivos = () => {
   const canEditDefensivos = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const [areasCalc, setAreasCalc] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState("");
+  const { safras, defaultSafra } = useSafras();
+  const [selectedSafra, setSelectedSafra] = useState<string>("all");
+
+  useEffect(() => {
+    if (defaultSafra && selectedSafra === "all") {
+      setSelectedSafra(String(defaultSafra.id));
+    }
+  }, [defaultSafra]);
 
   const filteredAplicacoes = useMemo(() => {
-    if (!searchTerm) return aplicacoes;
+    let filtered = aplicacoes;
+
+    if (selectedSafra && selectedSafra !== "all") {
+      filtered = filtered.filter(ap => {
+        const defs = (ap.defensivos || []) as any[];
+        const safraId = defs.find((it: any) => it && it.safra_id)?.safra_id;
+        return String(safraId || "") === String(selectedSafra);
+      });
+    }
+
+    if (!searchTerm) return filtered;
     const lower = searchTerm.toLowerCase();
-    return aplicacoes.filter((ap) => {
+    return filtered.filter((ap) => {
       const produtor = produtores.find(p => p.numerocm === ap.produtor_numerocm);
       const matchNumerocm = String(ap.produtor_numerocm || "").toLowerCase().includes(lower);
       const matchNome = String(produtor?.nome || "").toLowerCase().includes(lower);
       const matchArea = String(ap.area || "").toLowerCase().includes(lower);
       return matchNumerocm || matchNome || matchArea;
     });
-  }, [aplicacoes, searchTerm, produtores]);
+  }, [aplicacoes, searchTerm, produtores, selectedSafra]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;

@@ -45,15 +45,29 @@ export default function Programacao() {
   const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
   const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
   const canEditProgramacao = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
-  const { defaultSafra } = useSafras();
+  const { defaultSafra, safras } = useSafras();
+  const [selectedSafra, setSelectedSafra] = useState<string>("all");
+
+  useEffect(() => {
+    if (defaultSafra && selectedSafra === "all") {
+      setSelectedSafra(String(defaultSafra.id));
+    }
+  }, [defaultSafra]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const filteredProgramacoes = useMemo(() => {
-    if (!searchTerm) return programacoes;
+    let filtered = programacoes;
+
+    if (selectedSafra && selectedSafra !== "all") {
+      filtered = filtered.filter(p => String(p.safra_id) === String(selectedSafra));
+    }
+
+    if (!searchTerm) return filtered;
     const lower = searchTerm.toLowerCase();
-    return programacoes.filter((prog) => {
+    return filtered.filter((prog) => {
       const produtor = produtores.find(p => p.numerocm === prog.produtor_numerocm);
       const fazenda = fazendas.find(f => f.idfazenda === prog.fazenda_idfazenda && f.numerocm === prog.produtor_numerocm);
       
@@ -63,7 +77,7 @@ export default function Programacao() {
       
       return matchNumerocm || matchNome || matchFazenda;
     });
-  }, [programacoes, searchTerm, produtores, fazendas]);
+  }, [programacoes, searchTerm, produtores, fazendas, selectedSafra]);
 
   // Reset page when filter changes
   useEffect(() => {
