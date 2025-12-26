@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { cn, safeRandomUUID, getApiBaseUrl } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
@@ -337,6 +338,20 @@ export default function Programacao() {
         </div>
 
         <div className="flex justify-end items-center gap-2 mb-6">
+          <Select value={selectedSafra} onValueChange={setSelectedSafra}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Selecione a safra" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as safras</SelectItem>
+              {safras.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>
+                  {s.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input

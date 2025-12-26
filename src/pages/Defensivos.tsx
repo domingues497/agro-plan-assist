@@ -249,6 +249,20 @@ const Defensivos = () => {
         </div>
 
         <div className="flex justify-end items-center gap-2 mb-6">
+          <Select value={selectedSafra} onValueChange={setSelectedSafra}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Selecione a safra" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as safras</SelectItem>
+              {safras.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>
+                  {s.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
