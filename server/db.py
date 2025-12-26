@@ -702,6 +702,7 @@ def ensure_programacao_schema():
                       area TEXT,
                       numerocm_consultor TEXT,
                       formulacao TEXT,
+                      cod_item TEXT,
                       dose NUMERIC,
                       percentual_cobertura NUMERIC,
                       data_aplicacao TIMESTAMPTZ,
@@ -715,6 +716,11 @@ def ensure_programacao_schema():
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
+                    
+                    ALTER TABLE public.programacao_adubacao ADD COLUMN IF NOT EXISTS cod_item TEXT;
+                    ALTER TABLE public.programacao_adubacao ADD COLUMN IF NOT EXISTS fertilizante_salvo BOOLEAN;
+                    ALTER TABLE public.programacao_adubacao ADD COLUMN IF NOT EXISTS deve_faturar BOOLEAN;
+                    ALTER TABLE public.programacao_adubacao ADD COLUMN IF NOT EXISTS porcentagem_salva NUMERIC;
 
                     CREATE TABLE IF NOT EXISTS public.programacao_talhoes (
                       id TEXT PRIMARY KEY,

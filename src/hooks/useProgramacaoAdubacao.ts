@@ -15,7 +15,6 @@ export type ProgramacaoAdubacao = {
   embalagem: string | null;
   justificativa_nao_adubacao_id?: string | null;
   fertilizante_salvo: boolean;
-  deve_faturar: boolean;
   porcentagem_salva: number;
   total: number | null;
   safra_id?: string | null;

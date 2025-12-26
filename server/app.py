@@ -976,7 +976,7 @@ def list_programacoes():
     try:
         with conn.cursor() as cur:
             base = (
-                "SELECT p.id, p.user_id, p.produtor_numerocm, p.fazenda_idfazenda, p.area, p.area_hectares, p.safra_id, p.created_at, p.updated_at "
+                "SELECT p.id, p.user_id, p.produtor_numerocm, p.fazenda_idfazenda, p.area, p.area_hectares, p.safra_id, p.revisada, p.created_at, p.updated_at "
                 "FROM public.programacoes p"
             )
             auth = request.headers.get("Authorization") or ""
@@ -1170,13 +1170,13 @@ def create_programacao():
                         """
                         INSERT INTO public.programacao_adubacao (
                           id, programacao_id, user_id, produtor_numerocm, area, numerocm_consultor, formulacao, cod_item, dose, percentual_cobertura,
-                          data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo, deve_faturar,
+                          data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo,
                           porcentagem_salva, total, safra_id
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         [str(uuid.uuid4()), prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
-                         bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
+                         float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
                 for tid in talhao_ids:
                     cur.execute(
@@ -1330,7 +1330,9 @@ def update_programacao(id: str):
 
                 # Check if it's a partial update (e.g. only revisada flag)
                 is_partial = False
-                if not cultivares and not adubacao and not talhao_ids and revisada is not None:
+                # If main required fields are missing, assume it is a partial update for revisada
+                # We ignore lists checks because if produtor_numerocm is missing, we can't do a full update anyway.
+                if not produtor_numerocm and not fazenda_idfazenda and not area and revisada is not None:
                     is_partial = True
 
                 if is_partial:
@@ -1339,6 +1341,25 @@ def update_programacao(id: str):
                         [bool(revisada), id]
                     )
                 else:
+                    # Check for required fields for full update
+                    if not produtor_numerocm or not fazenda_idfazenda or not area:
+                        # If required fields are missing in a non-partial update, fetch them from DB
+                        # or simply fail. Here we try to fetch existing values to be safe, or just return error.
+                        # However, since we might be converting a partial request that failed detection?
+                        # Let's assume if it reached here with missing fields, it is invalid unless we merge.
+                        
+                        # Better approach: If missing required fields, fetch current state
+                        cur.execute("SELECT user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, revisada FROM public.programacoes WHERE id = %s", [id])
+                        current = cur.fetchone()
+                        if current:
+                            user_id = user_id or current[0]
+                            produtor_numerocm = produtor_numerocm or current[1]
+                            fazenda_idfazenda = fazenda_idfazenda or current[2]
+                            area = area or current[3]
+                            area_hectares = area_hectares or current[4]
+                            safra_id = safra_id or current[5]
+                            if revisada is None: revisada = current[6]
+
                     cur.execute(
                         """
                         UPDATE public.programacoes
@@ -1415,13 +1436,13 @@ def update_programacao(id: str):
                         """
                         INSERT INTO public.programacao_adubacao (
                           id, programacao_id, user_id, produtor_numerocm, area, formulacao, cod_item, dose, percentual_cobertura,
-                          data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo, deve_faturar,
+                          data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo,
                           porcentagem_salva, total, safra_id
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         [str(uuid.uuid4()), id, user_id, produtor_numerocm, area, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
-                         bool(a.get("deve_faturar", True)), float(a.get("porcentagem_salva") or 0), None, safra_id]
+                         float(a.get("porcentagem_salva") or 0), None, safra_id]
                     )
                 for tid in talhao_ids:
                     cur.execute(

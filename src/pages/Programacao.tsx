@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ArrowLeft, Trash2, Pencil, Copy, Check, ChevronsUpDown, Settings, Search } from "lucide-react";
+import { Calendar, ArrowLeft, Trash2, Pencil, Copy, Check, ChevronsUpDown, Settings, Search, Loader2 } from "lucide-react";
 import { useProgramacoes } from "@/hooks/useProgramacoes";
 import { useProfile } from "@/hooks/useProfile";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -31,6 +31,8 @@ export default function Programacao() {
   const [editing, setEditing] = useState<any | null>(null);
   const [editingTratamentos, setEditingTratamentos] = useState<Record<string, string[]>>({});
   const [editingDefensivos, setEditingDefensivos] = useState<Record<string, any[]>>({});
+  const [editingCultivares, setEditingCultivares] = useState<any[]>([]);
+  const [editingAdubacao, setEditingAdubacao] = useState<any[]>([]);
   const { programacoes, isLoading, create, delete: deleteProgramacao, update, isUpdating, replicate, isReplicating } = useProgramacoes();
   const { data: fazendas = [] } = useFazendas();
   const { data: produtores = [] } = useProdutores();
@@ -47,6 +49,8 @@ export default function Programacao() {
   const canEditProgramacao = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const { defaultSafra, safras } = useSafras();
   const [selectedSafra, setSelectedSafra] = useState<string>("all");
+  const [filterRevisada, setFilterRevisada] = useState<string>("all");
+  const [isLoadingEdit, setIsLoadingEdit] = useState<string | null>(null);
 
   useEffect(() => {
     if (defaultSafra && selectedSafra === "all") {
@@ -65,6 +69,14 @@ export default function Programacao() {
       filtered = filtered.filter(p => String(p.safra_id) === String(selectedSafra));
     }
 
+    if (filterRevisada !== "all") {
+      if (filterRevisada === "true") {
+        filtered = filtered.filter(p => !!p.revisada);
+      } else {
+        filtered = filtered.filter(p => !p.revisada);
+      }
+    }
+
     if (!searchTerm) return filtered;
     const lower = searchTerm.toLowerCase();
     return filtered.filter((prog) => {
@@ -77,7 +89,7 @@ export default function Programacao() {
       
       return matchNumerocm || matchNome || matchFazenda;
     });
-  }, [programacoes, searchTerm, produtores, fazendas, selectedSafra]);
+  }, [programacoes, searchTerm, produtores, fazendas, selectedSafra, filterRevisada]);
 
   // Reset page when filter changes
   useEffect(() => {
@@ -203,13 +215,13 @@ export default function Programacao() {
       epoca_id: editing.epoca_id || undefined,
       talhao_ids: editing.talhao_ids || [],
       cultivares: (() => {
-        const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === editing.id);
+        const cults = editingCultivares;
         return cults.map((c: any) => {
           // Buscar a cultura do catálogo baseado no cultivar
           const cultivarInfo = cultivaresCatalog.find(cat => cat.cultivar === c.cultivar);
           return {
             cultivar: c.cultivar,
-            cultura: cultivarInfo?.cultura || "",
+            cultura: cultivarInfo?.cultura || c.cultura || "",
             percentual_cobertura: Number(c.percentual_cobertura) || 0,
             tipo_embalagem: c.tipo_embalagem,
             tipo_tratamento: c.tipo_tratamento,
@@ -226,7 +238,7 @@ export default function Programacao() {
         });
       })(),
       adubacao: (() => {
-        const adubs = (adubacaoList as any[]).filter((a: any) => a.programacao_id === editing.id);
+        const adubs = editingAdubacao;
         return adubs.map((a: any) => ({
           formulacao: a.formulacao,
           dose: Number(a.dose) || 0,
@@ -234,10 +246,12 @@ export default function Programacao() {
           data_aplicacao: a.data_aplicacao || undefined,
           embalagem: a.embalagem || undefined,
           justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
+          fertilizante_salvo: Boolean(a.fertilizante_salvo),
+          porcentagem_salva: Number(a.porcentagem_salva) || 0
         }));
       })()
     };
-  }, [editing, cultivaresList, cultivaresCatalog, editingTratamentos, editingDefensivos, adubacaoList]);
+  }, [editing, editingCultivares, editingAdubacao, cultivaresCatalog, editingTratamentos, editingDefensivos]);
 
   // Lock initialData to prevent updates from background refreshes
   useEffect(() => {
@@ -352,6 +366,19 @@ export default function Programacao() {
         </div>
 
         <div className="flex justify-end items-center gap-2 mb-6">
+          {isAdmin && (
+            <Select value={filterRevisada} onValueChange={setFilterRevisada}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Status Revisão" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="true">Revisadas</SelectItem>
+                <SelectItem value="false">Não Revisadas</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
           <Select value={selectedSafra} onValueChange={setSelectedSafra}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Selecione a safra" />
@@ -391,6 +418,8 @@ export default function Programacao() {
             setEditing(null);
             setEditingTratamentos({});
             setEditingDefensivos({});
+            setEditingCultivares([]);
+            setEditingAdubacao([]);
           }
         }}>
           <DialogContent className="max-w-[90vw] w-full max-h-[90vh] overflow-y-auto">
@@ -421,12 +450,16 @@ export default function Programacao() {
                     setEditing(null);
                     setEditingTratamentos({});
                     setEditingDefensivos({});
+                    setEditingCultivares([]);
+                    setEditingAdubacao([]);
                   });
                 }}
                 onCancel={() => {
                   setEditing(null);
                   setEditingTratamentos({});
                   setEditingDefensivos({});
+                  setEditingCultivares([]);
+                  setEditingAdubacao([]);
                 }}
               />
             )}
@@ -523,51 +556,62 @@ export default function Programacao() {
                     <Button
                       variant="outline"
                       size="icon"
+                      disabled={isLoadingEdit === prog.id}
                       onClick={async () => {
-                        // Buscar talhões da programacao
-                        const { getApiBaseUrl } = await import("@/lib/utils");
-                        const baseUrl = getApiBaseUrl();
-                        const res = await fetch(`${baseUrl}/programacoes/${prog.id}/children`);
-                        if (!res.ok) {
-                          toast.error("Erro ao carregar dados da programação para edição");
-                          return;
-                        }
-                        const json = await res.json();
-                        const talhoesData = (json?.talhoes || []).map((t: any) => ({ talhao_id: t }));
-                        const cults = (json?.cultivares || []) as any[];
-                        const tratamentosMap: Record<string, string[]> = json?.tratamentos || {};
-                        const defensivosRows: any[] = json?.defensivos || [];
-                        const defensivosMap: Record<string, any[]> = {};
-                        const epocaId = cults.length > 0 ? cults[0].epoca_id : undefined;
-                        for (const cult of cults) {
-                          if (cult.tipo_tratamento === "NA FAZENDA") {
-                            const defs = defensivosRows.filter(d => d.programacao_cultivar_id === cult.id).map((d: any) => ({
-                              tempId: safeRandomUUID(),
-                              classe: d.classe || "",
-                              aplicacao: d.aplicacao,
-                              defensivo: d.defensivo,
-                              cod_item: d.cod_item || "",
-                              dose: Number(d.dose) || 0,
-                              cobertura: Number(d.cobertura) || 100,
-                              total: Number(d.total) || 0,
-                              produto_salvo: Boolean(d.produto_salvo),
-                              porcentagem_salva: 100
-                            }));
-                            defensivosMap[cult.id] = defs;
+                        setIsLoadingEdit(prog.id);
+                        try {
+                          // Buscar talhões da programacao
+                          const { getApiBaseUrl } = await import("@/lib/utils");
+                          const baseUrl = getApiBaseUrl();
+                          const res = await fetch(`${baseUrl}/programacoes/${prog.id}/children`);
+                          if (!res.ok) {
+                            toast.error("Erro ao carregar dados da programação para edição");
+                            return;
                           }
+                          const json = await res.json();
+                          const talhoesData = (json?.talhoes || []).map((t: any) => ({ talhao_id: t }));
+                          const cults = (json?.cultivares || []) as any[];
+                          const tratamentosMap: Record<string, string[]> = json?.tratamentos || {};
+                          const defensivosRows: any[] = json?.defensivos || [];
+                          const defensivosMap: Record<string, any[]> = {};
+                          const epocaId = cults.length > 0 ? cults[0].epoca_id : undefined;
+                          for (const cult of cults) {
+                            if (cult.tipo_tratamento === "NA FAZENDA") {
+                              const defs = defensivosRows.filter(d => d.programacao_cultivar_id === cult.id).map((d: any) => ({
+                                tempId: safeRandomUUID(),
+                                classe: d.classe || "",
+                                aplicacao: d.aplicacao,
+                                defensivo: d.defensivo,
+                                cod_item: d.cod_item || "",
+                                dose: Number(d.dose) || 0,
+                                cobertura: Number(d.cobertura) || 100,
+                                total: Number(d.total) || 0,
+                                produto_salvo: Boolean(d.produto_salvo),
+                                porcentagem_salva: 100
+                              }));
+                              defensivosMap[cult.id] = defs;
+                            }
+                          }
+                          
+                          setEditingTratamentos(tratamentosMap);
+                          setEditingDefensivos(defensivosMap);
+                          setEditingCultivares(json.cultivares || []);
+                          setEditingAdubacao(json.adubacao || []);
+                          setEditing({
+                            ...prog,
+                            epoca_id: epocaId,
+                            talhao_ids: (talhoesData || []).map((t: any) => t.talhao_id)
+                          });
+                        } catch (error) {
+                          console.error(error);
+                          toast.error("Erro ao carregar dados");
+                        } finally {
+                          setIsLoadingEdit(null);
                         }
-                        
-                        setEditingTratamentos(tratamentosMap);
-                        setEditingDefensivos(defensivosMap);
-                        setEditing({
-                          ...prog,
-                          epoca_id: epocaId,
-                          talhao_ids: (talhoesData || []).map((t: any) => t.talhao_id)
-                        });
                       }}
                       title="Editar"
                     >
-                      <Pencil className="h-4 w-4" />
+                      {isLoadingEdit === prog.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
                     </Button>
                     <Button
                       variant="outline"

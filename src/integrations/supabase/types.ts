@@ -432,7 +432,6 @@ export type Database = {
           area: string
           created_at: string | null
           data_aplicacao: string | null
-          deve_faturar: boolean | null
           dose: number
           embalagem: string | null
           fertilizante_salvo: boolean | null
@@ -472,7 +471,6 @@ export type Database = {
           area?: string
           created_at?: string | null
           data_aplicacao?: string | null
-          deve_faturar?: boolean | null
           dose?: number
           embalagem?: string | null
           fertilizante_salvo?: boolean | null

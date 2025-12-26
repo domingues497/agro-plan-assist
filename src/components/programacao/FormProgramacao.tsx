@@ -1537,15 +1537,34 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t sm:col-span-2 lg:col-span-3 xl:col-span-5">
-                    <Checkbox
-                      id={`adubacao-salvo-${index}`}
-                      checked={!!item.fertilizante_salvo}
-                      onCheckedChange={(checked) => handleAdubacaoChange(index, "fertilizante_salvo", !!checked)}
-                    />
-                    <Label htmlFor={`adubacao-salvo-${index}`} className="text-sm">
-                      Fertilizante proprio
-                    </Label>
+                  <div className="flex flex-wrap items-center gap-6 pt-2 border-t sm:col-span-2 lg:col-span-3 xl:col-span-5">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`adubacao-salvo-${index}`}
+                        checked={!!item.fertilizante_salvo}
+                        onCheckedChange={(checked) => handleAdubacaoChange(index, "fertilizante_salvo", !!checked)}
+                      />
+                      <Label htmlFor={`adubacao-salvo-${index}`} className="text-sm">
+                        Fertilizante proprio
+                      </Label>
+                    </div>
+
+                    {item.fertilizante_salvo && (
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`adubacao-porcentagem-${index}`} className="text-sm whitespace-nowrap">
+                          % Salva:
+                        </Label>
+                        <Input
+                          id={`adubacao-porcentagem-${index}`}
+                          type="number"
+                          className="w-20 h-8"
+                          min="0"
+                          max="100"
+                          value={item.porcentagem_salva || 0}
+                          onChange={(e) => handleAdubacaoChange(index, "porcentagem_salva", Number(e.target.value))}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

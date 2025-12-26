@@ -40,7 +40,6 @@ export interface ItemAdubacao {
   justificativa_nao_adubacao_id?: string;
   // Flags RN012/RN013 na programação
   fertilizante_salvo?: boolean;
-  deve_faturar?: boolean;
   porcentagem_salva?: number;
 }
 
