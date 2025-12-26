@@ -523,74 +523,7 @@ export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, 
           <DialogTitle>Gerenciar Talhões - {fazendaNome}</DialogTitle>
         </DialogHeader>
 
-        {produtor && (
-          <div className="border rounded-md p-3 bg-muted/30">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                 <span className="text-sm font-medium">Produtor: {produtor.nome}</span>
-                 {(!produtor.compra_insumos || !produtor.entrega_producao || !produtor.paga_assistencia) && (
-                   <span className="text-xs text-destructive font-bold">(Pendências)</span>
-                 )}
-              </div>
-              <Button 
-                variant={(produtor.compra_insumos === false || produtor.entrega_producao === false || produtor.paga_assistencia === false) ? "destructive" : "ghost"}
-                size="icon" 
-                className="h-8 w-8"
-                onClick={() => setFlagsOpen(!flagsOpen)}
-                title="Configurar Flags"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            {flagsOpen && (
-               <div className="mt-3 space-y-3 pt-3 border-t">
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex items-center gap-2">
-                        <Checkbox 
-                          id="flag_compra_insumos" 
-                          checked={produtorFlags.compra_insumos} 
-                          onCheckedChange={(c) => setProdutorFlags(prev => ({ ...prev, compra_insumos: !!c }))}
-                        />
-                        <Label htmlFor="flag_compra_insumos" className={!produtorFlags.compra_insumos ? "text-destructive" : ""}>Compra insumos</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Checkbox 
-                          id="flag_entrega_producao" 
-                          checked={produtorFlags.entrega_producao} 
-                          onCheckedChange={(c) => setProdutorFlags(prev => ({ ...prev, entrega_producao: !!c }))}
-                        />
-                        <Label htmlFor="flag_entrega_producao" className={!produtorFlags.entrega_producao ? "text-destructive" : ""}>Entrega produção</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Checkbox 
-                          id="flag_paga_assistencia" 
-                          checked={produtorFlags.paga_assistencia} 
-                          onCheckedChange={(c) => setProdutorFlags(prev => ({ ...prev, paga_assistencia: !!c }))}
-                        />
-                        <Label htmlFor="flag_paga_assistencia" className={!produtorFlags.paga_assistencia ? "text-destructive" : ""}>Paga Assistência</Label>
-                    </div>
-                  </div>
-                  
-                  {(!produtorFlags.compra_insumos || !produtorFlags.entrega_producao || !produtorFlags.paga_assistencia) && (
-                    <div>
-                        <Label className="text-destructive">Observação (Obrigatória)</Label>
-                        <Textarea 
-                            value={produtorFlags.observacao_flags}
-                            onChange={(e) => setProdutorFlags(prev => ({ ...prev, observacao_flags: e.target.value }))}
-                            className="mt-1"
-                            placeholder="Descreva o motivo da pendência..."
-                        />
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-end">
-                    <Button onClick={handleSaveFlags} size="sm">Salvar Flags</Button>
-                  </div>
-               </div>
-            )}
-          </div>
-        )}
+
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">

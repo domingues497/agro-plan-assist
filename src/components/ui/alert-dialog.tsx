@@ -1,10 +1,22 @@
 import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
-const AlertDialog = AlertDialogPrimitive.Root;
+const AlertDialog: React.FC<React.ComponentProps<typeof AlertDialogPrimitive.Root>> = ({ onOpenChange, ...props }) => {
+  const queryClient = useQueryClient();
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      queryClient.invalidateQueries();
+    }
+    onOpenChange?.(open);
+  };
+
+  return <AlertDialogPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
+};
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 

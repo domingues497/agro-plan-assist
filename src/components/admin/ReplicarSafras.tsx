@@ -31,7 +31,6 @@ export const ReplicarSafras = () => {
 
     try {
       const baseUrl = getApiBaseUrl();
-
       const token = localStorage.getItem("auth_token") || "";
       const userId = profile?.id || "";
       if (!userId) throw new Error("Usuário não autenticado");
@@ -45,73 +44,148 @@ export const ReplicarSafras = () => {
         return res.json();
       };
 
-      const progCult = await getJson(`${baseUrl}/programacao_cultivares`);
-      const cultivares = (progCult.items || []).filter((p: any) => String(p.user_id) === userId && String(p.safra) === safraOrigemId);
+      // 1. Buscar Programações (Pai)
+      const programacoesRes = await getJson(`${baseUrl}/programacoes?safra_id=${safraOrigemId}`);
+      const programacoes = programacoesRes.items || [];
 
-      const progAdub = await getJson(`${baseUrl}/programacao_adubacao`);
-      const adubacoes = (progAdub.items || []).filter((p: any) => String(p.user_id) === userId && String(p.safra_id) === safraOrigemId);
+      if (programacoes.length === 0) {
+        // Se não tiver programações pai, verificamos se há itens órfãos (legado) ou defensivos
+        // Mas a replicação profunda foca em programações estruturadas
+      }
 
-      const appl = await getJson(`${baseUrl}/aplicacoes_defensivos`);
-      const aplicacoes = (appl.items || []).filter((a: any) => String(a.user_id) === userId);
+      // 2. Buscar dados detalhados (Cultivares, Adubação, Talhões) filtrados pela safra
+      // Nota: As endpoints foram atualizadas para suportar filtragem por safra no backend
+      const progCultRes = await getJson(`${baseUrl}/programacao_cultivares?safra=${safraOrigemId}`);
+      const cultivares = progCultRes.items || [];
 
-      let cultivaresCopiados = 0;
-      let adubacoesCopiadas = 0;
+      const progAdubRes = await getJson(`${baseUrl}/programacao_adubacao?safra_id=${safraOrigemId}`);
+      const adubacoes = progAdubRes.items || [];
+
+      const progTalhoesRes = await getJson(`${baseUrl}/programacao_talhoes?safra_id=${safraOrigemId}`);
+      const talhoesAssoc = progTalhoesRes.items || [];
+
+      // 3. Agrupar dados por programacao_id
+      const progMap: Record<string, any> = {};
+
+      // Inicializa o mapa com as programações pai
+      programacoes.forEach((p: any) => {
+        // Filtra programações que pertencem ao usuário (ou todas se for admin/consultor com permissão)
+        // O endpoint já filtra por permissão, mas podemos garantir que é do usuário se necessário
+        // Como o endpoint /programacoes já filtra, usamos o que veio.
+        progMap[p.id] = {
+          ...p,
+          cultivares: [],
+          adubacao: [],
+          talhao_ids: []
+        };
+      });
+
+      // Distribui cultivares
+      cultivares.forEach((c: any) => {
+        if (c.programacao_id && progMap[c.programacao_id]) {
+          progMap[c.programacao_id].cultivares.push(c);
+        }
+      });
+
+      // Distribui adubações
+      adubacoes.forEach((a: any) => {
+        if (a.programacao_id && progMap[a.programacao_id]) {
+          progMap[a.programacao_id].adubacao.push(a);
+        }
+      });
+
+      // Distribui talhões
+      talhoesAssoc.forEach((t: any) => {
+        if (t.programacao_id && progMap[t.programacao_id]) {
+          progMap[t.programacao_id].talhao_ids.push(t.talhao_id);
+        }
+      });
+
+      let programacoesCopiadas = 0;
+      let errosIgnorados = 0;
+
+      // 4. Replicar Programações (Deep Copy)
+      for (const progId in progMap) {
+        const prog = progMap[progId];
+        
+        // Pular programações vazias se desejar (opcional, mas aqui replicamos tudo que existe)
+        
+        // Preparar payload para criar nova programação
+        const payload = {
+          user_id: prog.user_id,
+          produtor_numerocm: prog.produtor_numerocm,
+          fazenda_idfazenda: prog.fazenda_idfazenda,
+          area: prog.area,
+          area_hectares: prog.area_hectares,
+          safra_id: safraDestinoId, // Nova safra
+          epoca_id: prog.epoca_id,  // Mantém época (pode ser necessário ajustar se época for específica de safra, mas geralmente é genérica)
+          
+          talhao_ids: prog.talhao_ids,
+          
+          cultivares: prog.cultivares.map((c: any) => {
+            const { id, programacao_id, created_at, updated_at, safra, ...rest } = c;
+            return {
+              ...rest,
+              safra: safraDestinoId
+            };
+          }),
+          
+          adubacao: prog.adubacao.map((a: any) => {
+            const { id, programacao_id, created_at, updated_at, safra_id, ...rest } = a;
+            return {
+              ...rest,
+              safra_id: safraDestinoId
+            };
+          })
+        };
+
+        const res = await fetch(`${baseUrl}/programacoes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          // Ignorar erro se talhão já tiver programação na safra destino (evita duplicidade)
+          if (txt.includes("talhao já possui programação")) {
+            console.warn(`Programação ignorada (duplicada): ${progId}`, txt);
+            errosIgnorados++;
+          } else {
+            throw new Error(txt);
+          }
+        } else {
+          programacoesCopiadas++;
+        }
+      }
+
+      // 5. Replicar Aplicações de Defensivos (Independentes)
+      const applRes = await getJson(`${baseUrl}/aplicacoes_defensivos`);
+      const aplicacoes = (applRes.items || []).filter((a: any) => String(a.user_id) === userId);
+      
       let defensivosCopiados = 0;
-
-      // Replicar cultivares
-      if (cultivares && cultivares.length > 0) {
-        for (const c of cultivares) {
-          const { id, created_at, updated_at, defensivos_fazenda, tratamento_ids, ...rest } = c;
-          const payload = { ...rest, safra: safraDestinoId, tratamento_ids: tratamento_ids || [], defensivos_fazenda: defensivos_fazenda || [] };
-          const res = await fetch(`${baseUrl}/programacao_cultivares`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-            body: JSON.stringify(payload),
-          });
-          if (!res.ok) {
-            const txt = await res.text();
-            throw new Error(txt);
-          }
-          cultivaresCopiados += 1;
-        }
-      }
-
-      // Replicar adubações
-      if (adubacoes && adubacoes.length > 0) {
-        for (const a of adubacoes) {
-          const { id, created_at, updated_at, ...rest } = a;
-          const payload = { ...rest, safra_id: safraDestinoId };
-          const res = await fetch(`${baseUrl}/programacao_adubacao`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-            body: JSON.stringify(payload),
-          });
-          if (!res.ok) {
-            const txt = await res.text();
-            throw new Error(txt);
-          }
-          adubacoesCopiadas += 1;
-        }
-      }
-
-      // Replicar aplicações de defensivos e seus itens
+      
       if (aplicacoes && aplicacoes.length > 0) {
         for (const aplicacao of aplicacoes) {
           const defensivosDaAplicacao = (aplicacao.defensivos || []).filter((d: any) => String(d.safra_id) === safraOrigemId);
           if (defensivosDaAplicacao.length === 0) continue;
+          
           const payload = {
             user_id: aplicacao.user_id,
             produtor_numerocm: aplicacao.produtor_numerocm,
             area: aplicacao.area,
             defensivos: defensivosDaAplicacao.map((d: any) => ({ ...d, safra_id: safraDestinoId })),
           };
+          
           const res = await fetch(`${baseUrl}/aplicacoes_defensivos`, {
             method: "POST",
             headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
             body: JSON.stringify(payload),
           });
+          
           if (!res.ok) {
             const txt = await res.text();
+             // Defensivos podem não ter validação estrita de duplicidade, mas se tiver, tratamos aqui
             throw new Error(txt);
           }
           defensivosCopiados += defensivosDaAplicacao.length;
@@ -122,7 +196,8 @@ export const ReplicarSafras = () => {
       const safraDestino = safras.find(s => s.id === safraDestinoId)?.nome;
 
       toast.success(
-        `Replicação concluída! ${cultivaresCopiados} cultivares, ${adubacoesCopiadas} adubações e ${defensivosCopiados} defensivos copiados de ${safraOrigem} para ${safraDestino}`
+        `Replicação concluída! ${programacoesCopiadas} programações completas e ${defensivosCopiados} defensivos avulsos copiados de ${safraOrigem} para ${safraDestino}.` + 
+        (errosIgnorados > 0 ? ` (${errosIgnorados} itens ignorados por duplicidade)` : "")
       );
 
       setSafraOrigemId("");

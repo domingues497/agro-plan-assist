@@ -1,11 +1,21 @@
 import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 
-const Drawer = ({ shouldScaleBackground = true, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
-  <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} {...props} />
-);
+const Drawer = ({ shouldScaleBackground = true, onOpenChange, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) => {
+  const queryClient = useQueryClient();
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      queryClient.invalidateQueries();
+    }
+    onOpenChange?.(open);
+  };
+
+  return <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} onOpenChange={handleOpenChange} {...props} />;
+};
 Drawer.displayName = "Drawer";
 
 const DrawerTrigger = DrawerPrimitive.Trigger;

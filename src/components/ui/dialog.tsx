@@ -1,10 +1,22 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 
-const Dialog = DialogPrimitive.Root;
+const Dialog: React.FC<React.ComponentProps<typeof DialogPrimitive.Root>> = ({ onOpenChange, ...props }) => {
+  const queryClient = useQueryClient();
+  
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      queryClient.invalidateQueries();
+    }
+    onOpenChange?.(open);
+  };
+
+  return <DialogPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
+};
 
 const DialogTrigger = DialogPrimitive.Trigger;
 

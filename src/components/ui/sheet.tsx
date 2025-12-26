@@ -2,10 +2,22 @@ import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 
-const Sheet = SheetPrimitive.Root;
+const Sheet: React.FC<React.ComponentProps<typeof SheetPrimitive.Root>> = ({ onOpenChange, ...props }) => {
+  const queryClient = useQueryClient();
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      queryClient.invalidateQueries();
+    }
+    onOpenChange?.(open);
+  };
+
+  return <SheetPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
+};
 
 const SheetTrigger = SheetPrimitive.Trigger;
 

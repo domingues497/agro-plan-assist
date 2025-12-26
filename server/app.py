@@ -984,6 +984,7 @@ def list_programacoes():
             user_id = None
             cm_token = None
             cm_arg = (request.args.get("numerocm_consultor") or "").strip()
+            safra_id = request.args.get("safra_id")
             where = []
             params = []
             if auth.lower().startswith("bearer "):
@@ -1022,6 +1023,9 @@ def list_programacoes():
                         params.append(allowed_fazendas)
                     if subconds:
                         where.append("(" + " OR ".join(subconds) + ")")
+            if safra_id:
+                where.append("p.safra_id = %s")
+                params.append(safra_id)
             sql = base + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY p.created_at DESC"
             cur.execute(sql, params)
             rows = cur.fetchall()
@@ -1419,6 +1423,63 @@ def update_programacao(id: str):
     finally:
         pool.putconn(conn)
 
+@app.route("/programacao_talhoes", methods=["GET"])
+def list_programacao_talhoes():
+    ensure_programacao_schema()
+    safra_id = request.args.get("safra_id")
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            if safra_id:
+                cur.execute("SELECT * FROM public.programacao_talhoes WHERE safra_id = %s ORDER BY created_at DESC", [safra_id])
+            else:
+                cur.execute("SELECT * FROM public.programacao_talhoes ORDER BY created_at DESC")
+            cols = [d[0] for d in cur.description]
+            rows = cur.fetchall()
+            items = [dict(zip(cols, r)) for r in rows]
+            return jsonify({"items": items, "count": len(items)})
+    finally:
+        pool.putconn(conn)
+
+@app.route("/programacao_talhoes", methods=["POST"])
+def create_programacao_talhoes():
+    ensure_programacao_schema()
+    payload = request.get_json(silent=True) or {}
+    id_val = payload.get("id") or str(uuid.uuid4())
+    programacao_id = payload.get("programacao_id")
+    talhao_id = payload.get("talhao_id")
+    safra_id = payload.get("safra_id")
+    fazenda_idfazenda = payload.get("fazenda_idfazenda")
+
+    if not programacao_id or not talhao_id or not safra_id:
+        return jsonify({"error": "campos obrigatórios ausentes"}), 400
+
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM public.programacao_talhoes WHERE programacao_id = %s AND talhao_id = %s AND safra_id = %s",
+                    [programacao_id, talhao_id, safra_id]
+                )
+                if cur.fetchone():
+                    return jsonify({"error": "talhao já vinculado nesta safra"}), 400
+
+                cur.execute(
+                    """
+                    INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    [id_val, programacao_id, talhao_id, safra_id, fazenda_idfazenda]
+                )
+        return jsonify({"id": id_val})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        pool.putconn(conn)
+
 @app.route("/programacao_cultivares", methods=["GET"])
 def list_programacao_cultivares():
     ensure_programacao_schema()
@@ -1655,6 +1716,7 @@ def list_programacao_adubacao():
             auth = request.headers.get("Authorization") or ""
             role = None
             cm_token = None
+            safra_id = request.args.get("safra_id")
             if auth.lower().startswith("bearer "):
                 try:
                     payload = verify_jwt(auth.split(" ", 1)[1])
@@ -1662,12 +1724,26 @@ def list_programacao_adubacao():
                     cm_token = payload.get("numerocm_consultor")
                 except Exception:
                     role = None
+            
+            where = []
+            params = []
+            
             if role == "consultor" and cm_token:
-                cur.execute("SELECT * FROM public.programacao_adubacao WHERE numerocm_consultor = %s ORDER BY created_at DESC", [cm_token])
+                where.append("numerocm_consultor = %s")
+                params.append(cm_token)
             elif role == "consultor":
-                cur.execute("SELECT * FROM public.programacao_adubacao WHERE 1=0")
-            else:
-                cur.execute("SELECT * FROM public.programacao_adubacao ORDER BY created_at DESC")
+                where.append("1=0")
+            
+            if safra_id:
+                where.append("safra_id = %s")
+                params.append(safra_id)
+                
+            sql = "SELECT * FROM public.programacao_adubacao"
+            if where:
+                sql += " WHERE " + " AND ".join(where)
+            sql += " ORDER BY created_at DESC"
+            
+            cur.execute(sql, params)
             cols = [d[0] for d in cur.description]
             rows = cur.fetchall()
             items = [dict(zip(cols, r)) for r in rows]
