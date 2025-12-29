@@ -100,7 +100,7 @@ export const RelatorioProdutoresPDF = ({ produtores }: RelatorioProdutoresPDFPro
         <Page size="A4" orientation="landscape" style={styles.page}>
           <View style={styles.header}>
             <Text style={styles.title}>Relatório de Produtores</Text>
-            <Text style={styles.subtitle}>Gerado em: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</Text>
+            <Text style={styles.subtitle}>Gerado : {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</Text>
           </View>
           <Text>Nenhum produtor encontrado.</Text>
         </Page>
