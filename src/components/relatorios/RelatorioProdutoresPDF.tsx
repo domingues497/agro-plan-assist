@@ -40,12 +40,13 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     minHeight: 25,
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   tableHeader: {
     backgroundColor: '#f9fafb',
     fontWeight: 'bold',
     minHeight: 30,
+    alignItems: 'stretch',
   },
   tableCol: {
     borderStyle: 'solid',
@@ -58,6 +59,8 @@ const styles = StyleSheet.create({
   tableCell: {
     fontSize: 9,
     padding: 2,
+    marginTop: 'auto',
+    marginBottom: 'auto',
   },
   footer: {
     position: 'absolute',
