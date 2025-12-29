@@ -208,7 +208,7 @@ const Relatorios = () => {
                       cultivar: cultivar?.cultivar || "-",
                       data_plantio: cultivar?.data_plantio ? new Date(cultivar.data_plantio).toLocaleDateString('pt-BR') : "-",
                       plantas_m2: cultivar?.populacao_recomendada ? String(cultivar.populacao_recomendada) : "-",
-                      epoca: epocas.find((e: any) => e.id === cultivar?.epoca_id)?.nome || "Plantio",
+                      epoca: epocas.find((e: any) => String(e.id) === String(cultivar?.epoca_id))?.nome || "Plantio",
                       area_ha: areaCalculada > 0 ? areaCalculada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-",
                       propria: cultivar?.semente_propria ? "Sim" : "Não",
                       emb: cultivar?.unidade || (cultivar?.embalagem || "Bigbag"),
@@ -284,7 +284,7 @@ const Relatorios = () => {
                       cultivar: cultivar?.cultivar || "-",
                       data_plantio: cultivar?.data_plantio ? new Date(cultivar.data_plantio).toLocaleDateString('pt-BR') : "-",
                       plantas_m2: cultivar?.populacao_recomendada ? String(cultivar.populacao_recomendada) : "-",
-                      epoca: epocas.find((e: any) => e.id === cultivar?.epoca_id)?.nome || "Plantio",
+                      epoca: epocas.find((e: any) => String(e.id) === String(cultivar?.epoca_id))?.nome || "Plantio",
                       area_ha: areaCalculada > 0 ? areaCalculada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-",
                       propria: cultivar?.semente_propria ? "Sim" : "Não",
                       emb: cultivar?.unidade || (cultivar?.embalagem || "Bigbag"),
@@ -326,7 +326,7 @@ const Relatorios = () => {
 
   // Fetch detailed data for the selected consultor
   const { data: detailedReportConsultorData = [], isLoading: loadingConsultorDetailed } = useQuery({
-    queryKey: ["detailed-report-consultor", consultorFilter, safraFilter],
+    queryKey: ["detailed-report-consultor", consultorFilter, safraFilter, epocas],
     enabled: !!consultorFilter,
     queryFn: async () => {
       // Find producers for this consultant
@@ -461,7 +461,7 @@ const Relatorios = () => {
                       cultivar: cultivar?.cultivar || "-",
                       data_plantio: cultivar?.data_plantio ? new Date(cultivar.data_plantio).toLocaleDateString('pt-BR') : "-",
                       plantas_m2: cultivar?.populacao_recomendada ? String(cultivar.populacao_recomendada) : "-",
-                      epoca: "Plantio",
+                      epoca: epocas.find((e: any) => String(e.id) === String(cultivar?.epoca_id))?.nome || "Plantio",
                       area_ha: areaCalculada > 0 ? areaCalculada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-",
                       propria: cultivar?.semente_propria ? "Sim" : "Não",
                       emb: cultivar?.unidade || (cultivar?.embalagem || "Bigbag"),
@@ -534,7 +534,7 @@ const Relatorios = () => {
                       cultivar: cultivar?.cultivar || "-",
                       data_plantio: cultivar?.data_plantio ? new Date(cultivar.data_plantio).toLocaleDateString('pt-BR') : "-",
                       plantas_m2: cultivar?.populacao_recomendada ? String(cultivar.populacao_recomendada) : "-",
-                      epoca: "Plantio",
+                      epoca: epocas.find((e: any) => String(e.id) === String(cultivar?.epoca_id))?.nome || "Plantio",
                       area_ha: areaCalculada > 0 ? areaCalculada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-",
                       propria: cultivar?.semente_propria ? "Sim" : "Não",
                       emb: cultivar?.unidade || (cultivar?.embalagem || "Bigbag"),
