@@ -7,6 +7,7 @@ import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { useSafras } from "@/hooks/useSafras";
+import { useEpocas } from "@/hooks/useEpocas";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useTalhoesMultiFazendas } from "@/hooks/useTalhoes";
 import { useProdutores } from "@/hooks/useProdutores";
@@ -49,6 +50,7 @@ const Relatorios = () => {
   const { data: produtores = [] } = useProdutores();
   const { programacoes: allProgramacoes } = useProgramacoes();
   const { data: allFazendas = [] } = useFazendas();
+  const { data: epocas = [] } = useEpocas();
   const [safraFilter, setSafraFilter] = useState<string>("");
   const [produtorFilter, setProdutorFilter] = useState<string>("");
   const [openCombobox, setOpenCombobox] = useState(false);
@@ -65,7 +67,7 @@ const Relatorios = () => {
 
   // Fetch detailed data for the selected produtor
   const { data: detailedReportData = [], isLoading: loadingDetailed } = useQuery({
-    queryKey: ["detailed-report", produtorFilter, safraFilter],
+    queryKey: ["detailed-report", produtorFilter, safraFilter, epocas],
     enabled: !!produtorFilter,
     queryFn: async () => {
       const filteredProgs = allProgramacoes.filter(p => {
@@ -206,7 +208,7 @@ const Relatorios = () => {
                       cultivar: cultivar?.cultivar || "-",
                       data_plantio: cultivar?.data_plantio ? new Date(cultivar.data_plantio).toLocaleDateString('pt-BR') : "-",
                       plantas_m2: cultivar?.populacao_recomendada ? String(cultivar.populacao_recomendada) : "-",
-                      epoca: "Plantio",
+                      epoca: epocas.find((e: any) => e.id === cultivar?.epoca_id)?.nome || "Plantio",
                       area_ha: areaCalculada > 0 ? areaCalculada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-",
                       propria: cultivar?.semente_propria ? "Sim" : "Não",
                       emb: cultivar?.unidade || (cultivar?.embalagem || "Bigbag"),
@@ -282,7 +284,7 @@ const Relatorios = () => {
                       cultivar: cultivar?.cultivar || "-",
                       data_plantio: cultivar?.data_plantio ? new Date(cultivar.data_plantio).toLocaleDateString('pt-BR') : "-",
                       plantas_m2: cultivar?.populacao_recomendada ? String(cultivar.populacao_recomendada) : "-",
-                      epoca: "Plantio",
+                      epoca: epocas.find((e: any) => e.id === cultivar?.epoca_id)?.nome || "Plantio",
                       area_ha: areaCalculada > 0 ? areaCalculada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-",
                       propria: cultivar?.semente_propria ? "Sim" : "Não",
                       emb: cultivar?.unidade || (cultivar?.embalagem || "Bigbag"),
@@ -933,91 +935,7 @@ const Relatorios = () => {
         </div>
         )}
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Resumo de cultivares</h3>
-            <div className="space-y-3 mb-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Cultivares</span>
-                <span className="font-semibold">{resumo.cultivares}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Quantidade total</span>
-                <span className="font-semibold">{resumo.quantidadeSementes.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Hectares identificados</span>
-                <span className="font-semibold">{resumo.hectares.toFixed(2)} ha</span>
-              </div>
-            </div>
-            <Button className="w-full" variant="outline" onClick={exportCultivaresCsv}>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar CSV
-            </Button>
-          </Card>
 
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Resumo de adubacoes</h3>
-            <div className="space-y-3 mb-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Programacoes</span>
-                <span className="font-semibold">{resumo.adubacoes}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Volume total</span>
-                <span className="font-semibold">{resumo.volumeAdubacao.toFixed(2)}</span>
-              </div>
-            </div>
-            <Button className="w-full" variant="outline" onClick={exportAdubacaoCsv}>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar CSV
-            </Button>
-          </Card>
-
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Resumo de defensivos</h3>
-            <div className="space-y-3 mb-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Aplicacoes</span>
-                <span className="font-semibold">{resumo.defensivos}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Volume total</span>
-                <span className="font-semibold">{resumo.volumeDefensivo.toFixed(2)}</span>
-              </div>
-            </div>
-            <Button className="w-full" variant="outline" onClick={exportDefensivosCsv}>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar CSV
-            </Button>
-          </Card>
-
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Safras monitoradas</h3>
-            <div className="space-y-3 mb-4">
-              {resumo.safras.length === 0 ? (
-                <p className="text-muted-foreground">Nenhuma safra identificada nas consultas.</p>
-              ) : (
-                resumo.safras.map((safra) => (
-                  <div key={safra} className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{safra}</span>
-                    <span className="font-semibold">
-                      {
-                        cultivaresList.filter(
-                          (item) => String(item.safra ?? "") === safra
-                        ).length
-                      }
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-            <Button className="w-full" variant="outline" onClick={() => exportCultivaresCsv()}>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar resumo
-            </Button>
-          </Card>
-        </div>
       </main>
     </div>
   );
