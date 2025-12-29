@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,40 @@ export default function Programacao() {
   const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
   const canEditProgramacao = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const { defaultSafra, safras } = useSafras();
+  
+  const { data: embalagensCultivar = [] } = useQuery({
+    queryKey: ["embalagens-cultivar"],
+    queryFn: async () => {
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/embalagens?scope=cultivar`);
+      if (!res.ok) throw new Error("Erro ao buscar embalagens de cultivar");
+      const json = await res.json();
+      return (json?.items || []).map((x: any, i: number) => ({ 
+        id: String(x.id || `temp-${i}`), 
+        nome: String(x.nome || ""), 
+        cultura: x.cultura ?? null 
+      }));
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: embalagensFertilizantesAll = [] } = useQuery({
+    queryKey: ["embalagens-fertilizantes-all"],
+    queryFn: async () => {
+      const { getApiBaseUrl } = await import("@/lib/utils");
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/embalagens?scope=fertilizante`);
+      if (!res.ok) throw new Error("Erro ao buscar embalagens de fertilizante");
+      const json = await res.json();
+      return (json?.items || []).map((x: any, i: number) => ({ 
+        id: String(x.id || `temp-${i}`), 
+        nome: String(x.nome || "") 
+      }));
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
   const [selectedSafra, setSelectedSafra] = useState<string>("all");
   const [filterRevisada, setFilterRevisada] = useState<string>("all");
   const [isLoadingEdit, setIsLoadingEdit] = useState<string | null>(null);
@@ -189,7 +224,7 @@ export default function Programacao() {
             const sum = items.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
             updates[p.id] = sum;
           } catch (error) {
-            console.error(`Erro ao calcular área da programação ${p.id}:`, error);
+            // console.error(`Erro ao calcular área da programação ${p.id}:`, error);
           }
         }
         if (Object.keys(updates).length > 0) {
@@ -436,6 +471,8 @@ export default function Programacao() {
                   });
                 }}
                 onCancel={() => setShowForm(false)}
+                embalagensCultivarOptions={embalagensCultivar}
+                embalagensFertilizantesOptions={embalagensFertilizantesAll}
               />
             )}
 
@@ -445,6 +482,8 @@ export default function Programacao() {
                 submitLabel={isUpdating ? "Salvando..." : "Salvar alterações"}
                 readOnly={isConsultor && !canEditProgramacao}
                 initialData={lockedInitialData}
+                embalagensCultivarOptions={embalagensCultivar}
+                embalagensFertilizantesOptions={embalagensFertilizantesAll}
                 onSubmit={(data) => {
                   update({ id: editing.id, ...data }).then(() => {
                     setEditing(null);

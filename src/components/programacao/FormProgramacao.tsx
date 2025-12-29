@@ -20,7 +20,7 @@ import { useDefensivosCatalog } from "@/hooks/useDefensivosCatalog";
 import { useTalhoes } from "@/hooks/useTalhoes";
 import { useEpocas } from "@/hooks/useEpocas";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
-import { Plus, Trash2, Settings } from "lucide-react";
+import { Plus, Trash2, Settings, Loader2 } from "lucide-react";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,9 @@ interface FormProgramacaoProps {
   submitLabel?: string;
   initialData?: Partial<CreateProgramacao>;
   readOnly?: boolean;
+  isLoading?: boolean;
+  embalagensCultivarOptions?: Array<{ id: string; nome: string; cultura?: string | null }>;
+  embalagensFertilizantesOptions?: Array<{ id: string; nome: string }>;
 }
 
 // Tipo para defensivo dentro da cultivar
@@ -305,8 +308,8 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
                 <SelectValue placeholder="Selecione a embalagem" />
               </SelectTrigger>
               <SelectContent>
-                {embalagensDisponiveis.map((e) => (
-                  <SelectItem key={e.id} value={e.nome}>{e.nome}</SelectItem>
+                {embalagensDisponiveis.map((e, idx) => (
+                  <SelectItem key={e.id || `emb-${idx}`} value={e.nome}>{e.nome}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -415,13 +418,13 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
                 <CommandList>
                   <CommandEmpty>Nenhum tratamento encontrado.</CommandEmpty>
                   <CommandGroup>
-                    {tratamentosDisponiveis.map((t) => {
+                    {tratamentosDisponiveis.map((t, idx) => {
                       const selected = Array.isArray((item as any).tratamento_ids)
                         ? (item as any).tratamento_ids.includes(t.id)
                         : false;
                       return (
                         <CommandItem
-                          key={t.id}
+                          key={t.id || `trat-${idx}`}
                           value={`${t.nome}`}
                           onSelect={() => {
                             const current = Array.isArray((item as any).tratamento_ids)
@@ -482,9 +485,9 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
                         <CommandList>
                           <CommandEmpty>Nenhum defensivo encontrado.</CommandEmpty>
                           <CommandGroup>
-                            {defensivosCatalog.map((d) => (
+                            {defensivosCatalog.map((d, idx) => (
                               <CommandItem
-                                key={d.cod_item}
+                                key={d.cod_item || `def-${idx}`}
                                 value={`${d.item}`}
                                 onSelect={() => handleDefensivoChange(defensivo.tempId, "defensivo", d.item)}
                               >
@@ -587,7 +590,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
   );
 }
 
-export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initialData, readOnly = false }: FormProgramacaoProps) => {
+export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initialData, readOnly = false, isLoading = false, embalagensCultivarOptions = [], embalagensFertilizantesOptions = [] }: FormProgramacaoProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile } = useProfile();
@@ -614,44 +617,18 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
   }, [embalagensRaw]);
-  const [embalagensApi, setEmbalagensApi] = useState<Array<{ id: string; nome: string; cultura?: string | null }>>([]);
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const base = getApiBaseUrl();
-        const res = await fetch(`${base}/embalagens?scope=cultivar`);
-        if (!res.ok) return;
-        const j = await res.json();
-        const list = (j?.items || []).map((x: any) => ({ id: String(x.id || ""), nome: String(x.nome || ""), cultura: x.cultura ?? null }));
-        setEmbalagensApi(list);
-      } catch {}
-    };
-    load();
-  }, []);
   const embalagensCultivar = useMemo(() => {
-    if ((embalagensApi || []).length > 0) return embalagensApi;
+    if (embalagensCultivarOptions.length > 0) return embalagensCultivarOptions;
+    // Fallback para configuração do sistema (legado)
     return (embalagens || []).filter((e: any) => (e?.ativo ?? true) && Array.isArray(e?.scopes) && e.scopes.includes("CULTIVAR"));
-  }, [embalagensApi, embalagens]);
+  }, [embalagensCultivarOptions, embalagens]);
 
-  const [embalagensFertilizantesApi, setEmbalagensFertilizantesApi] = useState<Array<{ id: string; nome: string }>>([]);
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const base = getApiBaseUrl();
-        const res = await fetch(`${base}/embalagens?scope=fertilizante`);
-        if (!res.ok) return;
-        const j = await res.json();
-        const list = (j?.items || []).map((x: any) => ({ id: String(x.id || ""), nome: String(x.nome || "") }));
-        setEmbalagensFertilizantesApi(list);
-      } catch {}
-    };
-    load();
-  }, []);
-  const embalagensFertilizantes = useMemo(() => (embalagens || []).filter((e: any) => (e?.ativo ?? true) && Array.isArray(e?.scopes) && e.scopes.includes("FERTILIZANTE")), [embalagens]);
   const embalagensFertilizantesAll = useMemo(() => {
-    if ((embalagensFertilizantesApi || []).length > 0) return embalagensFertilizantesApi;
-    return embalagensFertilizantes as Array<{ id: string; nome: string }>;
-  }, [embalagensFertilizantesApi, embalagensFertilizantes]);
+    if (embalagensFertilizantesOptions.length > 0) return embalagensFertilizantesOptions;
+    // Fallback para configuração do sistema (legado)
+    const legacy = (embalagens || []).filter((e: any) => (e?.ativo ?? true) && Array.isArray(e?.scopes) && e.scopes.includes("FERTILIZANTE"));
+    return legacy;
+  }, [embalagensFertilizantesOptions, embalagens]);
 
   // Normaliza valores vindos do banco para o enum do select
   const normalizeTipoTratamento = (s?: string): ItemCultivar["tipo_tratamento"] => {
@@ -844,7 +821,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       setFazendaFiltrada(filtered);
       // Em modo edição, não limpar automaticamente os campos
       if (!initialData) {
-        console.log("Clearing fields due to produtor change");
+        // console.log("Clearing fields due to produtor change");
         setFazendaIdfazenda("");
         setArea("");
         setTalhaoIds([]);
@@ -1173,7 +1150,15 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden relative">
+      {isLoading && (
+        <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="text-sm text-muted-foreground">Carregando dados...</span>
+          </div>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
         {title && (
           <h2 className="text-xl sm:text-2xl font-bold mb-2">{title}</h2>
@@ -1317,7 +1302,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                 <SelectValue placeholder="Selecione a época" />
               </SelectTrigger>
               <SelectContent>
-                {(epocas || []).map((e) => (
+                {Array.from(new Map((epocas || []).map((e: any) => [String(e.id), e])).values()).map((e: any) => (
                   <SelectItem key={e.id} value={e.id}>
                     {e.nome}
                   </SelectItem>
@@ -1406,7 +1391,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                   <SelectValue placeholder="Selecione a justificativa" />
                 </SelectTrigger>
                 <SelectContent>
-                  {justificativas.map((j) => (
+                  {Array.from(new Map((justificativas || []).map((j: any) => [String(j.id), j])).values()).map((j: any) => (
                     <SelectItem key={j.id} value={j.id}>
                       {j.descricao}
                     </SelectItem>
@@ -1499,8 +1484,8 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                         <SelectValue placeholder="Selecione a embalagem" />
                       </SelectTrigger>
                       <SelectContent>
-                        {(embalagensFertilizantesAll || []).map((e: any) => (
-                          <SelectItem key={e.id} value={e.nome}>{e.nome}</SelectItem>
+                        {Array.from(new Map((embalagensFertilizantesAll || []).map((e: any) => [String(e.id), e])).values()).map((e: any, idx: number) => (
+                          <SelectItem key={e.id || `fert-${idx}`} value={e.nome}>{e.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

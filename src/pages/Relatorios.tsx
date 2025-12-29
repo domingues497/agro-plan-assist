@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getApiBaseUrl, cn } from "@/lib/utils";
 import { RelatorioDetalhadoPDF, DetailedReportItem, ProductItem, CultivarItem } from "@/components/relatorios/RelatorioDetalhadoPDF";
 import { RelatorioDetalhadoConsultorPDF } from "@/components/relatorios/RelatorioDetalhadoConsultorPDF";
+import { RelatorioProdutores } from "@/components/relatorios/RelatorioProdutores";
 import {
   Command,
   CommandEmpty,
@@ -767,6 +768,8 @@ const Relatorios = () => {
             )}
           </PDFDownloadLink>
         </div>
+
+        <RelatorioProdutores produtores={produtores} />
 
         <div className="mb-6 p-4 border rounded-lg bg-card">
           <h2 className="text-lg font-bold mb-4">Relatório Detalhado por Produtor</h2>
