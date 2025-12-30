@@ -88,7 +88,7 @@ export const RelatorioProdutoresPDF = ({ produtores }: RelatorioProdutoresPDFPro
     return isClosed ? "FECHADO" : "ABERTO";
   };
 
-  const ITEMS_PER_PAGE = 12;
+  const ITEMS_PER_PAGE = 13;
   const chunks = [];
   for (let i = 0; i < produtores.length; i += ITEMS_PER_PAGE) {
     chunks.push(produtores.slice(i, i + ITEMS_PER_PAGE));

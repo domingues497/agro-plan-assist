@@ -1432,18 +1432,18 @@ def update_programacao(id: str):
                                 cod_val = r[0]
                         except Exception:
                             cod_val = None
-                    cur.execute(
-                        """
-                        INSERT INTO public.programacao_adubacao (
-                          id, programacao_id, user_id, produtor_numerocm, area, formulacao, cod_item, dose, percentual_cobertura,
-                          data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo,
-                          porcentagem_salva, total, safra_id
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                        """,
-                        [str(uuid.uuid4()), id, user_id, produtor_numerocm, area, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
-                         a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
-                         float(a.get("porcentagem_salva") or 0), None, safra_id]
-                    )
+                        cur.execute(
+                            """
+                            INSERT INTO public.programacao_adubacao (
+                              id, programacao_id, user_id, produtor_numerocm, area, formulacao, cod_item, dose, percentual_cobertura,
+                              data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo,
+                              porcentagem_salva, total, safra_id
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            """,
+                            [str(uuid.uuid4()), id, user_id, produtor_numerocm, area, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
+                             a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
+                             float(a.get("porcentagem_salva") or 0), None, safra_id]
+                        )
                 for tid in talhao_ids:
                     cur.execute(
                         """
