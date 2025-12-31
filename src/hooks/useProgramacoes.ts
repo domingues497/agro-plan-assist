@@ -51,6 +51,7 @@ export interface Programacao {
   area: string;
   area_hectares: number;
   safra_id: string | null;
+  tipo?: "PREVIA" | "PROGRAMACAO";
   revisada?: boolean;
   created_at: string;
   updated_at: string;
@@ -62,6 +63,7 @@ export interface CreateProgramacao {
   area: string;
   area_hectares: number;
   safra_id?: string;
+  tipo?: "PREVIA" | "PROGRAMACAO";
   epoca_id?: string;
   talhao_ids?: string[];
   cultivares: ItemCultivar[];
@@ -303,6 +305,7 @@ Talhões: ${nomes}.`
         area: destAreaName,
         area_hectares,
         safra_id: original.safra_id || undefined,
+        tipo: original.tipo || "PROGRAMACAO",
         epoca_id: undefined,
         talhao_ids: [],
         cultivares: cultivaresSrc.map(c => ({

@@ -638,14 +638,16 @@ def ensure_programacao_schema():
                       area TEXT NOT NULL,
                       area_hectares NUMERIC,
                       safra_id TEXT,
+                      tipo TEXT,
                       revisada BOOLEAN DEFAULT FALSE,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
                     
                     ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS revisada BOOLEAN DEFAULT FALSE;
+                    ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'PROGRAMACAO';
 
-                    CREATE TABLE IF NOT EXISTS public.programacao_cultivares (
+                    CREATE TABLE IF     NOT EXISTS public.programacao_cultivares (
                       id TEXT PRIMARY KEY,
                       programacao_id TEXT REFERENCES public.programacoes(id) ON DELETE CASCADE,
                       user_id TEXT,

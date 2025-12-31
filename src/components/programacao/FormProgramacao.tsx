@@ -669,6 +669,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const [epocaId, setEpocaId] = useState((initialData as any)?.epoca_id || "");
   const [talhaoIds, setTalhaoIds] = useState<string[]>([]);
   const [naoFazerAdubacao, setNaoFazerAdubacao] = useState(false);
+  const [tipoProgramacao, setTipoProgramacao] = useState<"PREVIA" | "PROGRAMACAO">(
+    ((initialData as any)?.tipo === "PREVIA") ? "PREVIA" : "PROGRAMACAO"
+  );
 
   // Itens de cultivares com id estável para chaves de lista
   const makeUiId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -1011,6 +1014,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       area: areaNome,
       area_hectares: areaHectaresFinal,
       safra_id: safraId || undefined,
+      tipo: tipoProgramacao,
       epoca_id: epocaId || undefined,
       talhao_ids: talhaoIds,
       // Remove uiId antes de enviar
@@ -1200,6 +1204,19 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                     {s.nome}{s.is_default ? " (Padrão)" : ""}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tipo</Label>
+            <Select value={tipoProgramacao} onValueChange={(v) => setTipoProgramacao(v as any)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PROGRAMACAO">Programação</SelectItem>
+                <SelectItem value="PREVIA">Prévia</SelectItem>
               </SelectContent>
             </Select>
           </div>

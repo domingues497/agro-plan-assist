@@ -247,6 +247,7 @@ export default function Programacao() {
       area: editing.area,
       area_hectares: editing.area_hectares,
       safra_id: editing.safra_id || undefined,
+      tipo: editing.tipo || "PROGRAMACAO",
       epoca_id: editing.epoca_id || undefined,
       talhao_ids: editing.talhao_ids || [],
       cultivares: (() => {
@@ -528,6 +529,11 @@ export default function Programacao() {
                           <h3 className="font-semibold text-lg">
                             {prog.produtor_numerocm} - {produtor?.nome || ""}
                           </h3>
+                          {prog.tipo === 'PREVIA' && (
+                            <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200">
+                              Prévia
+                            </Badge>
+                          )}
                           {talhoesCount[prog.id] === 0 && (
                             <Badge variant="destructive" className="text-xs">
                               Programação Replicada Favor Informar Talhão

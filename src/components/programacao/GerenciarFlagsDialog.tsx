@@ -26,12 +26,14 @@ export function GerenciarFlagsDialog({ produtorNumerocm, produtorId, open, onOpe
     entrega_producao: boolean;
     entrega_producao_destino: string;
     paga_assistencia: boolean;
+    assistencia: string;
     observacao_flags: string;
   }>({
     compra_insumos: true,
     entrega_producao: true,
     entrega_producao_destino: "COOP",
     paga_assistencia: true,
+    assistencia: "COOP",
     observacao_flags: "",
   });
 
@@ -42,6 +44,7 @@ export function GerenciarFlagsDialog({ produtorNumerocm, produtorId, open, onOpe
         entrega_producao: produtor.entrega_producao ?? true,
         entrega_producao_destino: produtor.entrega_producao_destino || (produtor.entrega_producao !== false ? "COOP" : "TERCEIRO"),
         paga_assistencia: produtor.paga_assistencia ?? true,
+        assistencia: produtor.assistencia || (produtor.paga_assistencia ? "COOP" : "TERCEIRO"),
         observacao_flags: produtor.observacao_flags ?? "",
       });
     }
@@ -95,8 +98,11 @@ export function GerenciarFlagsDialog({ produtorNumerocm, produtorId, open, onOpe
               <div className="space-y-2">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">1. Assistência Técnica</h3>
             <RadioGroup
-              value={produtorFlags.paga_assistencia ? "COOP" : "TERCEIRO"}
-              onValueChange={(val) => setProdutorFlags(prev => ({ ...prev, paga_assistencia: val === "COOP" }))}
+              value={produtorFlags.paga_assistencia ? "COOP" : (produtorFlags.assistencia === "NENHUMA" ? "NENHUMA" : "TERCEIRO")}
+              onValueChange={(val) => {
+                const paga = val === "COOP";
+                setProdutorFlags(prev => ({ ...prev, paga_assistencia: paga, assistencia: val }));
+              }}
               className="gap-2"
             >
               <div className="flex items-center space-x-2">
@@ -106,6 +112,10 @@ export function GerenciarFlagsDialog({ produtorNumerocm, produtorId, open, onOpe
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="TERCEIRO" id="assistencia-terceiro" />
                 <Label htmlFor="assistencia-terceiro" className="font-normal text-destructive">Tem assistência Terceiro</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="NENHUMA" id="assistencia-nenhuma" />
+                <Label htmlFor="assistencia-nenhuma" className="font-normal text-destructive">Não possui nenhuma assistência técnica</Label>
               </div>
             </RadioGroup>
           </div>
@@ -119,7 +129,7 @@ export function GerenciarFlagsDialog({ produtorNumerocm, produtorId, open, onOpe
                 setProdutorFlags(prev => ({
                   ...prev,
                   entrega_producao_destino: val,
-                  entrega_producao: val === "COOP" // Only COOP is true
+                  entrega_producao: val === "COOP" || val === "ARMAZEM_PROPRIO"
                 }));
               }}
               className="gap-2"
@@ -130,11 +140,15 @@ export function GerenciarFlagsDialog({ produtorNumerocm, produtorId, open, onOpe
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="ARMAZEM_PROPRIO" id="entrega-armazem" />
-                <Label htmlFor="entrega-armazem" className="font-normal text-destructive">Tem armazém próprio</Label>
+                <Label htmlFor="entrega-armazem" className="font-normal">Tem armazém próprio</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="TERCEIRO" id="entrega-terceiro" />
                 <Label htmlFor="entrega-terceiro" className="font-normal text-destructive">Entrega para terceiro</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="CEREALISTA" id="entrega-cerealista" />
+                <Label htmlFor="entrega-cerealista" className="font-normal text-destructive">Cerealista</Label>
               </div>
             </RadioGroup>
           </div>

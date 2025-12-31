@@ -588,6 +588,10 @@ def update_produtor(id: str):
                 if "paga_assistencia" in payload:
                     set_clauses.append("paga_assistencia = %s")
                     values.append(bool(payload.get("paga_assistencia")))
+
+                if "assistencia" in payload:
+                    set_clauses.append("assistencia = %s")
+                    values.append(payload.get("assistencia"))
                     
                 if "observacao_flags" in payload:
                     set_clauses.append("observacao_flags = %s")
@@ -976,7 +980,7 @@ def list_programacoes():
     try:
         with conn.cursor() as cur:
             base = (
-                "SELECT p.id, p.user_id, p.produtor_numerocm, p.fazenda_idfazenda, p.area, p.area_hectares, p.safra_id, p.revisada, p.created_at, p.updated_at "
+                "SELECT p.id, p.user_id, p.produtor_numerocm, p.fazenda_idfazenda, p.area, p.area_hectares, p.safra_id, p.tipo, p.revisada, p.created_at, p.updated_at "
                 "FROM public.programacoes p"
             )
             auth = request.headers.get("Authorization") or ""
@@ -1049,6 +1053,7 @@ def create_programacao():
     talhao_ids = payload.get("talhao_ids") or []
     cultivares = payload.get("cultivares") or []
     adubacao = payload.get("adubacao") or []
+    tipo = (payload.get("tipo") or "PROGRAMACAO").strip().upper()
     auth = request.headers.get("Authorization") or ""
     cm_token = None
     if auth.lower().startswith("bearer "):
@@ -1093,10 +1098,10 @@ def create_programacao():
                         }), 400
                 cur.execute(
                     """
-                    INSERT INTO public.programacoes (id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO public.programacoes (id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [prog_id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id]
+                    [prog_id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo]
                 )
                 for item in cultivares:
                     cult_id = item.get("id") or str(uuid.uuid4())
@@ -1300,6 +1305,7 @@ def update_programacao(id: str):
     area_hectares = payload.get("area_hectares")
     safra_id = payload.get("safra_id")
     revisada = payload.get("revisada")
+    tipo = (payload.get("tipo") or None)
     epoca_id = payload.get("epoca_id")
     talhao_ids = payload.get("talhao_ids") or []
     cultivares = payload.get("cultivares") or []
@@ -1349,7 +1355,7 @@ def update_programacao(id: str):
                         # Let's assume if it reached here with missing fields, it is invalid unless we merge.
                         
                         # Better approach: If missing required fields, fetch current state
-                        cur.execute("SELECT user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, revisada FROM public.programacoes WHERE id = %s", [id])
+                        cur.execute("SELECT user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo, revisada FROM public.programacoes WHERE id = %s", [id])
                         current = cur.fetchone()
                         if current:
                             user_id = user_id or current[0]
@@ -1358,15 +1364,16 @@ def update_programacao(id: str):
                             area = area or current[3]
                             area_hectares = area_hectares or current[4]
                             safra_id = safra_id or current[5]
-                            if revisada is None: revisada = current[6]
+                            if tipo is None: tipo = current[6]
+                            if revisada is None: revisada = current[7]
 
                     cur.execute(
                         """
                         UPDATE public.programacoes
-                        SET user_id = %s, produtor_numerocm = %s, fazenda_idfazenda = %s, area = %s, area_hectares = %s, safra_id = %s, revisada = %s, updated_at = now()
+                        SET user_id = %s, produtor_numerocm = %s, fazenda_idfazenda = %s, area = %s, area_hectares = %s, safra_id = %s, tipo = %s, revisada = %s, updated_at = now()
                         WHERE id = %s
                         """,
-                        [user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, bool(revisada) if revisada is not None else False, id]
+                        [user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, (str(tipo).strip().upper() if tipo is not None else None), bool(revisada) if revisada is not None else False, id]
                     )
                     cur.execute("DELETE FROM public.programacao_cultivares WHERE programacao_id = %s", [id])
                     cur.execute("DELETE FROM public.programacao_talhoes WHERE programacao_id = %s", [id])
