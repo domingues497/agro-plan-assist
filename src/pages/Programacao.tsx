@@ -26,6 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 import { useSafras } from "@/hooks/useSafras";
+import { useEpocas } from "@/hooks/useEpocas";
 
 export default function Programacao() {
   const [showForm, setShowForm] = useState(false);
@@ -49,6 +50,7 @@ export default function Programacao() {
   const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
   const canEditProgramacao = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const { defaultSafra, safras } = useSafras();
+  const { data: epocas = [] } = useEpocas();
   
   const { data: embalagensCultivar = [] } = useQuery({
     queryKey: ["embalagens-cultivar"],
@@ -84,6 +86,7 @@ export default function Programacao() {
   });
 
   const [selectedSafra, setSelectedSafra] = useState<string>("all");
+  const [selectedEpocaId, setSelectedEpocaId] = useState<string>("");
   const [filterRevisada, setFilterRevisada] = useState<string>("all");
   const [isLoadingEdit, setIsLoadingEdit] = useState<string | null>(null);
 
@@ -92,6 +95,14 @@ export default function Programacao() {
       setSelectedSafra(String(defaultSafra.id));
     }
   }, [defaultSafra]);
+
+  useEffect(() => {
+    if (epocas.length > 0 && !selectedEpocaId) {
+      const normal = epocas.find((e: any) => e.nome === "Normal");
+      if (normal) setSelectedEpocaId(normal.id);
+      else setSelectedEpocaId(epocas[0].id);
+    }
+  }, [epocas, selectedEpocaId]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -102,6 +113,10 @@ export default function Programacao() {
 
     if (selectedSafra && selectedSafra !== "all") {
       filtered = filtered.filter(p => String(p.safra_id) === String(selectedSafra));
+    }
+
+    if (selectedEpocaId) {
+      filtered = filtered.filter(p => !p.epoca_id || String(p.epoca_id) === String(selectedEpocaId));
     }
 
     if (filterRevisada !== "all") {
@@ -424,6 +439,19 @@ export default function Programacao() {
               {safras.map((s) => (
                 <SelectItem key={s.id} value={String(s.id)}>
                   {s.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedEpocaId} onValueChange={setSelectedEpocaId}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Selecione a época" />
+            </SelectTrigger>
+            <SelectContent>
+              {epocas.map((e) => (
+                <SelectItem key={e.id} value={String(e.id)}>
+                  {e.nome}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -925,6 +953,7 @@ export default function Programacao() {
         produtorId={fazendaParaTalhoes.produtorId}
         produtorNumerocm={fazendaParaTalhoes.produtorNumerocm}
         safraId={defaultSafra?.id}
+        epocaId={selectedEpocaId}
         open={gerenciarTalhoesOpen}
         onOpenChange={setGerenciarTalhoesOpen}
       />

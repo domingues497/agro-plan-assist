@@ -20,14 +20,15 @@ interface GerenciarTalhoesProps {
   fazendaId: string;
   fazendaNome: string;
   safraId?: string;
+  epocaId?: string;
   produtorId?: string;
   produtorNumerocm?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, produtorId, produtorNumerocm, open, onOpenChange }: GerenciarTalhoesProps) {
-  const { data: talhoes = [], refetch } = useTalhoes(fazendaId, safraId);
+export function GerenciarTalhoes({ fazendaId, fazendaNome, safraId, epocaId, produtorId, produtorNumerocm, open, onOpenChange }: GerenciarTalhoesProps) {
+  const { data: talhoes = [], refetch } = useTalhoes(fazendaId, safraId, epocaId);
   const { data: produtores = [], refetch: refetchProdutores } = useProdutores();
   const produtor = produtores.find(p => p.id === produtorId) || 
                    (produtorNumerocm ? produtores.find(p => String(p.numerocm).trim() === String(produtorNumerocm).trim()) : undefined);

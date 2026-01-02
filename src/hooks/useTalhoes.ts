@@ -20,12 +20,18 @@ export type Talhao = {
   created_at: string;
   updated_at: string;
   tem_programacao?: boolean;
+  conflito_programacao?: {
+    id: string;
+    epoca_id: string;
+    epoca_nome: string;
+  } | null;
+  /** @deprecated use conflito_programacao instead */
   tem_programacao_safra?: boolean;
 };
 
-export const useTalhoes = (fazendaId?: string, safraId?: string) => {
+export const useTalhoes = (fazendaId?: string, safraId?: string, epocaId?: string) => {
   return useQuery({
-    queryKey: ["talhoes", fazendaId, safraId],
+    queryKey: ["talhoes", fazendaId, safraId, epocaId],
     queryFn: async () => {
       // Se não houver fazendaId, retornar array vazio ao invés de buscar todos
       if (!fazendaId) {
@@ -35,6 +41,7 @@ export const useTalhoes = (fazendaId?: string, safraId?: string) => {
       const baseUrl = getApiBaseUrl();
       const params = new URLSearchParams({ fazenda_id: String(fazendaId) });
       if (safraId) params.set("safra_id", String(safraId));
+      if (epocaId) params.set("epoca_id", String(epocaId));
       const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/talhoes?${params.toString()}` , { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {

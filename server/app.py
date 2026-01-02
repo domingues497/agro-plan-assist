@@ -980,7 +980,8 @@ def list_programacoes():
     try:
         with conn.cursor() as cur:
             base = (
-                "SELECT p.id, p.user_id, p.produtor_numerocm, p.fazenda_idfazenda, p.area, p.area_hectares, p.safra_id, p.tipo, p.revisada, p.created_at, p.updated_at "
+                "SELECT p.id, p.user_id, p.produtor_numerocm, p.fazenda_idfazenda, p.area, p.area_hectares, p.safra_id, p.tipo, p.revisada, p.created_at, p.updated_at, "
+                "(SELECT pt.epoca_id FROM public.programacao_talhoes pt WHERE pt.programacao_id = p.id LIMIT 1) as epoca_id "
                 "FROM public.programacoes p"
             )
             auth = request.headers.get("Authorization") or ""
@@ -1086,13 +1087,14 @@ def create_programacao():
                         JOIN public.programacao_talhoes pt ON pt.programacao_id = p.id
                         LEFT JOIN public.talhoes t ON t.id = pt.talhao_id
                         WHERE p.safra_id = %s AND p.fazenda_idfazenda = %s AND pt.talhao_id = ANY(%s)
+                        AND pt.epoca_id IS NOT DISTINCT FROM %s
                         """,
-                        [safra_id, fazenda_idfazenda, talhao_ids],
+                        [safra_id, fazenda_idfazenda, talhao_ids, epoca_id],
                     )
                     rows_conf = cur.fetchall()
                     if rows_conf:
                         return jsonify({
-                            "error": "talhao já possui programação nesta safra",
+                            "error": "talhao já possui programação nesta safra e época",
                             "talhoes": [r[0] for r in rows_conf],
                             "talhoes_nomes": [r[1] for r in rows_conf if r[1] is not None]
                         }), 400
@@ -1186,10 +1188,10 @@ def create_programacao():
                 for tid in talhao_ids:
                     cur.execute(
                         """
-                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
-                        VALUES (%s, %s, %s, %s, %s)
+                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda, epoca_id)
+                        VALUES (%s, %s, %s, %s, %s, %s)
                         """,
-                        [str(uuid.uuid4()), prog_id, tid, safra_id, fazenda_idfazenda]
+                        [str(uuid.uuid4()), prog_id, tid, safra_id, fazenda_idfazenda, epoca_id]
                     )
         return jsonify({"id": prog_id})
     except Exception as e:
@@ -1323,13 +1325,14 @@ def update_programacao(id: str):
                         JOIN public.programacao_talhoes pt ON pt.programacao_id = p.id
                         LEFT JOIN public.talhoes t ON t.id = pt.talhao_id
                         WHERE p.safra_id = %s AND p.fazenda_idfazenda = %s AND pt.talhao_id = ANY(%s) AND p.id <> %s
+                        AND pt.epoca_id IS NOT DISTINCT FROM %s
                         """,
-                        [safra_id, fazenda_idfazenda, talhao_ids, id],
+                        [safra_id, fazenda_idfazenda, talhao_ids, id, epoca_id],
                     )
                     rows_conf = cur.fetchall()
                     if rows_conf:
                         return jsonify({
-                            "error": "talhao já possui programação nesta safra",
+                            "error": "talhao já possui programação nesta safra e época",
                             "talhoes": [r[0] for r in rows_conf],
                             "talhoes_nomes": [r[1] for r in rows_conf if r[1] is not None]
                         }), 400
@@ -1454,10 +1457,10 @@ def update_programacao(id: str):
                 for tid in talhao_ids:
                     cur.execute(
                         """
-                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
-                        VALUES (%s, %s, %s, %s, %s)
+                        INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda, epoca_id)
+                        VALUES (%s, %s, %s, %s, %s, %s)
                         """,
-                        [str(uuid.uuid4()), id, tid, safra_id, fazenda_idfazenda]
+                        [str(uuid.uuid4()), id, tid, safra_id, fazenda_idfazenda, epoca_id]
                     )
         return jsonify({"ok": True, "id": id})
     except Exception as e:
@@ -1492,6 +1495,7 @@ def create_programacao_talhoes():
     programacao_id = payload.get("programacao_id")
     talhao_id = payload.get("talhao_id")
     safra_id = payload.get("safra_id")
+    epoca_id = payload.get("epoca_id")
     fazenda_idfazenda = payload.get("fazenda_idfazenda")
 
     if not programacao_id or not talhao_id or not safra_id:
@@ -1511,10 +1515,10 @@ def create_programacao_talhoes():
 
                 cur.execute(
                     """
-                    INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO public.programacao_talhoes (id, programacao_id, talhao_id, safra_id, fazenda_idfazenda, epoca_id)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     """,
-                    [id_val, programacao_id, talhao_id, safra_id, fazenda_idfazenda]
+                    [id_val, programacao_id, talhao_id, safra_id, fazenda_idfazenda, epoca_id]
                 )
         return jsonify({"id": id_val})
     except Exception as e:
@@ -3354,10 +3358,15 @@ def upsert_defensivos_bulk():
 
 @app.route("/talhoes", methods=["GET"])
 def list_talhoes():
+    # Endpoint para listar talhões com filtros de safra e época
     ensure_talhoes_schema()
     fazenda_id = request.args.get("fazenda_id")
     ids = request.args.get("ids")
     safra_id = request.args.get("safra_id")
+    epoca_id = request.args.get("epoca_id")
+    
+    print(f"DEBUG list_talhoes: fazenda_id={fazenda_id} safra_id={safra_id} epoca_id={epoca_id}")
+    
     auth = request.headers.get("Authorization") or ""
     role = None
     cm_token = None
@@ -3377,27 +3386,33 @@ def list_talhoes():
                 cur.execute(
                     """
                     SELECT 
-                        t.id,
-                        t.fazenda_id,
-                        t.nome,
-                        t.area,
-                        t.arrendado,
-                        t.safras_todas,
-                        t.kml_name,
-                        t.kml_uploaded_at,
-                        t.geojson,
-                        t.centroid_lat,
-                        t.centroid_lng,
-                        t.bbox_min_lat,
-                        t.bbox_min_lng,
-                        t.bbox_max_lat,
-                        t.bbox_max_lng,
-                        t.created_at,
-                        t.updated_at,
-                        COALESCE(ARRAY_REMOVE(ARRAY_AGG(ts.safra_id), NULL), ARRAY[]::TEXT[]) AS allowed_safras,
-                        EXISTS (SELECT 1 FROM public.programacao_talhoes pt WHERE pt.talhao_id = t.id) AS tem_programacao,
-                        CASE WHEN %s IS NULL THEN FALSE ELSE EXISTS (SELECT 1 FROM public.programacao_talhoes pt WHERE pt.talhao_id = t.id AND pt.safra_id = %s) END AS tem_programacao_safra
-                    FROM public.talhoes t
+                                t.id,
+                                t.fazenda_id,
+                                t.nome,
+                                t.area,
+                                t.arrendado,
+                                t.safras_todas,
+                                t.kml_name,
+                                t.kml_uploaded_at,
+                                t.geojson,
+                                t.centroid_lat,
+                                t.centroid_lng,
+                                t.bbox_min_lat,
+                                t.bbox_min_lng,
+                                t.bbox_max_lat,
+                                t.bbox_max_lng,
+                                t.created_at,
+                                t.updated_at,
+                                COALESCE(ARRAY_REMOVE(ARRAY_AGG(ts.safra_id), NULL), ARRAY[]::TEXT[]) AS allowed_safras,
+                                EXISTS (SELECT 1 FROM public.programacao_talhoes pt WHERE pt.talhao_id = t.id) AS tem_programacao,
+                                (
+                                    SELECT json_build_object('id', pt.programacao_id, 'epoca_id', pt.epoca_id, 'epoca_nome', e.nome)
+                                    FROM public.programacao_talhoes pt
+                                    LEFT JOIN public.epocas e ON e.id = pt.epoca_id
+                                    WHERE pt.talhao_id = t.id AND pt.safra_id = %s AND pt.epoca_id = %s
+                                    LIMIT 1
+                                ) AS conflito_programacao
+                            FROM public.talhoes t
                     LEFT JOIN public.talhao_safras ts ON ts.talhao_id = t.id
                     WHERE t.fazenda_id = ANY(%s)
                       AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND f.numerocm_consultor = %s))
@@ -3405,9 +3420,10 @@ def list_talhoes():
                     GROUP BY t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.safras_todas, t.created_at, t.updated_at
                     ORDER BY t.nome
                     """,
-                    (safra_id, safra_id, id_list, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id)
+                    (safra_id, epoca_id, safra_id, epoca_id, id_list, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id)
                 )
             elif fazenda_id:
+                print(f"DEBUG: list_talhoes fazenda_id={fazenda_id} safra_id={safra_id} epoca_id={epoca_id}")
                 cur.execute(
                     """
                     SELECT 
@@ -3430,7 +3446,13 @@ def list_talhoes():
                         t.updated_at,
                         COALESCE(ARRAY_REMOVE(ARRAY_AGG(ts.safra_id), NULL), ARRAY[]::TEXT[]) AS allowed_safras,
                         EXISTS (SELECT 1 FROM public.programacao_talhoes pt WHERE pt.talhao_id = t.id) AS tem_programacao,
-                        CASE WHEN %s IS NULL THEN FALSE ELSE EXISTS (SELECT 1 FROM public.programacao_talhoes pt WHERE pt.talhao_id = t.id AND pt.safra_id = %s) END AS tem_programacao_safra
+                        (
+                            SELECT json_build_object('id', pt.programacao_id, 'epoca_id', pt.epoca_id, 'epoca_nome', e.nome)
+                            FROM public.programacao_talhoes pt
+                            LEFT JOIN public.epocas e ON e.id = pt.epoca_id
+                            WHERE pt.talhao_id = t.id AND pt.safra_id = %s AND pt.epoca_id = %s
+                            LIMIT 1
+                        ) AS conflito_programacao
                     FROM public.talhoes t
                     LEFT JOIN public.talhao_safras ts ON ts.talhao_id = t.id
                     WHERE t.fazenda_id = %s
@@ -3439,8 +3461,15 @@ def list_talhoes():
                     GROUP BY t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.safras_todas, t.created_at, t.updated_at
                     ORDER BY t.nome
                     """,
-                    [safra_id, safra_id, fazenda_id, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id]
+                    [safra_id, epoca_id, fazenda_id, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id]
                 )
+                # Debug output results
+                # rows_debug = cur.fetchall()
+                # for r in rows_debug:
+                #    print(f"DEBUG: Talhao {r[2]} tem_prog_safra={r[19]}")
+                # conn.commit() # needed? no select
+                # But I need to return rows. 
+                # Re-execute is wasteful. I'll just use the fetchall below.
             else:
                 # por padrão evitar retornar todos; retornar vazio
                 return jsonify({"items": [], "count": 0})

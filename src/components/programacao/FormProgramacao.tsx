@@ -709,7 +709,34 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     || ((fazendas || []).find((f: any) => f.idfazenda === fazendaIdfazenda)?.id)
     || undefined
   );
-  const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaId, isEditing ? undefined : safraId);
+  const { data: talhoesDaFazenda = [] } = useTalhoes(fazendaSelecionadaId, safraId, epocaId);
+
+  // Filtra talhões disponíveis
+  const talhoesDisponiveis = useMemo(() => {
+    return talhoesDaFazenda.filter((t) => {
+      // Se não há conflito de programação nesta safra E época, está disponível
+      // Agora usamos conflito_programacao que é específico para safra+época
+      if (!t.conflito_programacao) return true;
+      
+      // Se tem conflito, verifica se é a própria programação sendo editada
+      if (isEditing) {
+        const originalSafra = String(initialData?.safra_id || "");
+        const originalEpoca = String((initialData as any)?.epoca_id || "");
+        const currentSafra = String(safraId || "");
+        const currentEpoca = String(epocaId || "");
+        
+        // Se estamos visualizando a mesma safra/época original, o conflito somos nós mesmos
+        if (originalSafra === currentSafra && originalEpoca === currentEpoca) {
+          if (initialData?.talhao_ids?.map(String).includes(String(t.id))) {
+            return true;
+          }
+        }
+      }
+      
+      // Caso contrário, está ocupado por outra programação
+      return false;
+    });
+  }, [talhoesDaFazenda, isEditing, initialData, safraId, epocaId]);
 
   // Seleciona automaticamente a safra padrão, se disponível
   useEffect(() => {
@@ -717,6 +744,14 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       setSafraId(defaultSafra.id);
     }
   }, [defaultSafra, safraId]);
+
+  // Seleciona automaticamente a época padrão (Normal), se disponível
+  useEffect(() => {
+    if (!epocaId && epocas.length > 0) {
+      const normal = epocas.find((e: any) => e.nome === "Normal");
+      if (normal) setEpocaId(normal.id);
+    }
+  }, [epocas, epocaId]);
 
   // Atualiza estados quando initialData mudar (quando abrimos edição)
   useEffect(() => {
@@ -864,7 +899,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       setTalhaoIds([]);
       setAreaHectares("");
     }
-  }, [safraId]);
+  }, [safraId, epocaId]);
 
   // Calcula automaticamente a área total dos talhões selecionados
   useEffect(() => {
@@ -1193,35 +1228,6 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
           </div>
 
           <div className="space-y-2">
-            <Label>Safra</Label>
-            <Select value={safraId} onValueChange={setSafraId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a safra" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from(new Map(((safras || []).filter((s: any) => s.ativa)).map((s: any) => [String(s.id), s])).values()).map((s: any) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.nome}{s.is_default ? " (Padrão)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Tipo</Label>
-            <Select value={tipoProgramacao} onValueChange={(v) => setTipoProgramacao(v as any)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PROGRAMACAO">Programação</SelectItem>
-                <SelectItem value="PREVIA">Prévia</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <Label>Fazenda</Label>
               {fazendaIdfazenda && fazendaSelecionadaId && (
@@ -1242,7 +1248,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
               const f0 = fazendaFiltrada.find((f: any) => String(f.idfazenda) === String(val))
                 || (fazendas || []).find((f: any) => String(f.idfazenda) === String(val));
               setSelectedFazendaUuid(f0?.id);
-            }} disabled={!produtorNumerocm || !safraId}>
+            }} disabled={!produtorNumerocm}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a fazenda" />
               </SelectTrigger>
@@ -1265,13 +1271,57 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             </Select>
           </div>
 
-          {fazendaIdfazenda && talhoesDaFazenda.length > 0 && (
+          <div className="space-y-2">
+            <Label>Safra</Label>
+            <Select value={safraId} onValueChange={setSafraId} disabled={!fazendaIdfazenda}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a safra" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from(new Map(((safras || []).filter((s: any) => s.ativa)).map((s: any) => [String(s.id), s])).values()).map((s: any) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.nome}{s.is_default ? " (Padrão)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Época</Label>
+            <Select value={epocaId} onValueChange={setEpocaId} disabled={!safraId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a época" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from(new Map((epocas || []).map((e: any) => [String(e.id), e])).values()).map((e: any) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tipo</Label>
+            <Select value={tipoProgramacao} onValueChange={(v) => setTipoProgramacao(v as any)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PROGRAMACAO">Programação</SelectItem>
+                <SelectItem value="PREVIA">Prévia</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {fazendaIdfazenda && safraId && epocaId && talhoesDisponiveis.length > 0 && (
             <div className="space-y-2 lg:col-span-2">
-              <Label>Talhões da Fazenda *</Label>
+              <Label>Talhões Disponíveis *</Label>
               <div className="border rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
-                {talhoesDaFazenda
+                {talhoesDisponiveis
                   .filter((t) => !fazendaSelecionadaId || String(t.fazenda_id) === String(fazendaSelecionadaId))
-                  .filter((t) => isEditing || !t.tem_programacao_safra)
                   .map((talhao) => (
                   <div key={talhao.id} className="flex items-center space-x-2 py-1">
                     <Checkbox
@@ -1302,31 +1352,16 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
             </div>
           )}
 
-          {fazendaIdfazenda && talhoesDaFazenda.length === 0 && (
-            <div className="space-y-2 p-3 border border-destructive/50 rounded-lg bg-destructive/5 lg:col-span-2">
-              <Badge variant="destructive" className="mb-1">Fazenda sem talhões</Badge>
+          {fazendaIdfazenda && safraId && epocaId && talhoesDisponiveis.length === 0 && (
+            <div className="space-y-2 p-3 border border-amber-200/50 rounded-lg bg-amber-50 lg:col-span-2">
+              <Badge variant="outline" className="mb-1 border-amber-200 text-amber-700">Sem talhões disponíveis</Badge>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Cadastre os talhões usando o botão "Gerenciar Talhões" acima.
+                {talhoesDaFazenda.length > 0
+                  ? "Todos os talhões desta fazenda já possuem programação nesta safra e época."
+                  : "Não existem talhões cadastrados para esta fazenda nesta safra."}
               </p>
             </div>
           )}
-
-
-          <div className="space-y-2">
-            <Label>Época</Label>
-            <Select value={epocaId} onValueChange={setEpocaId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a época" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from(new Map((epocas || []).map((e: any) => [String(e.id), e])).values()).map((e: any) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         {/* Seção Cultivares */}
@@ -1593,12 +1628,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       
       {fazendaSelecionadaId && (
         <GerenciarTalhoes
-          fazendaId={fazendaSelecionadaId}
-          fazendaNome={fazendaFiltrada.find(f => f.id === fazendaSelecionadaId)?.nomefazenda || ""}
-          safraId={safraId}
-          open={gerenciarTalhoesOpen}
-          onOpenChange={setGerenciarTalhoesOpen}
-        />
+        fazendaId={fazendaSelecionadaId}
+        fazendaNome={fazendaFiltrada.find(f => f.id === fazendaSelecionadaId)?.nomefazenda || ""}
+        safraId={safraId}
+        epocaId={epocaId}
+        open={gerenciarTalhoesOpen}
+        onOpenChange={setGerenciarTalhoesOpen}
+      />
       )}
     </Card>
   );

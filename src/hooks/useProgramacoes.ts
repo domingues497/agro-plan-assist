@@ -51,6 +51,7 @@ export interface Programacao {
   area: string;
   area_hectares: number;
   safra_id: string | null;
+  epoca_id?: string;
   tipo?: "PREVIA" | "PROGRAMACAO";
   revisada?: boolean;
   created_at: string;

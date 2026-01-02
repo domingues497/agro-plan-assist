@@ -695,6 +695,8 @@ def ensure_programacao_schema():
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
+                    
+                    ALTER TABLE public.programacao_cultivares_defensivos ADD COLUMN IF NOT EXISTS cod_item TEXT;
 
                     CREATE TABLE IF NOT EXISTS public.programacao_adubacao (
                       id TEXT PRIMARY KEY,
@@ -733,14 +735,21 @@ def ensure_programacao_schema():
                       created_at TIMESTAMPTZ DEFAULT now()
                     );
 
-                    -- Garantir coluna e índice único para evitar duas programações por talhão na mesma safra
+                    -- Garantir coluna e índice único para evitar duas programações por talhão na mesma safra e época
                     ALTER TABLE public.programacao_talhoes ADD COLUMN IF NOT EXISTS safra_id TEXT;
                     ALTER TABLE public.programacao_talhoes ADD COLUMN IF NOT EXISTS fazenda_idfazenda TEXT;
-                    CREATE UNIQUE INDEX IF NOT EXISTS programacao_talhoes_unique_talhao_safra
-                      ON public.programacao_talhoes (talhao_id, safra_id)
+                    ALTER TABLE public.programacao_talhoes ADD COLUMN IF NOT EXISTS epoca_id TEXT;
+
+                    -- Remover índices antigos restritivos (apenas safra)
+                    DROP INDEX IF EXISTS programacao_talhoes_unique_talhao_safra;
+                    DROP INDEX IF EXISTS programacao_talhoes_unique_fazenda_talhao_safra;
+
+                    CREATE UNIQUE INDEX IF NOT EXISTS programacao_talhoes_unique_talhao_safra_epoca
+                      ON public.programacao_talhoes (talhao_id, safra_id, epoca_id)
                       WHERE safra_id IS NOT NULL;
-                    CREATE UNIQUE INDEX IF NOT EXISTS programacao_talhoes_unique_fazenda_talhao_safra
-                      ON public.programacao_talhoes (fazenda_idfazenda, talhao_id, safra_id)
+                    
+                    CREATE UNIQUE INDEX IF NOT EXISTS programacao_talhoes_unique_fazenda_talhao_safra_epoca
+                      ON public.programacao_talhoes (fazenda_idfazenda, talhao_id, safra_id, epoca_id)
                       WHERE safra_id IS NOT NULL AND fazenda_idfazenda IS NOT NULL;
                     """
                 )
