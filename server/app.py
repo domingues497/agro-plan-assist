@@ -3,11 +3,11 @@ from flask import Flask, jsonify, request
 from alembic.config import Config as _AlembicConfig
 from alembic import command as _alembic_command
 from flask_cors import CORS
-from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema, ensure_gestor_consultores_schema, ensure_app_versions_schema, ensure_embalagens_schema
+from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema, ensure_gestor_consultores_schema, ensure_app_versions_schema, ensure_embalagens_schema, ensure_access_logs_schema
 from sqlalchemy import text, select, delete, or_
 from sqlalchemy.dialects.postgresql import insert as _pg_insert
 from sa import get_engine, get_session
-from models import AppVersion, SystemConfig, ImportHistory, DefensivoCatalog, FertilizanteCatalog, CultivarCatalog, TratamentoSemente, CultivarTratamento, Epoca, JustificativaAdubacao, Embalagem, UserFazenda, GestorConsultor, Consultor, CalendarioAplicacao
+from models import AppVersion, SystemConfig, ImportHistory, DefensivoCatalog, FertilizanteCatalog, CultivarCatalog, TratamentoSemente, CultivarTratamento, Epoca, JustificativaAdubacao, Embalagem, UserFazenda, GestorConsultor, Consultor, CalendarioAplicacao, AccessLog
 from psycopg2.extras import execute_values
 import uuid
 import time
@@ -61,6 +61,7 @@ try:
     ensure_gestor_consultores_schema()
     ensure_app_versions_schema()
     ensure_embalagens_schema()
+    ensure_access_logs_schema()
 except Exception:
     pass
 
@@ -1061,6 +1062,9 @@ def create_programacao():
         try:
             payload_jwt = verify_jwt(auth.split(" ", 1)[1])
             cm_token = payload_jwt.get("numerocm_consultor")
+            # Garantir que o user_id seja o do usuário autenticado
+            if payload_jwt.get("user_id"):
+                user_id = payload_jwt.get("user_id")
         except Exception:
             pass
     if not (produtor_numerocm and fazenda_idfazenda and area):
@@ -4100,6 +4104,7 @@ def _verify_password(password: str, digest: str) -> bool:
 
 @app.route("/auth/login", methods=["POST"])
 def auth_login():
+    print("DEBUG: auth_login endpoint hit")
     ensure_consultores_schema()
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").lower().strip()
@@ -4107,29 +4112,55 @@ def auth_login():
     pool = get_pool()
     conn = pool.getconn()
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id, numerocm_consultor, consultor, email, role, ativo, password_digest FROM public.consultores WHERE email = %s", [email])
-            row = cur.fetchone()
-            if not row:
-                return jsonify({"error": "email não autorizado"}), 403
-            cols = [d[0] for d in cur.description]
-            item = dict(zip(cols, row))
-            if not bool(item.get("ativo", True)):
-                return jsonify({"error": "usuário inativo"}), 403
-            digest = item.get("password_digest")
-            if digest:
-                if not password:
-                    return jsonify({"error": "senha obrigatória"}), 400
-                if not _verify_password(password, digest):
-                    return jsonify({"error": "senha inválida"}), 403
-            token = create_jwt({
-                "user_id": item["id"],
-                "email": item["email"],
-                "numerocm_consultor": item["numerocm_consultor"],
-                "nome": item["consultor"],
-                "role": item.get("role", "consultor"),
-            })
-            return jsonify({"token": token, "user": item})
+        item = None
+        # Use explicit transaction for reading user
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id, numerocm_consultor, consultor, email, role, ativo, password_digest FROM public.consultores WHERE email = %s", [email])
+                row = cur.fetchone()
+                if row:
+                    cols = [d[0] for d in cur.description]
+                    item = dict(zip(cols, row))
+
+        if not item:
+            return jsonify({"error": "email não autorizado"}), 403
+        
+        if not bool(item.get("ativo", True)):
+            return jsonify({"error": "usuário inativo"}), 403
+            
+        digest = item.get("password_digest")
+        if digest:
+            if not password:
+                return jsonify({"error": "senha obrigatória"}), 400
+            if not _verify_password(password, digest):
+                return jsonify({"error": "senha inválida"}), 403
+                
+        token = create_jwt({
+            "user_id": item["id"],
+            "email": item["email"],
+            "numerocm_consultor": item["numerocm_consultor"],
+            "nome": item["consultor"],
+            "role": item.get("role", "consultor"),
+        })
+        
+        # Log de acesso em transação separada
+        try:
+            print(f"DEBUG: Attempting to log login for {item['email']}")
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO public.access_logs (id, user_id, email, action, ip_address, user_agent) VALUES (%s, %s, %s, %s, %s, %s)",
+                        [str(uuid.uuid4()), item["id"], item["email"], "LOGIN", request.remote_addr, request.headers.get("User-Agent")]
+                    )
+            print("DEBUG: Log inserted successfully")
+        except Exception as e:
+            print(f"Erro ao registrar log de acesso: {e}")
+
+        # Remover dados sensíveis do retorno
+        if "password_digest" in item:
+            del item["password_digest"]
+
+        return jsonify({"token": token, "user": item})
     finally:
         pool.putconn(conn)
 

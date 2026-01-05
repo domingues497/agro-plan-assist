@@ -41,6 +41,31 @@ def get_sa_session():
     get_sa_engine()
     return _SessionLocal()
 
+def ensure_access_logs_schema():
+    if 'access_logs' in _ensured:
+        return
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS public.access_logs (
+                      id TEXT PRIMARY KEY,
+                      user_id TEXT,
+                      email TEXT,
+                      action TEXT,
+                      ip_address TEXT,
+                      user_agent TEXT,
+                      created_at TIMESTAMPTZ DEFAULT now()
+                    );
+                    """
+                )
+                _ensured.add('access_logs')
+    finally:
+        pool.putconn(conn)
+
 def ensure_defensivos_schema():
     if 'defensivos_catalog' in _ensured:
         return

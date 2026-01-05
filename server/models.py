@@ -19,6 +19,17 @@ class Consultor(Base):
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 
 
+class AccessLog(Base):
+    __tablename__ = "access_logs"
+    id = Column(String, primary_key=True)
+    user_id = Column(String)
+    email = Column(String)
+    action = Column(String)
+    ip_address = Column(String)
+    user_agent = Column(String)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
+
+
 class Produtor(Base):
     __tablename__ = "produtores"
     id = Column(String, primary_key=True)
