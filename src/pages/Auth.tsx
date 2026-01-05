@@ -59,8 +59,24 @@ const Auth = () => {
       toast({ title: "Erro ao fazer login", description: msg, variant: "destructive" });
     } else {
       const json = await res.json();
+      
+      // Limpeza completa de cache e storage para garantir sessão limpa
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Tentar limpar caches do navegador (Service Workers) se existirem
+      if ('caches' in window) {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(key => caches.delete(key)));
+        } catch (e) {
+          console.error("Erro ao limpar caches", e);
+        }
+      }
+
       localStorage.setItem("auth_token", json?.token);
-      navigate("/");
+      // Forçar recarregamento para limpar memória e buscar novos assets
+      window.location.href = "/";
     }
     setLoading(false);
   };
