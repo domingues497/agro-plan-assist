@@ -27,6 +27,7 @@ export type AplicacaoDefensivo = {
   user_id: string;
   produtor_numerocm: string | null;
   area: string;
+  tipo?: "PROGRAMACAO" | "PREVIA";
   created_at: string;
   updated_at: string;
   defensivos: DefensivoItem[];
@@ -35,6 +36,8 @@ export type AplicacaoDefensivo = {
 export type CreateAplicacaoDefensivo = {
   produtor_numerocm: string;
   area: string;
+  tipo?: "PROGRAMACAO" | "PREVIA";
+  talhao_ids?: string[];
   defensivos: Omit<DefensivoItem, "id">[];
 };
 

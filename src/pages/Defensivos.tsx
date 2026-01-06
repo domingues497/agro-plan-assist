@@ -329,6 +329,7 @@ const Defensivos = () => {
                   id: editing.id,
                   produtor_numerocm: editing.produtor_numerocm || getProdutorNumerocmFallback(editing.id),
                   area: editing.area,
+                  tipo: editing.tipo,
                   defensivos: editing.defensivos,
                 }}
                 readOnly={isConsultor && !canEditDefensivos}

@@ -3840,7 +3840,7 @@ def list_aplicacoes_defensivos():
                     cm_token = payload.get("numerocm_consultor")
                 except Exception:
                     role = None
-            cur.execute("SELECT id, user_id, produtor_numerocm, area, created_at, updated_at FROM public.aplicacoes_defensivos ORDER BY created_at DESC")
+            cur.execute("SELECT id, user_id, produtor_numerocm, area, tipo, created_at, updated_at FROM public.aplicacoes_defensivos ORDER BY created_at DESC")
             rows = cur.fetchall()
             cols = [d[0] for d in cur.description]
             apps = [dict(zip(cols, r)) for r in rows]
@@ -3868,7 +3868,9 @@ def create_aplicacao_defensivos():
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
     area = payload.get("area")
+    tipo = (payload.get("tipo") or "PROGRAMACAO").strip().upper()
     defensivos = payload.get("defensivos") or []
+    talhao_ids = payload.get("talhao_ids") or []
     id_val = str(uuid.uuid4())
     auth = request.headers.get("Authorization") or ""
     cm_token = None
@@ -3911,11 +3913,31 @@ def create_aplicacao_defensivos():
                             }), 409
                 cur.execute(
                     """
-                    INSERT INTO public.aplicacoes_defensivos (id, user_id, produtor_numerocm, area)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO public.aplicacoes_defensivos (id, user_id, produtor_numerocm, area, tipo)
+                    VALUES (%s, %s, %s, %s, %s)
                     """,
-                    [id_val, user_id, produtor_numerocm, area]
+                    [id_val, user_id, produtor_numerocm, area, tipo]
                 )
+                # Persistir vínculo de talhões selecionados para relatórios
+                try:
+                    safra_for_talhoes = None
+                    for d in defensivos:
+                        s = (d.get("safra_id") or "").strip()
+                        if s:
+                            safra_for_talhoes = s
+                            break
+                    if not safra_for_talhoes:
+                        safra_for_talhoes = None
+                    for tid in list(dict.fromkeys([str(t) for t in talhao_ids if t])):
+                        cur.execute(
+                            """
+                            INSERT INTO public.aplicacao_defensivos_talhoes (id, aplicacao_id, talhao_id, safra_id)
+                            VALUES (%s, %s, %s, %s)
+                            """,
+                            [str(uuid.uuid4()), id_val, tid, safra_for_talhoes]
+                        )
+                except Exception:
+                    pass
                 for d in defensivos:
                     cod_val = None
                     try:
@@ -3948,7 +3970,9 @@ def update_aplicacao_defensivos(id: str):
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
     area = payload.get("area")
+    tipo = (payload.get("tipo") or "PROGRAMACAO").strip().upper()
     defensivos = payload.get("defensivos") or []
+    talhao_ids = payload.get("talhao_ids") or []
     auth = request.headers.get("Authorization") or ""
     cm_token = None
     if auth.lower().startswith("bearer "):
@@ -3988,7 +4012,28 @@ def update_aplicacao_defensivos(id: str):
                                 "area": area,
                                 "safra_id": s,
                             }), 409
-                cur.execute("UPDATE public.aplicacoes_defensivos SET user_id = %s, produtor_numerocm = %s, area = %s, updated_at = now() WHERE id = %s", [user_id, produtor_numerocm, area, id])
+                cur.execute("UPDATE public.aplicacoes_defensivos SET user_id = %s, produtor_numerocm = %s, area = %s, tipo = %s, updated_at = now() WHERE id = %s", [user_id, produtor_numerocm, area, tipo, id])
+                # Atualizar vínculos de talhões
+                try:
+                    cur.execute("DELETE FROM public.aplicacao_defensivos_talhoes WHERE aplicacao_id = %s", [id])
+                    safra_for_talhoes = None
+                    for d in defensivos:
+                        s = (d.get("safra_id") or "").strip()
+                        if s:
+                            safra_for_talhoes = s
+                            break
+                    if not safra_for_talhoes:
+                        safra_for_talhoes = None
+                    for tid in list(dict.fromkeys([str(t) for t in talhao_ids if t])):
+                        cur.execute(
+                            """
+                            INSERT INTO public.aplicacao_defensivos_talhoes (id, aplicacao_id, talhao_id, safra_id)
+                            VALUES (%s, %s, %s, %s)
+                            """,
+                            [str(uuid.uuid4()), id, tid, safra_for_talhoes]
+                        )
+                except Exception:
+                    pass
                 cur.execute("DELETE FROM public.programacao_defensivos WHERE aplicacao_id = %s", [id])
                 for d in defensivos:
                     cod_val = None

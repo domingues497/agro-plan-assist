@@ -107,6 +107,7 @@ def ensure_aplicacoes_defensivos_schema():
                       user_id TEXT,
                       produtor_numerocm TEXT,
                       area TEXT NOT NULL,
+                      tipo TEXT NOT NULL DEFAULT 'PROGRAMACAO',
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
@@ -128,12 +129,31 @@ def ensure_aplicacoes_defensivos_schema():
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
+
+                    CREATE TABLE IF NOT EXISTS public.aplicacao_defensivos_talhoes (
+                      id TEXT PRIMARY KEY,
+                      aplicacao_id TEXT REFERENCES public.aplicacoes_defensivos(id) ON DELETE CASCADE,
+                      talhao_id TEXT NOT NULL,
+                      safra_id TEXT,
+                      created_at TIMESTAMPTZ DEFAULT now(),
+                      updated_at TIMESTAMPTZ DEFAULT now()
+                    );
                     """
                 )
                 _ensured.add('aplicacoes_defensivos')
                 # Garantir coluna numerocm_consultor para segregação por consultor
                 try:
                     cur.execute("ALTER TABLE public.programacao_defensivos ADD COLUMN IF NOT EXISTS numerocm_consultor TEXT")
+                except Exception:
+                    pass
+                # Garantir coluna tipo para segregação por tipo
+                try:
+                    cur.execute("ALTER TABLE public.aplicacoes_defensivos ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'PROGRAMACAO'")
+                except Exception:
+                    pass
+                # Garantir colunas em tabela de vínculo
+                try:
+                    cur.execute("ALTER TABLE public.aplicacao_defensivos_talhoes ADD COLUMN IF NOT EXISTS safra_id TEXT")
                 except Exception:
                     pass
     finally:
@@ -833,3 +853,28 @@ def upsert_config_items(items):
                     )
     finally:
         pool.putconn(conn)
+
+if __name__ == "__main__":
+    print("Iniciando verificação de schemas do banco de dados...")
+    ensure_system_config_schema()
+    ensure_defensivos_schema()
+    ensure_aplicacoes_defensivos_schema()
+    ensure_fertilizantes_schema()
+    ensure_safras_schema()
+    ensure_programacao_schema()
+    ensure_consultores_schema()
+    ensure_import_history_schema()
+    ensure_calendario_aplicacoes_schema()
+    ensure_epocas_schema()
+    ensure_justificativas_adubacao_schema()
+    ensure_produtores_schema()
+    ensure_fazendas_schema()
+    ensure_talhoes_schema()
+    ensure_cultivares_catalog_schema()
+    ensure_tratamentos_sementes_schema()
+    ensure_cultivares_tratamentos_schema()
+    ensure_gestor_consultores_schema()
+    ensure_app_versions_schema()
+    ensure_embalagens_schema()
+    ensure_access_logs_schema()
+    print("Verificação de schemas concluída com sucesso.")

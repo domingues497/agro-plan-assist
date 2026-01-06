@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, safeRandomUUID, getApiBaseUrl } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useProdutores } from "@/hooks/useProdutores";
@@ -20,13 +21,14 @@ import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 
 type FormAplicacaoDefensivoProps = {
-  onSubmit: (data: { produtor_numerocm: string; area: string; defensivos: Omit<DefensivoItem, "id">[] }) => void;
+  onSubmit: (data: { produtor_numerocm: string; area: string; tipo?: "PROGRAMACAO" | "PREVIA"; talhao_ids?: string[]; defensivos: Omit<DefensivoItem, "id">[] }) => void;
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: {
     id?: string;
     produtor_numerocm?: string;
     area?: string;
+    tipo?: "PROGRAMACAO" | "PREVIA";
     defensivos?: DefensivoItem[];
   };
   title?: string;
@@ -53,6 +55,7 @@ export const FormAplicacaoDefensivo = ({
   const { data: fazendas } = useFazendas(produtorNumerocm);
   const [selectedAreaHa, setSelectedAreaHa] = useState<number>(0);
   const [selectedTalhaoIds, setSelectedTalhaoIds] = useState<string[]>([]);
+  const [tipo, setTipo] = useState<"PROGRAMACAO" | "PREVIA">("PROGRAMACAO");
   const [talhoesOptions, setTalhoesOptions] = useState<Array<{ id: string; nome: string; area: number }>>([]);
   const { safras, defaultSafra } = useSafras();
   const { aplicacoes = [] } = useAplicacoesDefensivos();
@@ -92,6 +95,12 @@ export const FormAplicacaoDefensivo = ({
     if (initialData) {
       setProdutorNumerocm(initialData.produtor_numerocm || "");
       setArea(initialData.area || "");
+      if (initialData.tipo) {
+        const t = String(initialData.tipo);
+        if (t === "Programação" || t === "PROGRAMACAO") setTipo("PROGRAMACAO");
+        else if (t === "Prévia" || t === "PREVIA") setTipo("PREVIA");
+        else setTipo("PROGRAMACAO");
+      }
       const candidates = (initialData.defensivos || []).map((d) => String((d as any).safra_id || "").trim());
       const picked = candidates.find((s) => isUuidLocal(s)) || candidates.find((s) => !!s) || "";
       if (picked) setSafraId(String(picked));
@@ -251,15 +260,38 @@ export const FormAplicacaoDefensivo = ({
       return;
     }
 
-    // Validação: ao invés de checar area_hectares em cada linha (que é populada apenas no submit),
-    // usamos a área selecionada globalmente (selectedAreaHa) e validamos dose e defensivo por linha.
-    if (
-      defensivos.length === 0 ||
-      Number(selectedAreaHa) <= 0 ||
-      defensivos.some((d) => !d.defensivo || Number(d.dose) <= 0)
-    ) {
-      alert("Por favor, adicione pelo menos um defensivo válido com dose e área");
+    // Validação: Talhão obrigatório
+    if (selectedTalhaoIds.length === 0) {
+      alert("Por favor, selecione pelo menos um Talhão.");
       return;
+    }
+
+    // Validação dos campos obrigatórios nos defensivos
+    if (defensivos.length === 0) {
+      alert("Por favor, adicione pelo menos um defensivo.");
+      return;
+    }
+
+    const hasInvalidDefensivo = defensivos.some((d) => {
+      const hasClasse = !!d.classe;
+      const hasAplicacao = (d.aplicacoes && d.aplicacoes.length > 0) || !!d.alvo;
+      const hasDefensivo = !!d.defensivo;
+      const hasDose = Number(d.dose) > 0;
+      // Cobertura (porcentagem_salva) padrão é 100, mas vamos garantir que não seja 0 se isso for o critério
+      // O usuário pediu "Cobertura" obrigatório. Como é um número, assumimos > 0.
+      const hasCobertura = Number(d.porcentagem_salva ?? 0) > 0;
+
+      return !hasClasse || !hasAplicacao || !hasDefensivo || !hasDose || !hasCobertura;
+    });
+
+    if (hasInvalidDefensivo) {
+      alert("Por favor, preencha todos os campos obrigatórios dos defensivos: Classe, Aplicação, Defensivo, Dose e Cobertura.");
+      return;
+    }
+
+    if (Number(selectedAreaHa) <= 0) {
+       alert("Área inválida.");
+       return;
     }
 
     const defensivosToSubmit = defensivos.map(({ tempId, total, aplicacoes, ...def }) => ({
@@ -268,7 +300,7 @@ export const FormAplicacaoDefensivo = ({
       area_hectares: selectedAreaHa,
       alvo: aplicacoes && aplicacoes.length > 0 ? aplicacoes.join(", ") : def.alvo,
     }));
-    onSubmit({ produtor_numerocm: produtorNumerocm, area, defensivos: defensivosToSubmit });
+    onSubmit({ produtor_numerocm: produtorNumerocm, area, tipo, talhao_ids: selectedTalhaoIds, defensivos: defensivosToSubmit });
   };
 
   const selectedProdutor = produtores?.find((p) => p.numerocm === produtorNumerocm);
@@ -620,7 +652,7 @@ export const FormAplicacaoDefensivo = ({
           </div>
 
           <div className="space-y-2 md:col-span-1 lg:col-span-3">
-            <Label>Talhão</Label>
+            <Label>Talhão *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" className="w-full justify-between" disabled={!produtorNumerocm || !area || !safraId || talhoesOptions.length === 0}>
@@ -679,6 +711,19 @@ export const FormAplicacaoDefensivo = ({
             disabled
             className="bg-muted"
           />
+          </div>
+
+          <div className="space-y-2 lg:col-span-4">
+            <Label>Tipo *</Label>
+            <Select value={tipo} onValueChange={(v) => setTipo(v as any)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PROGRAMACAO">Programação</SelectItem>
+                <SelectItem value="PREVIA">Prévia</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
 
@@ -884,7 +929,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
       <div className="flex items-start gap-4">
         <div className="flex-1 grid gap-2 md:grid-cols-2 lg:grid-cols-12">
           <div className="space-y-2 lg:col-span-2">
-            <Label>Descrição da Classe</Label>
+            <Label>Descrição da Classe *</Label>
             <Popover open={openClassePopover} onOpenChange={setOpenClassePopover}>
               <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" className="w-full justify-between">
@@ -926,7 +971,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
           </div>
 
           <div className="space-y-2 lg:col-span-2">
-            <Label>Descrição da Aplicação</Label>
+            <Label>Descrição da Aplicação *</Label>
             <Popover open={openAplicacoesPopover} onOpenChange={setOpenAplicacoesPopover}>
               <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" className="w-full justify-between">
@@ -1033,7 +1078,7 @@ const DefensivoRow = ({ defensivo, index, defensivosCatalog, calendario, existin
           {/* Área por produto removida: usa-se a área da fazenda selecionada */}
 
           <div className="space-y-2 lg:col-span-1">
-            <Label className="whitespace-nowrap text-xs truncate">Cobertura em %</Label>
+            <Label className="whitespace-nowrap text-xs truncate">Cobertura em % *</Label>
             <Input
               type="number"
               step="0.1"
