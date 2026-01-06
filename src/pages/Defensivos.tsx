@@ -75,7 +75,8 @@ const Defensivos = () => {
       filtered = filtered.filter(ap => {
         const defs = (ap.defensivos || []) as any[];
         const safraId = defs.find((it: any) => it && it.safra_id)?.safra_id;
-        return String(safraId || "") === String(selectedSafra);
+        // Se não tiver safra definida, exibe para evitar sumiço de dados antigos
+        return !safraId || String(safraId) === String(selectedSafra);
       });
     }
 

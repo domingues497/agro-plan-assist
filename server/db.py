@@ -146,6 +146,11 @@ def ensure_aplicacoes_defensivos_schema():
                     cur.execute("ALTER TABLE public.programacao_defensivos ADD COLUMN IF NOT EXISTS numerocm_consultor TEXT")
                 except Exception:
                     pass
+                # Garantir coluna safra_id em programacao_defensivos
+                try:
+                    cur.execute("ALTER TABLE public.programacao_defensivos ADD COLUMN IF NOT EXISTS safra_id TEXT")
+                except Exception:
+                    pass
                 # Garantir coluna tipo para segregação por tipo
                 try:
                     cur.execute("ALTER TABLE public.aplicacoes_defensivos ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'PROGRAMACAO'")
