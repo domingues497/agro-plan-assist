@@ -31,6 +31,7 @@ export type AplicacaoDefensivo = {
   created_at: string;
   updated_at: string;
   defensivos: DefensivoItem[];
+  talhao_ids?: string[];
 };
 
 export type CreateAplicacaoDefensivo = {
@@ -44,42 +45,12 @@ export type CreateAplicacaoDefensivo = {
 export const useAplicacoesDefensivos = () => {
   const queryClient = useQueryClient();
 
-  // Mapeamento local para manter vínculo de produtor quando a coluna
-  // não existir ou registros antigos não possuírem o valor
-  const setProdutorMapping = (id: string | undefined, numerocm: string | undefined) => {
-    try {
-      if (!id || !numerocm) return;
-      const key = "aplicacoes_defensivos_produtor_map";
-      const raw = localStorage.getItem(key);
-      const map = raw ? JSON.parse(raw) : {};
-      map[id] = (numerocm || "").trim();
-      localStorage.setItem(key, JSON.stringify(map));
-    } catch (e) {
-      // armazenamento local pode não estar disponível
-    }
-  };
-
-  const removeProdutorMapping = (id: string | undefined) => {
-    try {
-      if (!id) return;
-      const key = "aplicacoes_defensivos_produtor_map";
-      const raw = localStorage.getItem(key);
-      const map = raw ? JSON.parse(raw) : {};
-      if (map[id]) {
-        delete map[id];
-        localStorage.setItem(key, JSON.stringify(map));
-      }
-    } catch (e) {
-      // silencioso
-    }
-  };
-
   // Fetch all aplicacoes with their defensivos
   const { data: aplicacoes = [], isLoading, error } = useQuery({
     queryKey: ["aplicacoes-defensivos"],
     queryFn: async () => {
       const baseUrl = getApiBaseUrl();
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();
@@ -87,16 +58,7 @@ export const useAplicacoesDefensivos = () => {
       }
       const json = await res.json();
       const list = (json?.items || []) as AplicacaoDefensivo[];
-      const key = "aplicacoes_defensivos_produtor_map";
-      let map: Record<string, string> = {};
-      try {
-        const raw = localStorage.getItem(key);
-        map = raw ? JSON.parse(raw) : {};
-      } catch (_) {}
-      return list.map((ap) => ({
-        ...ap,
-        produtor_numerocm: String(ap.produtor_numerocm || map[ap.id] || "").trim() || ap.produtor_numerocm,
-      }));
+      return list;
     },
   });
 
@@ -104,7 +66,7 @@ export const useAplicacoesDefensivos = () => {
   const createMutation = useMutation({
     mutationFn: async (data: CreateAplicacaoDefensivo) => {
       const baseUrl = getApiBaseUrl();
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -115,7 +77,6 @@ export const useAplicacoesDefensivos = () => {
         throw new Error(txt);
       }
       const json = await res.json();
-      setProdutorMapping(json?.id, data.produtor_numerocm);
       return { id: json.id, produtor_numerocm: data.produtor_numerocm, area: data.area, defensivos: data.defensivos } as any;
     },
     onSuccess: () => {
@@ -131,7 +92,7 @@ export const useAplicacoesDefensivos = () => {
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: { id: string } & CreateAplicacaoDefensivo) => {
       const baseUrl = getApiBaseUrl();
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -141,7 +102,6 @@ export const useAplicacoesDefensivos = () => {
         const txt = await res.text();
         throw new Error(txt);
       }
-      setProdutorMapping(id, data.produtor_numerocm);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
@@ -156,7 +116,7 @@ export const useAplicacoesDefensivos = () => {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const baseUrl = getApiBaseUrl();
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/aplicacoes_defensivos/${id}`, { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();
@@ -165,7 +125,6 @@ export const useAplicacoesDefensivos = () => {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
-      removeProdutorMapping(variables);
       toast.success("Aplicação excluída com sucesso!");
     },
     onError: (error: any) => {

@@ -80,7 +80,7 @@ export const useProgramacoes = () => {
     queryFn: async (): Promise<Programacao[]> => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/programacoes`, {
         credentials: "omit",
         headers: token ? { Authorization: `Bearer ${token}` } : {}
@@ -114,7 +114,7 @@ export const useProgramacoes = () => {
           : [];
         console.log("[programacoes:create] defensivos_fazenda payload:", defs);
       } catch {}
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/programacoes`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -167,7 +167,7 @@ export const useProgramacoes = () => {
     mutationFn: async (id: string) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const res = await fetch(`${baseUrl}/programacoes/${id}`, { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();
@@ -214,7 +214,7 @@ Talhões: ${nomes}.`
       if (data.cultivares && Math.abs(totalCultivares - 100) > 0.1) {
         throw new Error("O percentual de cobertura das cultivares deve somar 100% (tolerância ±0,1)");
       }
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       try {
         const defs = Array.isArray(data.cultivares)
           ? data.cultivares.map((c: any) => c?.defensivos_fazenda || [])
@@ -276,7 +276,7 @@ Talhões: ${nomes}.`
       }
       const original = (programacoes || []).find(p => p.id === id);
       if (!original) throw new Error("Programação não encontrada");
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const childrenRes = await fetch(`${baseUrl}/programacoes/${id}/children`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!childrenRes.ok) throw new Error(`Erro ao carregar filhos: ${childrenRes.status}`);
       const children = await childrenRes.json();

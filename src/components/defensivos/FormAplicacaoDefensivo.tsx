@@ -30,6 +30,7 @@ type FormAplicacaoDefensivoProps = {
     area?: string;
     tipo?: "PROGRAMACAO" | "PREVIA";
     defensivos?: DefensivoItem[];
+    talhao_ids?: string[];
   };
   title?: string;
   submitLabel?: string;
@@ -116,6 +117,9 @@ export const FormAplicacaoDefensivo = ({
           }))
         );
         setSelectedAreaHa(initialData.defensivos[0]?.area_hectares || 0);
+      }
+      if (initialData.talhao_ids && Array.isArray(initialData.talhao_ids)) {
+        setSelectedTalhaoIds(initialData.talhao_ids.map(String));
       }
     }
   }, [initialData]);
@@ -243,9 +247,9 @@ export const FormAplicacaoDefensivo = ({
       return;
     }
 
-    // Regra de negócio: bloquear se não existir programação de cultivar para produtor/fazenda
-    if (!hasCultivarProgram) {
-      alert("Não é possível cadastrar defensivos antes de registrar a programação de Cultivar para este produtor/fazenda.");
+    // Regra de negócio: bloquear se não existir programação de cultivar nem de adubação para produtor/fazenda
+    if (!hasCultivarProgram && !hasAdubacaoProgram) {
+      alert("Não é possível cadastrar defensivos antes de registrar a programação de Cultivar ou Adubação para este produtor/fazenda.");
       return;
     }
 
@@ -337,7 +341,7 @@ export const FormAplicacaoDefensivo = ({
       try {
         if (!produtorNumerocm || !area || !safraId) return;
         const base = getApiBaseUrl();
-        const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+        const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const res = await fetch(`${base}/programacoes`, { headers });
         if (!res.ok) return;
@@ -385,8 +389,10 @@ export const FormAplicacaoDefensivo = ({
         const sumAll = items2.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
         const saved = (() => {
           try {
+            // Se estiver editando, ignora o localStorage para não sobrescrever o que veio do banco
+            if (initialData?.id) return [] as string[];
             if (!talhoesKey) return [] as string[];
-            const raw = localStorage.getItem(`def-talhoes-sel:${talhoesKey}`);
+            const raw = sessionStorage.getItem(`def-talhoes-sel:${talhoesKey}`);
             const ids = raw ? (JSON.parse(raw) as string[]) : [];
             return ids.filter((id) => opts.some((o) => o.id === id));
           } catch {
@@ -556,7 +562,7 @@ export const FormAplicacaoDefensivo = ({
                 <Command>
                   <CommandInput placeholder="Buscar produtor..." />
                   <CommandList>
-                    <CommandEmpty>Nenhum produtor com Cultivar nesta safra.</CommandEmpty>
+                    <CommandEmpty>Nenhum produtor com Cultivar ou Adubação nesta safra.</CommandEmpty>
                     <CommandGroup>
                       {(produtoresFiltrados || []).map((produtor) => (
                         <CommandItem
@@ -683,7 +689,7 @@ export const FormAplicacaoDefensivo = ({
                             const sumAll = talhoesOptions.reduce((acc, o) => acc + (Number(o.area || 0) || 0), 0);
                             setSelectedAreaHa(sumSel > 0 ? sumSel : sumAll);
                             try {
-                              if (talhoesKey) localStorage.setItem(`def-talhoes-sel:${talhoesKey}`, JSON.stringify(next));
+                              if (talhoesKey) sessionStorage.setItem(`def-talhoes-sel:${talhoesKey}`, JSON.stringify(next));
                             } catch {}
                           }}
                         >
@@ -761,7 +767,7 @@ export const FormAplicacaoDefensivo = ({
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={readOnly || isLoading || !(hasCultivarProgram && hasAdubacaoProgram)}>
+          <Button type="submit" disabled={readOnly || isLoading || !(hasCultivarProgram || hasAdubacaoProgram)}>
             {isLoading ? "Salvando..." : submitLabel}
           </Button>
         </div>

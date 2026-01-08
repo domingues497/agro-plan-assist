@@ -20,7 +20,7 @@ export const useProfile = () => {
     queryKey: ["profile"],
     queryFn: async () => {
       const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem("auth_token") || "";
+      const token = sessionStorage.getItem("auth_token") || "";
       const res = await fetch(`${baseUrl}/auth/me`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
@@ -46,7 +46,7 @@ export const useProfile = () => {
   const updateProfile = useMutation({
     mutationFn: async (updates: Partial<Profile>) => {
       const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem("auth_token") || "";
+      const token = sessionStorage.getItem("auth_token") || "";
       const id = (profile as any)?.id;
       if (!id) throw new Error("Usuário não autenticado");
       const body: any = {};
@@ -85,7 +85,7 @@ export const useProfile = () => {
     mutationFn: async (newPassword: string) => {
       if (!newPassword || newPassword.length < 6) throw new Error("Use ao menos 6 caracteres.");
       const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem("auth_token") || "";
+      const token = sessionStorage.getItem("auth_token") || "";
       const id = (profile as any)?.id;
       if (!id) throw new Error("Usuário não autenticado");
       const res = await fetch(`${baseUrl}/users/${id}/password`, {

@@ -41,33 +41,6 @@ export type CreateProgramacaoCultivar = Omit<ProgramacaoCultivar, "id" | "create
 export const useProgramacaoCultivares = () => {
   const queryClient = useQueryClient();
 
-  const setProdutorMapping = (id: string | undefined, numerocm: string | undefined) => {
-    try {
-      if (!id || !numerocm) return;
-      const key = "programacao_cultivares_produtor_map";
-      const raw = localStorage.getItem(key);
-      const map = raw ? JSON.parse(raw) : {};
-      map[id] = numerocm;
-      localStorage.setItem(key, JSON.stringify(map));
-    } catch (e) {
-      // silencioso: armazenamento local pode não estar disponível
-    }
-  };
-  const removeProdutorMapping = (id: string | undefined) => {
-    try {
-      if (!id) return;
-      const key = "programacao_cultivares_produtor_map";
-      const raw = localStorage.getItem(key);
-      const map = raw ? JSON.parse(raw) : {};
-      if (map[id]) {
-        delete map[id];
-        localStorage.setItem(key, JSON.stringify(map));
-      }
-    } catch (e) {
-      // silencioso
-    }
-  };
-
   const { data: programacoes, isLoading, error } = useQuery({
     queryKey: ["programacao-cultivares"],
     queryFn: async () => {
@@ -77,34 +50,7 @@ export const useProgramacaoCultivares = () => {
       if (!res.ok) throw new Error(`Erro ao carregar cultivares: ${res.status}`);
       const json = await res.json();
       const list = (json?.items ?? []) as ProgramacaoCultivar[];
-      const key = "programacao_cultivares_produtor_map";
-      let map: Record<string, string> = {};
-      try {
-        const raw = localStorage.getItem(key);
-        map = raw ? JSON.parse(raw) : {};
-      } catch (_) {}
-      const updates: Promise<any>[] = [];
-      const hydrated = list.map((item) => {
-        const cm = String(item.produtor_numerocm || "").trim();
-        if (!cm) {
-          const fallback = String(map[item.id] || "").trim();
-          if (fallback) {
-            updates.push(
-              fetch(`${baseUrl}/programacao_cultivares/${item.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ produtor_numerocm: fallback })
-              })
-            );
-            return { ...item, produtor_numerocm: fallback } as ProgramacaoCultivar;
-          }
-        }
-        return item;
-      });
-      try {
-        if (updates.length) await Promise.all(updates);
-      } catch (_) {}
-      return hydrated;
+      return list;
     },
   });
 
@@ -112,24 +58,21 @@ export const useProgramacaoCultivares = () => {
     mutationFn: async (programacao: CreateProgramacaoCultivar) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const { defensivos_fazenda, ...cultivarData } = programacao as any;
-      const payload = { ...cultivarData, defensivos_fazenda } as any;
       const res = await fetch(`${baseUrl}/programacao_cultivares`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(programacao as any)
       });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
       }
       const data = await res.json();
-      setProdutorMapping(data?.id, programacao.produtor_numerocm);
       return { ...programacao, id: data.id } as any;
     },
-    onSuccess: (_data, _variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programacao-cultivares"] });
-      toast.success("Programação criada com sucesso");
+      toast.success("Programação de cultivar criada com sucesso");
     },
     onError: (error: Error) => {
       toast.error(`Erro ao criar programação: ${error.message}`);
@@ -149,10 +92,9 @@ export const useProgramacaoCultivares = () => {
         const txt = await res.text();
         throw new Error(txt);
       }
-      setProdutorMapping(id, (updates as any)?.produtor_numerocm);
       return { id, ...(updates as any) } as any;
     },
-    onSuccess: (_data, _variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programacao-cultivares"] });
       toast.success("Programação atualizada com sucesso");
     },
@@ -169,7 +111,6 @@ export const useProgramacaoCultivares = () => {
       if (!res.ok) throw new Error(`Erro ao excluir programação: ${res.status}`);
     },
     onSuccess: (_data, variables) => {
-      removeProdutorMapping(variables);
       queryClient.invalidateQueries({ queryKey: ["programacao-cultivares"] });
       toast.success("Programação excluída com sucesso");
     },
@@ -195,7 +136,6 @@ export const useProgramacaoCultivares = () => {
         throw new Error(txt);
       }
       const data = await res.json();
-      setProdutorMapping(data?.id, original.produtor_numerocm);
       return { ...duplicateData, id: data.id } as any;
     },
     onSuccess: () => {
@@ -226,7 +166,6 @@ export const useProgramacaoCultivares = () => {
         throw new Error(txt);
       }
       const data = await res.json();
-      setProdutorMapping(data?.id, produtor_numerocm);
       return { ...payload, id: data.id } as any;
     },
     onSuccess: () => {

@@ -24,8 +24,7 @@ export const useProdutores = () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
 
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
-
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const url = `${baseUrl}/produtores`;
 
       const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });

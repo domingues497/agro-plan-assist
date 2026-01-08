@@ -18,7 +18,7 @@ const Auth = () => {
 
   // Redirecionar se já estiver autenticado
   useEffect(() => {
-    const token = localStorage.getItem("auth_token");
+    const token = sessionStorage.getItem("auth_token");
     if (token) {
       navigate("/", { replace: true });
     }
@@ -74,7 +74,7 @@ const Auth = () => {
         }
       }
 
-      localStorage.setItem("auth_token", json?.token);
+      sessionStorage.setItem("auth_token", json?.token);
       // Forçar recarregamento para limpar memória e buscar novos assets
       window.location.href = "/";
     }

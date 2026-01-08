@@ -29,7 +29,7 @@ export const InactivityProvider = ({ children }: { children: React.ReactNode }) 
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
       toast({ title: "Sessão encerrada", description: "Você foi desconectado por inatividade.", variant: "destructive" });
-      localStorage.removeItem('auth_token');
+      sessionStorage.removeItem('auth_token');
       window.location.replace('/auth');
     } catch (error) {
       window.location.replace('/auth');
@@ -59,13 +59,13 @@ export const InactivityProvider = ({ children }: { children: React.ReactNode }) 
       if (now - (lastRefreshRef.current || 0) > 60_000) {
         lastRefreshRef.current = now;
         const baseUrl = getApiBaseUrl();
-        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || '' : '';
+        const token = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('auth_token') || '' : '';
         if (token) {
           fetch(`${baseUrl}/auth/refresh`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
             .then(async (res) => {
               if (!res.ok) return;
               const j = await res.json();
-              if (j?.token) localStorage.setItem('auth_token', j.token);
+              if (j?.token) sessionStorage.setItem('auth_token', j.token);
             })
             .catch(() => {});
         }

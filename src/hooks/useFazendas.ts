@@ -17,7 +17,7 @@ export const useFazendas = (produtorNumerocm?: string, safraId?: string) => {
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem("auth_token") || "";
+      const token = sessionStorage.getItem("auth_token") || "";
 
       // Obtém role via API
       const roleRes = await fetch(`${baseUrl}/user_roles/me`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
@@ -91,7 +91,7 @@ export const useFazendasMulti = (produtoresNumerocm: string[] = []) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
       let url = `${baseUrl}/fazendas`;
-      const token = localStorage.getItem("auth_token") || "";
+      const token = sessionStorage.getItem("auth_token") || "";
       if (produtoresNumerocm && produtoresNumerocm.length > 0) {
         // sem endpoint IN; obter tudo e filtrar client-side se necessário
         url = `${baseUrl}/fazendas`;

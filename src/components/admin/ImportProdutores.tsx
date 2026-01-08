@@ -48,7 +48,7 @@ export function ImportProdutores() {
       setShowSummary(false);
 
       const baseUrl = getApiBaseUrl();
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       if (!token) throw new Error("Usuário não autenticado");
       const meRes = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
       if (!meRes.ok) throw new Error("Falha ao obter usuário");

@@ -3846,6 +3846,10 @@ def list_aplicacoes_defensivos():
             apps = [dict(zip(cols, r)) for r in rows]
             out = []
             for a in apps:
+                cur.execute("SELECT talhao_id FROM public.aplicacao_defensivos_talhoes WHERE aplicacao_id = %s", [a["id"]])
+                trows = cur.fetchall()
+                talhao_ids = [r[0] for r in trows]
+
                 cur.execute("SELECT id, aplicacao_id, user_id, classe, defensivo, dose, unidade, alvo, produto_salvo, deve_faturar, porcentagem_salva, area_hectares, safra_id, numerocm_consultor, created_at, updated_at FROM public.programacao_defensivos WHERE aplicacao_id = %s ORDER BY created_at", [a["id"]])
                 dcols = [d[0] for d in cur.description]
                 drows = cur.fetchall()
@@ -3856,6 +3860,7 @@ def list_aplicacoes_defensivos():
                         continue
                 a2 = dict(a)
                 a2["defensivos"] = defensivos
+                a2["talhao_ids"] = talhao_ids
                 out.append(a2)
             return jsonify({"items": out, "count": len(out)})
     finally:

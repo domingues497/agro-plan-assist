@@ -35,7 +35,7 @@ export function ImportTalhoes() {
 
     try {
       const baseUrl = getApiBaseUrl();
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       if (!token) {
         toast.error("Usuário não autenticado");
         return;

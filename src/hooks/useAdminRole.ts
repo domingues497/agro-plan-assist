@@ -6,7 +6,7 @@ export const useAdminRole = () => {
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token");
       if (!token) return { isAdmin: false };
       const res = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return { isAdmin: false };

@@ -109,7 +109,7 @@ const Defensivos = () => {
     const loadAreas = async () => {
       try {
         const base = getApiBaseUrl();
-        const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+        const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const updates: Record<string, number> = {};
         for (const ap of aplicacoes) {
@@ -174,12 +174,15 @@ const Defensivos = () => {
     return set;
   }, [adubProgramacoes]);
 
-  const produtoresComCultivarEAdubacao = useMemo(() => {
-    const inter = new Set<string>();
+  const produtoresComCultivarOuAdubacao = useMemo(() => {
+    const set = new Set<string>();
     for (const cm of produtoresComCultivar) {
-      if (produtoresComAdubacao.has(cm)) inter.add(cm);
+      set.add(cm);
     }
-    return inter;
+    for (const cm of produtoresComAdubacao) {
+      set.add(cm);
+    }
+    return set;
   }, [produtoresComCultivar, produtoresComAdubacao]);
 
   const areasCultivarPorProdutor = useMemo(() => {
@@ -218,18 +221,6 @@ const Defensivos = () => {
     const d = (sourceAplicacao.defensivos || []).find((it: any) => it && it.safra_id);
     return String(d?.safra_id || "").trim();
   }, [sourceAplicacao]);
-
-  const getProdutorNumerocmFallback = (id?: string) => {
-    try {
-      if (!id) return "";
-      const key = "aplicacoes_defensivos_produtor_map";
-      const raw = localStorage.getItem(key);
-      const map = raw ? JSON.parse(raw) : {};
-      return (map[id] || "").trim();
-    } catch (e) {
-      return "";
-    }
-  };
 
   const handleSubmit = (data: any) => {
     create(data);
@@ -298,7 +289,7 @@ const Defensivos = () => {
         {!temProgramacoes && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-yellow-800 font-medium">
-              ⚠️ É necessário ter programação de cultivares e adubação antes de programar defensivos.
+              ⚠️ É necessário ter programação de cultivares ou adubação antes de programar defensivos.
             </p>
           </div>
         )}
@@ -328,7 +319,7 @@ const Defensivos = () => {
                 submitLabel="Salvar alterações"
                 initialData={{
                   id: editing.id,
-                  produtor_numerocm: editing.produtor_numerocm || getProdutorNumerocmFallback(editing.id),
+                  produtor_numerocm: editing.produtor_numerocm || "",
                   area: editing.area,
                   tipo: editing.tipo,
                   defensivos: editing.defensivos,
@@ -565,7 +556,7 @@ const Defensivos = () => {
                       <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
                       <CommandGroup>
                         {produtores
-                          .filter((produtor) => produtoresComCultivarEAdubacao.has(String(produtor.numerocm)))
+                          .filter((produtor) => produtoresComCultivarOuAdubacao.has(String(produtor.numerocm)))
                           .filter((produtor) => {
                             // Oculta o produtor origem inteiro
                             return !sourceAplicacao || String(produtor.numerocm) !== String(sourceAplicacao.produtor_numerocm);

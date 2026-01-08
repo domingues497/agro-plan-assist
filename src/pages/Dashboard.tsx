@@ -171,7 +171,7 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     try {
-      localStorage.removeItem("auth_token");
+      sessionStorage.removeItem("auth_token");
       queryClient.clear();
       navigate("/auth", { replace: true });
     } catch {

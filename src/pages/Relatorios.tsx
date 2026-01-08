@@ -77,7 +77,7 @@ const Relatorios = () => {
       });
 
       const results: DetailedReportItem[] = [];
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const baseUrl = getApiBaseUrl();
 
@@ -339,7 +339,7 @@ const Relatorios = () => {
       });
 
       const results: DetailedReportItem[] = [];
-      const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const baseUrl = getApiBaseUrl();
 

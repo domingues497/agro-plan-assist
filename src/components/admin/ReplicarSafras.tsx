@@ -31,7 +31,7 @@ export const ReplicarSafras = () => {
 
     try {
       const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem("auth_token") || "";
+      const token = sessionStorage.getItem("auth_token") || "";
       const userId = profile?.id || "";
       if (!userId) throw new Error("Usuário não autenticado");
 

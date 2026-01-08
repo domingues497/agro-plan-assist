@@ -199,7 +199,7 @@ export default function Programacao() {
     const loadAreas = async () => {
       try {
         const base = getApiBaseUrl();
-        const token = typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
+        const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const updates: Record<string, number> = {};
         const countUpdates: Record<string, number> = {};

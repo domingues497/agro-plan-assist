@@ -15,7 +15,16 @@ import Relatorios from "./pages/Relatorios";
 import Programacao from "./pages/Programacao";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
+      gcTime: 0,
+      retry: false,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any | null>(null);
@@ -27,7 +36,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const checkToken = async () => {
       try {
-        const token = localStorage.getItem("auth_token");
+        const token = sessionStorage.getItem("auth_token");
         if (!token) {
           setSession(null);
           setLoading(false);
@@ -36,7 +45,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         const baseUrl = getApiBaseUrl();
         const res = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) {
-          localStorage.removeItem("auth_token");
+          sessionStorage.removeItem("auth_token");
           setSession(null);
         } else {
           const json = await res.json();

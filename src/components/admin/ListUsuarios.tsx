@@ -124,7 +124,7 @@ export const ListUsuarios = () => {
       }
 
       if ((newUser.senha || "").length >= 6) {
-        const token = localStorage.getItem("auth_token") || "";
+        const token = sessionStorage.getItem("auth_token") || "";
         const passRes = await fetch(`${baseUrl}/users/${userId}/password`, {
           method: "POST",
           headers: {
@@ -170,7 +170,7 @@ export const ListUsuarios = () => {
         return;
       }
       const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem("auth_token") || "";
+      const token = sessionStorage.getItem("auth_token") || "";
       const res = await fetch(`${baseUrl}/users/${editingUser.id}/password`, {
         method: "POST",
         headers: {
