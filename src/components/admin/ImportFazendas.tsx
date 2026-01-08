@@ -19,16 +19,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getApiBaseUrl } from "@/lib/utils";
+import { useImportFazendasMutation } from "@/hooks/useImportFazendasMutation";
+import { useSyncFazendasMutation } from "@/hooks/useSyncFazendasMutation";
 
 export function ImportFazendas() {
   const [file, setFile] = useState<File | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [isSyncingApi, setIsSyncingApi] = useState(false);
   const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("offline");
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [deletedRows, setDeletedRows] = useState(0);
+  
+  const importMutation = useImportFazendasMutation();
+  const syncMutation = useSyncFazendasMutation();
+  const isImporting = importMutation.isPending;
+  const isSyncingApi = syncMutation.isPending;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
@@ -42,7 +47,6 @@ export function ImportFazendas() {
     }
 
     try {
-      setIsImporting(true);
       setImportedRows(0);
       setDeletedRows(0);
       setShowSummary(false);
@@ -72,7 +76,6 @@ export function ImportFazendas() {
 
       if (payload.length === 0) {
         toast.error("Nenhuma linha válida encontrada (precisa de NUMEROCM, IDFAZENDA, NOMEFAZENDA, NUMEROCMCONSULTOR)");
-        setIsImporting(false);
         return;
       }
 
@@ -90,34 +93,32 @@ export function ImportFazendas() {
 
       setTotalRows(uniquePayload.length);
 
-      const res = await fetch(`${baseUrl}/fazendas/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : undefined as any },
-        body: JSON.stringify({
+      importMutation.mutate(
+        {
+          endpoint: "/fazendas/bulk",
           items: uniquePayload,
-          user_id: user.user_id || user.id,
-          arquivo_nome: file.name,
-        }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-      const json = await res.json();
-      const imported = Number(json?.imported || uniquePayload.length);
-      deletedRecords = Number(json?.deleted || 0);
-      setImportedRows(imported);
-      setDeletedRows(deletedRecords);
-
-      toast.success(`Importação de fazendas concluída (${imported} de ${uniquePayload.length})`);
-      setShowSummary(true);
-    } catch (err: any) {
-      console.error(err);
-      toast.error(`Erro ao importar fazendas: ${err.message}`);
-    } finally {
-      setIsImporting(false);
+          userId: user.user_id || user.id,
+          fileName: file.name
+        },
+        {
+          onSuccess: (json) => {
+            const count = json.count ?? uniquePayload.length;
+            setImportedRows(count);
+            toast.success(`${count} fazendas importadas com sucesso!`);
+            setShowSummary(true);
+            setFile(null);
+          },
+          onError: (err) => {
+            toast.error(err.message);
+          }
+        }
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao processar arquivo");
     }
   };
+
 
   const checkApiConnectivity = async () => {
     try {
@@ -145,35 +146,19 @@ export function ImportFazendas() {
         toast.error('API de Fazendas indisponível');
         return;
       }
-      setIsSyncingApi(true);
       setShowSummary(false);
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/fazendas/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) {
-        const ct = res.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          const j = await res.json().catch(() => null);
-          const msg = j?.error || 'Erro ao sincronizar via API';
-          const details = j?.details ? ` Detalhes: ${j.details}` : '';
-          const status = j?.status ? ` (status ${j.status})` : '';
-          toast.error(`${msg}${status}${details}`);
-        } else {
-          const t = await res.text().catch(() => '');
-          toast.error(`Erro ao sincronizar via API (HTTP ${res.status}). ${t}`);
+      
+      syncMutation.mutate(undefined, {
+        onSuccess: (json) => {
+          const imported = Number(json?.imported || 0);
+          toast.success(`Fazendas sincronizadas: ${imported}`);
+        },
+        onError: (err) => {
+          toast.error(`Erro ao sincronizar fazendas: ${err.message}`);
         }
-        return;
-      }
-      const json = await res.json();
-      const imported = Number(json?.imported || 0);
-      toast.success(`Fazendas sincronizadas: ${imported}`);
+      });
     } catch (err: any) {
-      toast.error(`Erro ao sincronizar fazendas: ${err.message || err}`);
-    } finally {
-      setIsSyncingApi(false);
+      toast.error(`Erro ao verificar conectividade: ${err.message || err}`);
     }
   };
 

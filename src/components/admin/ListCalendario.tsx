@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useCalendarioAplicacoes } from "@/hooks/useCalendarioAplicacoes";
 import { Button } from "@/components/ui/button";
 // Migração para API Flask
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 import {
@@ -109,32 +109,59 @@ export const ListCalendario = () => {
     setEditCodAplicGer(String(row.cod_aplic_ger ?? ""));
   };
 
-  const onSaveEdit = async () => {
-    if (!editRow) return;
-    try {
+  const updateMutation = useMutation({
+    mutationFn: async (vars: {
+      row: any;
+      descr: string;
+      cod: string;
+      descrClasse: string;
+      trat: string;
+      codAplic: string;
+    }) => {
+      const { row, descr, cod, descrClasse, trat, codAplic } = vars;
       const baseUrl = getApiBaseUrl();
+      const token = sessionStorage.getItem("auth_token");
       const payload = {
-        descr_aplicacao: editDescrAplicacao,
-        cod_classe: editCodClasse || null,
-        descricao_classe: editDescricaoClasse,
-        trat_sementes: editTratSementes || null,
-        cod_aplic_ger: editCodAplicGer || null,
+        descr_aplicacao: descr,
+        cod_classe: cod || null,
+        descricao_classe: descrClasse,
+        trat_sementes: trat || null,
+        cod_aplic_ger: codAplic || null,
       };
-      const res = await fetch(`${baseUrl}/calendario_aplicacoes/${editRow.id}`, {
+      const res = await fetch(`${baseUrl}/calendario_aplicacoes/${row.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : ""
+        },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
       }
+      return true;
+    },
+    onSuccess: () => {
       toast.success("Aplicação atualizada");
       qc.invalidateQueries({ queryKey: ["calendario-aplicacoes"] });
       setEditRow(null);
-    } catch (e: any) {
+    },
+    onError: (e: any) => {
       toast.error(e.message || "Erro ao atualizar aplicação");
-    }
+    },
+  });
+
+  const onSaveEdit = () => {
+    if (!editRow) return;
+    updateMutation.mutate({
+      row: editRow,
+      descr: editDescrAplicacao,
+      cod: editCodClasse,
+      descrClasse: editDescricaoClasse,
+      trat: editTratSementes,
+      codAplic: editCodAplicGer,
+    });
   };
 
   return (

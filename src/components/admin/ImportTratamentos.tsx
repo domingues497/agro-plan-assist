@@ -7,11 +7,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Trash2, Plus, Edit2 } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/utils";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
+import { useTratamentosSementesMutation } from "@/hooks/useTratamentosSementesMutation";
+import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
 
 const TratamentoCulturaEdit = ({ tratamento, culturasDisponiveis, onSave }: { tratamento: any, culturasDisponiveis: string[], onSave: (id: string, cultura: string | null) => void }) => {
   const [open, setOpen] = useState(false);
@@ -82,10 +84,9 @@ const TratamentoCulturaEdit = ({ tratamento, culturasDisponiveis, onSave }: { tr
 };
 
 export const ImportTratamentos = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [nome, setNome] = useState("");
   const { data: cultivares = [] } = useCultivaresCatalog();
+  const { create, update, remove, isCreating, isUpdating, isDeleting } = useTratamentosSementesMutation();
 
   const culturasDisponiveis = Array.from(new Set(
     (cultivares as any[])
@@ -93,102 +94,17 @@ export const ImportTratamentos = () => {
       .filter((c: string) => c.length > 0)
   )).sort() as string[];
 
-  const { data: tratamentos = [] } = useQuery({
-    queryKey: ["admin-tratamentos"],
-    queryFn: async () => {
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/tratamentos_sementes`);
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-      const json = await res.json();
-      return (json?.items || []) as any[];
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, ativo, cultura }: { id: string; ativo?: boolean; cultura?: string | null }) => {
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/tratamentos_sementes/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ativo, cultura }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-tratamentos"] });
-      toast({ title: "Tratamento atualizado" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Erro ao atualizar tratamento", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/tratamentos_sementes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, ativo: true }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-tratamentos"] });
-      toast({ title: "Tratamento cadastrado com sucesso!" });
-      setNome("");
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao cadastrar tratamento",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/tratamentos_sementes/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-tratamentos"] });
-      toast({ title: "Tratamento excluído com sucesso!" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao excluir tratamento",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  const { data: tratamentos = [] } = useTratamentosSementes(undefined, false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) {
-      toast({
-        title: "Erro",
-        description: "Digite o nome do tratamento",
-        variant: "destructive",
-      });
+      toast.error("Digite o nome do tratamento");
       return;
     }
-    createMutation.mutate();
+    create(nome, {
+      onSuccess: () => setNome(""),
+    });
   };
 
   return (
@@ -212,7 +128,7 @@ export const ImportTratamentos = () => {
               />
             </div>
             <div className="flex items-end">
-              <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+              <Button type="submit" className="w-full" disabled={isCreating}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar
               </Button>
@@ -238,15 +154,15 @@ export const ImportTratamentos = () => {
                     <TratamentoCulturaEdit 
                       tratamento={t} 
                       culturasDisponiveis={culturasDisponiveis}
-                      onSave={(id, cultura) => updateMutation.mutate({ id, cultura })}
+                      onSave={(id, cultura) => update({ id, cultura })}
                     />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Button
                         variant={t.ativo ? "secondary" : "default"}
-                        onClick={() => updateMutation.mutate({ id: t.id, ativo: !t.ativo })}
-                        disabled={updateMutation.isPending}
+                        onClick={() => update({ id: t.id, ativo: !t.ativo })}
+                        disabled={isUpdating}
                         size="sm"
                       >
                         {t.ativo ? "Desativar" : "Ativar"}
@@ -257,8 +173,8 @@ export const ImportTratamentos = () => {
                     <Button
                       variant="destructive"
                       size="icon"
-                      onClick={() => deleteMutation.mutate(t.id)}
-                      disabled={deleteMutation.isPending}
+                      onClick={() => remove(t.id)}
+                      disabled={isDeleting}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

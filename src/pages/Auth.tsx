@@ -8,13 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sprout } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiBaseUrl } from "@/lib/utils";
+import { useLogin, useRegisterCheck } from "@/hooks/useAuth";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const loginMutation = useLogin();
+  const registerMutation = useRegisterCheck();
+  
+  const loading = loginMutation.isPending || registerMutation.isPending;
 
   // Redirecionar se já estiver autenticado
   useEffect(() => {
@@ -24,61 +28,46 @@ const Auth = () => {
     }
   }, [navigate]);
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignUp = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    // Permitir cadastro apenas se email consta na base de consultores
-    const baseUrl = getApiBaseUrl();
-    const res = await fetch(`${baseUrl}/consultores/by_email?email=${encodeURIComponent(email.toLowerCase())}`);
-    if (!res.ok) {
-      toast({ title: "Cadastro bloqueado", description: "Email não encontrado na base de consultores.", variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    toast({ title: "Cadastro gerenciado", description: "Solicite habilitação ao administrador.", variant: "default" });
-    setLoading(false);
+    
+    registerMutation.mutate(email, {
+      onSuccess: () => {
+        toast({ title: "Cadastro gerenciado", description: "Solicite habilitação ao administrador.", variant: "default" });
+      },
+      onError: (error) => {
+        toast({ title: "Cadastro bloqueado", description: error.message, variant: "destructive" });
+      }
+    });
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    const baseUrl2 = getApiBaseUrl();
-    // Tenta login diretamente; o backend valida se o email está autorizado e a senha
-    const res = await fetch(`${baseUrl2}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res.ok) {
-      const txt = await res.text();
-      // Mensagens amigáveis para casos comuns
-      const msg = txt || (res.status === 403 ? "Email não autorizado ou senha inválida" : "Falha ao fazer login");
-      toast({ title: "Erro ao fazer login", description: msg, variant: "destructive" });
-    } else {
-      const json = await res.json();
-      
-      // Limpeza completa de cache e storage para garantir sessão limpa
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Tentar limpar caches do navegador (Service Workers) se existirem
-      if ('caches' in window) {
-        try {
-          const keys = await caches.keys();
-          await Promise.all(keys.map(key => caches.delete(key)));
-        } catch (e) {
-          console.error("Erro ao limpar caches", e);
+    
+    loginMutation.mutate({ email, password }, {
+      onSuccess: async (json) => {
+        // Limpeza completa de cache e storage para garantir sessão limpa
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Tentar limpar caches do navegador (Service Workers) se existirem
+        if ('caches' in window) {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(key => caches.delete(key)));
+          } catch (e) {
+            console.error("Erro ao limpar caches", e);
+          }
         }
-      }
 
-      sessionStorage.setItem("auth_token", json?.token);
-      // Forçar recarregamento para limpar memória e buscar novos assets
-      window.location.href = "/";
-    }
-    setLoading(false);
+        sessionStorage.setItem("auth_token", json?.token);
+        // Forçar recarregamento para limpar memória e buscar novos assets
+        window.location.href = "/";
+      },
+      onError: (error) => {
+        toast({ title: "Erro ao fazer login", description: error.message, variant: "destructive" });
+      }
+    });
   };
 
   return (

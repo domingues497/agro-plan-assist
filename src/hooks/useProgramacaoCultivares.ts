@@ -41,12 +41,25 @@ export type CreateProgramacaoCultivar = Omit<ProgramacaoCultivar, "id" | "create
 export const useProgramacaoCultivares = () => {
   const queryClient = useQueryClient();
 
+  const getHeaders = () => {
+    const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
+    return {
+      "Content-Type": "application/json",
+      Authorization: token ? `Bearer ${token}` : "",
+    };
+  };
+
   const { data: programacoes, isLoading, error } = useQuery({
     queryKey: ["programacao-cultivares"],
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/programacao_cultivares`);
+      const headers = getHeaders();
+      const { "Content-Type": _, ...getHeadersObj } = headers;
+      
+      const res = await fetch(`${baseUrl}/programacao_cultivares`, {
+        headers: getHeadersObj
+      });
       if (!res.ok) throw new Error(`Erro ao carregar cultivares: ${res.status}`);
       const json = await res.json();
       const list = (json?.items ?? []) as ProgramacaoCultivar[];
@@ -60,7 +73,7 @@ export const useProgramacaoCultivares = () => {
       const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/programacao_cultivares`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify(programacao as any)
       });
       if (!res.ok) {
@@ -85,7 +98,7 @@ export const useProgramacaoCultivares = () => {
       const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/programacao_cultivares/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify(updates as any)
       });
       if (!res.ok) {
@@ -107,7 +120,13 @@ export const useProgramacaoCultivares = () => {
     mutationFn: async (id: string) => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/programacao_cultivares/${id}`, { method: "DELETE" });
+      const headers = getHeaders();
+      const { "Content-Type": _, ...deleteHeadersObj } = headers;
+
+      const res = await fetch(`${baseUrl}/programacao_cultivares/${id}`, { 
+        method: "DELETE",
+        headers: deleteHeadersObj
+      });
       if (!res.ok) throw new Error(`Erro ao excluir programação: ${res.status}`);
     },
     onSuccess: (_data, variables) => {
@@ -128,7 +147,7 @@ export const useProgramacaoCultivares = () => {
       const { id: _, created_at, updated_at, ...duplicateData } = original as any;
       const res = await fetch(`${baseUrl}/programacao_cultivares`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify(duplicateData)
       });
       if (!res.ok) {
@@ -158,7 +177,7 @@ export const useProgramacaoCultivares = () => {
       const payload = { ...rest, produtor_numerocm, area } as CreateProgramacaoCultivar;
       const res = await fetch(`${baseUrl}/programacao_cultivares`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify(payload)
       });
       if (!res.ok) {

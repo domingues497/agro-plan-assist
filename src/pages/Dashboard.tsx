@@ -22,6 +22,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { getApiBaseUrl } from "@/lib/utils";
 import { useInactivity } from "@/hooks/useInactivityLogout.tsx";
 
+import { useBuildVersion } from "@/hooks/useBuildVersion";
+
 const Dashboard = () => {
   const {
     programacoes: cultivaresProgramacoes,
@@ -72,8 +74,9 @@ const Dashboard = () => {
   const [editNome, setEditNome] = useState("");
   const [editCmConsultor, setEditCmConsultor] = useState("");
   const [editEmail, setEditEmail] = useState("");
-  const [buildVersion, setBuildVersion] = useState<string | null>(null);
-  const [buildEnv, setBuildEnv] = useState<string | null>(null);
+  const { data: buildData } = useBuildVersion();
+  const buildVersion = buildData?.version;
+  const buildEnv = buildData?.env;
   const { idleLeft } = useInactivity();
   
 
@@ -192,38 +195,6 @@ const Dashboard = () => {
   };
 
   const { data: roleData } = useAdminRole();
-
-  useEffect(() => {
-    const loadBuild = async () => {
-      try {
-        const baseUrl = getApiBaseUrl();
-        const res = await fetch(`${baseUrl}/versions`);
-        if (res.ok) {
-          const json = await res.json();
-          const items = (json?.items || []) as any[];
-          const first = items[0];
-          const ver = String(first?.version || first?.build || "").trim();
-          const env = String(first?.environment || "").trim();
-          if (ver) { setBuildVersion(ver); return; }
-          if (env) setBuildEnv(env);
-        }
-      } catch {}
-      try {
-        const alt = await fetch(`/build.json`);
-        if (!alt.ok) return;
-        const j = await alt.json();
-        const ver = String(j?.version || j?.build || "").trim();
-        const env = String(j?.environment || "").trim();
-        if (ver) setBuildVersion(ver);
-        if (env) setBuildEnv(env);
-      } catch {}
-    };
-    loadBuild();
-  }, []);
-
-  
-
-  
 
   return (
     <div className="min-h-screen bg-background">

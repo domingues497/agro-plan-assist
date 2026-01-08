@@ -19,16 +19,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getApiBaseUrl } from "@/lib/utils";
+import { useImportProdutoresMutation } from "@/hooks/useImportProdutoresMutation";
+import { useSyncProdutoresMutation } from "@/hooks/useSyncProdutoresMutation";
 
 export function ImportProdutores() {
   const [file, setFile] = useState<File | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [isSyncingApi, setIsSyncingApi] = useState(false);
   const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("offline");
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [deletedRows, setDeletedRows] = useState(0);
+  
+  const importMutation = useImportProdutoresMutation();
+  const syncMutation = useSyncProdutoresMutation();
+  const isImporting = importMutation.isPending;
+  const isSyncingApi = syncMutation.isPending;
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
@@ -42,7 +48,6 @@ export function ImportProdutores() {
     }
 
     try {
-      setIsImporting(true);
       setImportedRows(0);
       setDeletedRows(0);
       setShowSummary(false);
@@ -72,7 +77,6 @@ export function ImportProdutores() {
 
       if (payload.length === 0) {
         toast.error("Nenhuma linha válida encontrada (precisa de NUMEROCM, NOME, NUMEROCMCONSULTOR)");
-        setIsImporting(false);
         return;
       }
       // Deduplicar por numerocm (conflito) para evitar erro 21000
@@ -88,34 +92,31 @@ export function ImportProdutores() {
 
       setTotalRows(uniquePayload.length);
 
-      const res = await fetch(`${baseUrl}/produtores/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : undefined as any },
-        body: JSON.stringify({
+      importMutation.mutate(
+        {
           items: uniquePayload,
-          user_id: user.user_id || user.id,
-          arquivo_nome: file.name,
-        }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-      const json = await res.json();
-      const imported = Number(json?.imported || uniquePayload.length);
-      deletedRecords = Number(json?.deleted || 0);
-      setImportedRows(imported);
-      setDeletedRows(deletedRecords);
-
-      toast.success(`Importação de produtores concluída (${imported} de ${uniquePayload.length})`);
-      setShowSummary(true);
-    } catch (err: any) {
-      console.error(err);
-      toast.error(`Erro ao importar produtores: ${err.message}`);
-    } finally {
-      setIsImporting(false);
+          userId: user.user_id || user.id,
+          fileName: file.name
+        },
+        {
+          onSuccess: (json) => {
+            const count = json.count ?? uniquePayload.length;
+            setImportedRows(count);
+            toast.success(`${count} produtores importados com sucesso!`);
+            setShowSummary(true);
+            setFile(null);
+          },
+          onError: (err) => {
+            toast.error(err.message);
+          }
+        }
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao processar arquivo");
     }
   };
+
 
   const checkApiConnectivity = async () => {
     try {
@@ -143,35 +144,19 @@ export function ImportProdutores() {
         toast.error("API de Produtores indisponível");
         return;
       }
-      setIsSyncingApi(true);
       setShowSummary(false);
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/produtores/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) {
-        const ct = res.headers.get("content-type") || "";
-        if (ct.includes("application/json")) {
-          const j = await res.json().catch(() => null);
-          const msg = j?.error || "Erro ao sincronizar via API";
-          const details = j?.details ? ` Detalhes: ${j.details}` : "";
-          const status = j?.status ? ` (status ${j.status})` : "";
-          toast.error(`${msg}${status}${details}`);
-        } else {
-          const t = await res.text().catch(() => "");
-          toast.error(`Erro ao sincronizar via API (HTTP ${res.status}). ${t}`);
+      
+      syncMutation.mutate(undefined, {
+        onSuccess: (json) => {
+          const imported = Number(json?.imported || 0);
+          toast.success(`Produtores sincronizados: ${imported}`);
+        },
+        onError: (err) => {
+          toast.error(err.message);
         }
-        return;
-      }
-      const json = await res.json();
-      const imported = Number(json?.imported || 0);
-      toast.success(`Produtores sincronizados: ${imported}`);
+      });
     } catch (err: any) {
-      toast.error(`Erro ao sincronizar produtores: ${err.message || err}`);
-    } finally {
-      setIsSyncingApi(false);
+      toast.error(`Erro ao verificar conectividade: ${err.message || err}`);
     }
   };
 

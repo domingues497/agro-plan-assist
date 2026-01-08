@@ -19,6 +19,7 @@ import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useSafras } from "@/hooks/useSafras";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
+import { useTalhoesForApp } from "@/hooks/useTalhoesForApp";
 
 type FormAplicacaoDefensivoProps = {
   onSubmit: (data: { produtor_numerocm: string; area: string; tipo?: "PROGRAMACAO" | "PREVIA"; talhao_ids?: string[]; defensivos: Omit<DefensivoItem, "id">[] }) => void;
@@ -335,103 +336,74 @@ export const FormAplicacaoDefensivo = ({
     );
   }, [adubProgramacoes, produtorNumerocm, area, safraId]);
 
-  // Atualiza a área selecionada com base nos talhões da programação correspondente
+  // Atualiza a área selecionada com base nos talhões da programação correspondente (via Hook)
+  const { data: talhoesData } = useTalhoesForApp(produtorNumerocm, area, safraId, fazendas);
+
   useEffect(() => {
-    const loadAreaFromTalhoes = async () => {
+    if (!talhoesData) return;
+    
+    const { options, fallbackArea } = talhoesData;
+    setTalhoesOptions(options);
+
+    // Se não houver talhões, usa fallback
+    if (options.length === 0) {
+      setSelectedAreaHa(fallbackArea);
+      // Se não tem talhões, limpa seleção anterior de IDs para evitar inconsistência
+      if (selectedTalhaoIds.length > 0) setSelectedTalhaoIds([]);
+      return;
+    }
+
+    const sumAll = options.reduce((acc, t) => acc + t.area, 0);
+
+    const saved = (() => {
       try {
-        if (!produtorNumerocm || !area || !safraId) return;
-        const base = getApiBaseUrl();
-        const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const res = await fetch(`${base}/programacoes`, { headers });
-        if (!res.ok) return;
-        const j = await res.json();
-        const items = (j?.items || []) as any[];
-        const progs = items.filter((p: any) => {
-          const sameProd = String(p.produtor_numerocm) === String(produtorNumerocm);
-          const sameArea = String(p.area) === String(area);
-          const safraOk = String(p.safra_id || "") === String(safraId || "");
-          return sameProd && sameArea && safraOk;
-        });
-        if (!progs || progs.length === 0) {
-          const fazenda = (fazendas || []).find(f => String(f.nomefazenda) === String(area));
-          const haFallback = Number(fazenda?.area_cultivavel || 0);
-          setSelectedAreaHa(haFallback);
-          setTalhoesOptions([]);
-          return;
-        }
-        const talhaoSet = new Set<string>();
-        for (const prog of progs) {
-          const rc = await fetch(`${base}/programacoes/${prog.id}/children`, { headers });
-          if (!rc.ok) continue;
-          const children = await rc.json();
-          const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
-          talhoes.forEach((t) => talhaoSet.add(String(t)));
-        }
-        if (talhaoSet.size === 0) {
-          const fazenda = (fazendas || []).find(f => String(f.nomefazenda) === String(area));
-          const haFallback = Number(fazenda?.area_cultivavel || 0);
-          setSelectedAreaHa(haFallback);
-          setTalhoesOptions([]);
-          return;
-        }
-        const fazendaObj = (fazendas || []).find((f: any) => String(f.nomefazenda) === String(area));
-        const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
-        const params = new URLSearchParams();
-        if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
-        if (safraId) params.set("safra_id", String(safraId));
-        const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
-        if (!r2.ok) return;
-        const j2 = await r2.json();
-        const items2 = ((j2?.items || []) as any[]).filter((t: any) => talhaoSet.has(String(t.id)));
-        const opts = items2.map((t: any) => ({ id: String(t.id), nome: String(t.nome || "Talhão"), area: Number(t.area || 0) || 0 }));
-        setTalhoesOptions(opts);
-        const sumAll = items2.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
-        const saved = (() => {
-          try {
-            // Se estiver editando, ignora o localStorage para não sobrescrever o que veio do banco
-            if (initialData?.id) return [] as string[];
-            if (!talhoesKey) return [] as string[];
-            const raw = sessionStorage.getItem(`def-talhoes-sel:${talhoesKey}`);
-            const ids = raw ? (JSON.parse(raw) as string[]) : [];
-            return ids.filter((id) => opts.some((o) => o.id === id));
-          } catch {
-            return [] as string[];
-          }
-        })();
-        if (saved.length > 0) {
-          setSelectedTalhaoIds(saved);
-          const idSet = new Set(saved.map(String));
-          const sumSel = opts.reduce((acc, o) => acc + (idSet.has(o.id) ? (Number(o.area || 0) || 0) : 0), 0);
-          setSelectedAreaHa(sumSel > 0 ? sumSel : (sumAll > 0 ? sumAll : 0));
-        } else if (selectedTalhaoIds.length > 0) {
-          const idSet = new Set(selectedTalhaoIds.map(String));
-          const sumSel = opts.reduce((acc, o) => acc + (idSet.has(o.id) ? (Number(o.area || 0) || 0) : 0), 0);
-          setSelectedAreaHa(sumSel > 0 ? sumSel : (sumAll > 0 ? sumAll : 0));
+        // Se estiver editando, ignora o localStorage para não sobrescrever o que veio do banco
+        if (initialData?.id) return [] as string[];
+        if (!talhoesKey) return [] as string[];
+        const raw = sessionStorage.getItem(`def-talhoes-sel:${talhoesKey}`);
+        const ids = raw ? (JSON.parse(raw) as string[]) : [];
+        return ids.filter((id) => options.some((o) => o.id === id));
+      } catch {
+        return [] as string[];
+      }
+    })();
+
+    if (saved.length > 0) {
+      setSelectedTalhaoIds(saved);
+      const idSet = new Set(saved.map(String));
+      const sumSel = options.reduce((acc, o) => acc + (idSet.has(o.id) ? o.area : 0), 0);
+      setSelectedAreaHa(sumSel > 0 ? sumSel : (sumAll > 0 ? sumAll : 0));
+    } else if (selectedTalhaoIds.length > 0) {
+      // Revalida seleção existente
+      const validIds = selectedTalhaoIds.filter(id => options.some(o => o.id === id));
+      if (validIds.length !== selectedTalhaoIds.length) {
+         setSelectedTalhaoIds(validIds);
+      }
+      const idSet = new Set(validIds);
+      const sumSel = options.reduce((acc, o) => acc + (idSet.has(o.id) ? o.area : 0), 0);
+      setSelectedAreaHa(sumSel > 0 ? sumSel : (sumAll > 0 ? sumAll : 0));
+    } else {
+      // tentativa simples de inferência
+      const target = Number(initialData?.defensivos?.[0]?.area_hectares || 0) || 0;
+      if (target > 0) {
+        const tolerance = 0.01; 
+        const single = options.find((o) => Math.abs(o.area - target) <= tolerance);
+        if (single) {
+          setSelectedTalhaoIds([single.id]);
+          setSelectedAreaHa(single.area);
         } else {
-          // tentativa simples de inferência: se área salva em edição bater com um talhão, selecionar automaticamente
-          const target = Number(initialData?.defensivos?.[0]?.area_hectares || 0) || 0;
-          if (target > 0) {
-            const tolerance = 0.01; // 0.01 ha
-            const single = opts.find((o) => Math.abs((Number(o.area || 0) || 0) - target) <= tolerance);
-            if (single) {
-              setSelectedTalhaoIds([single.id]);
-              setSelectedAreaHa(Number(single.area || 0) || 0);
-            } else {
-              setSelectedAreaHa(sumAll > 0 ? sumAll : 0);
-            }
-          } else {
-            setSelectedAreaHa(sumAll > 0 ? sumAll : 0);
-          }
+          setSelectedAreaHa(sumAll > 0 ? sumAll : 0);
         }
-      } catch {}
-    };
-    loadAreaFromTalhoes();
-  }, [produtorNumerocm, area, safraId, fazendas, selectedTalhaoIds]);
+      } else {
+        setSelectedAreaHa(sumAll > 0 ? sumAll : 0);
+      }
+    }
+  }, [talhoesData, talhoesKey, initialData]);
 
   const allowedProdutoresNumerocm = useMemo(() => {
     if (!safraId) return [] as string[];
     const s = String(safraId);
+    
     const cultSet = new Set<string>((cultProgramacoes || [])
       .filter((p) => String(p.safra || "") === s)
       .map((p) => String(p.produtor_numerocm || ""))
@@ -440,8 +412,11 @@ export const FormAplicacaoDefensivo = ({
       .filter((p: any) => String(p.safra_id || "") === s)
       .map((p: any) => String(p.produtor_numerocm || ""))
     );
-    const inter = Array.from(cultSet).filter((cm) => adubSet.has(cm));
-    return inter;
+    
+    // Permitir se tiver Cultivar OU Adubação (Union)
+    // Isso resolve o problema de exigir ambos
+    const union = new Set([...cultSet, ...adubSet]);
+    return Array.from(union);
   }, [cultProgramacoes, adubProgramacoes, safraId]);
 
   const produtoresFiltrados = useMemo(() => {
@@ -456,15 +431,18 @@ export const FormAplicacaoDefensivo = ({
     if (safraId && produtorNumerocm) {
       const s = String(safraId);
       const cm = String(produtorNumerocm);
-      const cultAreas = new Set<string>((cultProgramacoes || [])
+      
+      const cultAreas = (cultProgramacoes || [])
         .filter((p) => String(p.safra || "") === s && String(p.produtor_numerocm || "") === cm)
-        .map((p) => String(p.area || ""))
-      );
-      const adubAreas = new Set<string>((adubProgramacoes || [])
+        .map((p) => String(p.area || ""));
+        
+      const adubAreas = (adubProgramacoes || [])
         .filter((p: any) => String(p.safra_id || "") === s && String(p.produtor_numerocm || "") === cm)
-        .map((p: any) => String(p.area || ""))
-      );
-      cultAreas.forEach((a) => { if (adubAreas.has(a)) set.add(a); });
+        .map((p: any) => String(p.area || ""));
+      
+      // Union aqui também
+      cultAreas.forEach(a => set.add(a));
+      adubAreas.forEach(a => set.add(a));
     }
     return set;
   }, [cultProgramacoes, adubProgramacoes, safraId, produtorNumerocm]);

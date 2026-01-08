@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useImportCalendarioMutation } from "@/hooks/useImportCalendarioMutation";
 
 type CalendarioRow = {
   cod_aplic: string;
@@ -29,11 +30,13 @@ type CalendarioRow = {
 
 export const ImportCalendarioAplicacoes = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
   const [deletedCount, setDeletedCount] = useState(0);
+
+  const importMutation = useImportCalendarioMutation();
+  const isImporting = importMutation.isPending;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -48,7 +51,6 @@ export const ImportCalendarioAplicacoes = () => {
       return;
     }
 
-    setIsImporting(true);
     setImportProgress(0);
     setDeletedCount(0);
 
@@ -74,34 +76,30 @@ export const ImportCalendarioAplicacoes = () => {
         new Map(rows.map((row) => [row.cod_aplic, row])).values()
       );
 
-      const { getApiBaseUrl } = await import("@/lib/utils");
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/calendario_aplicacoes/import`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: uniqueRows,
-          user_id: null,
-          arquivo_nome: file.name,
-        }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-      const json = await res.json();
-      setDeletedCount(Number(json?.deleted || 0));
-      setImportedCount(Number(json?.imported || uniqueRows.length));
-      setImportProgress(100);
+      importMutation.mutate({
+        items: uniqueRows,
+        limparAntes: false,
+        userId: null,
+        fileName: file.name
+      }, {
+        onSuccess: (json) => {
+          setDeletedCount(Number(json?.deleted || 0));
+          setImportedCount(Number(json?.imported || uniqueRows.length));
+          setImportProgress(100);
 
-      setShowSummary(true);
-      toast.success(`${Number(json?.imported || uniqueRows.length)} registros importados com sucesso!`);
-      setFile(null);
+          setShowSummary(true);
+          toast.success(`${Number(json?.imported || uniqueRows.length)} registros importados com sucesso!`);
+          setFile(null);
+        },
+        onError: (error) => {
+           console.error("Erro ao processar arquivo:", error);
+           toast.error("Erro ao processar arquivo");
+        }
+      });
+      
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar arquivo");
-    } finally {
-      setIsImporting(false);
     }
   };
 

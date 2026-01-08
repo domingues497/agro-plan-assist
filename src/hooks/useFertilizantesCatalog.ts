@@ -6,7 +6,10 @@ export const useFertilizantesCatalog = () => {
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/fertilizantes`, { credentials: "omit" });
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/fertilizantes`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (!res.ok) throw new Error(`Erro ao carregar fertilizantes: ${res.status}`);
       const json = await res.json();
       return (json?.items ?? []) as any[];

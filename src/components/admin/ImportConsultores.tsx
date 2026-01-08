@@ -16,17 +16,18 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { getApiBaseUrl } from "@/lib/utils";
+import { useImportConsultoresMutation } from "@/hooks/useImportConsultores";
 
 export function ImportConsultores() {
   const [file, setFile] = useState<File | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   
   const [deletedRows, setDeletedRows] = useState(0);
+
+  const importMutation = useImportConsultoresMutation();
+  const isImporting = importMutation.isPending;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
@@ -40,17 +41,10 @@ export function ImportConsultores() {
     }
 
     try {
-      setIsImporting(true);
       setImportedRows(0);
       setDeletedRows(0);
       setShowSummary(false);
 
-      const user = null;
-
-      let deletedRecords = 0;
-
-      // Limpar tabela se checkbox marcado
-      // limpeza será feita pelo backend caso solicitado
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const sheetName = workbook.SheetNames[0];
@@ -65,7 +59,6 @@ export function ImportConsultores() {
 
       if (payload.length === 0) {
         toast.error("Nenhuma linha válida encontrada (precisa de NUMEROCMCONSULTOR, CONSULTOR, EMAIL)");
-        setIsImporting(false);
         return;
       }
       // Deduplicar por email (conflito) para evitar erro 21000
@@ -81,34 +74,21 @@ export function ImportConsultores() {
 
       setTotalRows(uniquePayload.length);
 
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/consultores/import`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: uniquePayload,
-          user_id: null,
-          arquivo_nome: file.name
-        })
+      importMutation.mutate({ items: uniquePayload, fileName: file.name }, {
+        onSuccess: (json) => {
+          setDeletedRows(json?.deleted ?? 0);
+          setImportedRows(json?.imported ?? uniquePayload.length);
+          toast.success(`Importação de consultores concluída (${json?.imported ?? uniquePayload.length} de ${uniquePayload.length})`);
+          setShowSummary(true);
+        },
+        onError: (err) => {
+          console.error(err);
+          toast.error(`Erro ao importar consultores: ${err.message}`);
+        }
       });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-      const json = await res.json();
-      setDeletedRows(json?.deleted ?? 0);
-      setImportedRows(json?.imported ?? uniquePayload.length);
-
-      // Registrar no histórico
-      // Histórico de importação registrado no back-end
-
-      toast.success(`Importação de consultores concluída (${json?.imported ?? uniquePayload.length} de ${uniquePayload.length})`);
-      setShowSummary(true);
     } catch (err: any) {
       console.error(err);
-      toast.error(`Erro ao importar consultores: ${err.message}`);
-    } finally {
-      setIsImporting(false);
+      toast.error(`Erro ao processar arquivo: ${err.message}`);
     }
   };
 

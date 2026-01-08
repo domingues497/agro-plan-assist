@@ -17,7 +17,10 @@ export const useCalendarioAplicacoes = () => {
     queryKey: ["calendario-aplicacoes"],
     queryFn: async () => {
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/calendario_aplicacoes`);
+      const token = sessionStorage.getItem("auth_token");
+      const res = await fetch(`${baseUrl}/calendario_aplicacoes`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);

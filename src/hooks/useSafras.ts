@@ -17,13 +17,27 @@ export type CreateSafra = Omit<Safra, "id" | "created_at" | "updated_at">;
 export const useSafras = () => {
   const queryClient = useQueryClient();
 
+  const getHeaders = () => {
+    const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
+    return {
+      "Content-Type": "application/json",
+      Authorization: token ? `Bearer ${token}` : "",
+    };
+  };
+
   const { data: safras, isLoading, error } = useQuery({
     queryKey: ["safras"],
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
       const pathSafras = "/safras";
-      const res = await fetch(`${baseUrl}${pathSafras}`, { credentials: "omit" });
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`${baseUrl}${pathSafras}`, { 
+        headers 
+      });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
@@ -40,8 +54,7 @@ export const useSafras = () => {
       const pathSafras = "/safras";
       const res = await fetch(`${baseUrl}${pathSafras}`, {
         method: "POST",
-        credentials: "omit",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify(safra),
       });
       if (!res.ok) {
@@ -67,8 +80,7 @@ export const useSafras = () => {
       const pathSafras = "/safras";
       const res = await fetch(`${baseUrl}${pathSafras}/${encodeURIComponent(id)}`, {
         method: "PUT",
-        credentials: "omit",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify(updates),
       });
       if (!res.ok) {
@@ -92,7 +104,13 @@ export const useSafras = () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
       const pathSafras = "/safras";
-      const res = await fetch(`${baseUrl}${pathSafras}/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "omit" });
+      const headers = getHeaders();
+      const { "Content-Type": _, ...deleteHeadersObj } = headers;
+
+      const res = await fetch(`${baseUrl}${pathSafras}/${encodeURIComponent(id)}`, { 
+        method: "DELETE",
+        headers: deleteHeadersObj
+      });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);

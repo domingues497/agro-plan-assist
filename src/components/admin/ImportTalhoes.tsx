@@ -9,14 +9,17 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getApiBaseUrl } from "@/lib/utils";
+import { useImportTalhoesMutation } from "@/hooks/useImportTalhoesMutation";
 
 export function ImportTalhoes() {
   const [file, setFile] = useState<File | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [summary, setSummary] = useState({ imported: 0, deleted: 0 });
   const [limparAntes, setLimparAntes] = useState(false);
+  
+  const importMutation = useImportTalhoesMutation();
+  const importing = importMutation.isPending;
+  const [progress, setProgress] = useState(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -30,7 +33,6 @@ export function ImportTalhoes() {
       return;
     }
 
-    setImporting(true);
     setProgress(0);
 
     try {
@@ -47,8 +49,6 @@ export function ImportTalhoes() {
       }
       const meJson = await meRes.json();
       const user = meJson?.user;
-
-      let deletedCount = 0;
 
       setProgress(10);
 
@@ -82,37 +82,30 @@ export function ImportTalhoes() {
       }
 
       setProgress(50);
-
-      const res = await fetch(`${baseUrl}/talhoes/import`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          items: records,
-          limpar_antes: limparAntes,
-          user_id: user?.user_id || user?.id,
-          arquivo_nome: file.name,
-        }),
+      
+      importMutation.mutate({
+        items: records,
+        limparAntes,
+        userId: user?.user_id || user?.id,
+        fileName: file.name
+      }, {
+        onSuccess: (json) => {
+          const imported = Number(json?.imported || records.length);
+          const deletedCount = Number(json?.deleted || 0);
+          setProgress(100);
+          setSummary({ imported, deleted: deletedCount });
+          setShowSummary(true);
+          toast.success(`Importação concluída! ${imported} talhões importados.`);
+          setFile(null);
+        },
+        onError: (err) => {
+          toast.error(err.message);
+        }
       });
-      if (!res.ok) {
-        const txt = await res.text();
-        toast.error(txt);
-        return;
-      }
-      const json = await res.json();
-      const imported = Number(json?.imported || records.length);
-      deletedCount = Number(json?.deleted || 0);
-      setProgress(90);
 
-      setProgress(100);
-      setSummary({ imported, deleted: deletedCount });
-      setShowSummary(true);
-      toast.success(`Importação concluída! ${imported} talhões importados.`);
     } catch (error) {
       console.error("Erro na importação:", error);
       toast.error("Erro ao processar arquivo");
-    } finally {
-      setImporting(false);
-      setFile(null);
     }
   };
 

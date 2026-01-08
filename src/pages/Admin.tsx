@@ -49,11 +49,7 @@ export default function Admin() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Carregando...</p>
-      </div>
-    );
+    return null;
   }
 
   if (!roleData?.isAdmin) {

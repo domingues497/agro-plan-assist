@@ -17,19 +17,21 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { useImportCalendarioMutation } from "@/hooks/useImportCalendarioMutation";
 
 export const ImportCalendario = () => {
-  const [isImporting, setIsImporting] = useState(false);
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const { profile } = useProfile();
+  
+  const importMutation = useImportCalendarioMutation();
+  const isImporting = importMutation.isPending;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsImporting(true);
     setImportedRows(0);
     setShowSummary(false);
 
@@ -48,26 +50,27 @@ export const ImportCalendario = () => {
         trat_sementes: row["Trat. sementes"] ?? row["TRAT. SEMENTES"] ?? row["TRAT SEMENTES"] ?? null,
       }));
 
-      const { getApiBaseUrl } = await import("@/lib/utils");
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/calendario_aplicacoes/import`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, limpar_antes: false, user_id: profile?.id, arquivo_nome: file.name }),
+      importMutation.mutate({
+        items,
+        limparAntes: false,
+        userId: profile?.id,
+        fileName: file.name
+      }, {
+        onSuccess: (json) => {
+          setImportedRows(Number(json?.imported || items.length));
+          toast.success(`Importação concluída! ${Number(json?.imported || items.length)} de ${jsonData.length} processadas`);
+          setShowSummary(true);
+        },
+        onError: (error) => {
+          console.error("Erro ao processar arquivo:", error);
+          toast.error("Erro ao processar arquivo. Verifique o formato.");
+        }
       });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-      const json = await res.json();
-      setImportedRows(Number(json?.imported || items.length));
-      toast.success(`Importação concluída! ${Number(json?.imported || items.length)} de ${totalRows} processadas`);
-      setShowSummary(true);
+      
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar arquivo. Verifique o formato.");
     } finally {
-      setIsImporting(false);
       e.target.value = "";
     }
   };

@@ -1,0 +1,94 @@
+import { useQuery } from "@tanstack/react-query";
+import { getApiBaseUrl } from "@/lib/utils";
+import { Fazenda } from "./useFazendas";
+
+export type TalhaoOption = {
+  id: string;
+  nome: string;
+  area: number;
+};
+
+export function useTalhoesForApp(
+  produtorNumerocm: string,
+  area: string,
+  safraId: string,
+  fazendas: Fazenda[] = []
+) {
+  return useQuery({
+    queryKey: ["talhoes-for-app", produtorNumerocm, area, safraId],
+    queryFn: async () => {
+      const base = getApiBaseUrl();
+      const token = sessionStorage.getItem("auth_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      if (!produtorNumerocm || !area || !safraId) {
+        return { options: [] as TalhaoOption[], fallbackArea: 0, fromFazenda: false };
+      }
+
+      // 1. Buscar programações
+      const res = await fetch(`${base}/programacoes`, { headers });
+      if (!res.ok) throw new Error("Falha ao buscar programações");
+      const j = await res.json();
+      const items = (j?.items || []) as any[];
+      
+      const progs = items.filter((p: any) => {
+        const sameProd = String(p.produtor_numerocm) === String(produtorNumerocm);
+        const sameArea = String(p.area) === String(area);
+        const safraOk = String(p.safra_id || "") === String(safraId || "");
+        return sameProd && sameArea && safraOk;
+      });
+
+      // Helper para fallback da fazenda
+      const getFazendaFallback = () => {
+        const fazenda = fazendas.find((f) => String(f.nomefazenda) === String(area));
+        return {
+          options: [] as TalhaoOption[],
+          fallbackArea: Number(fazenda?.area_cultivavel || 0),
+          fromFazenda: true
+        };
+      };
+
+      if (!progs || progs.length === 0) {
+        return getFazendaFallback();
+      }
+
+      // 2. Buscar talhões de cada programação
+      const talhaoSet = new Set<string>();
+      for (const prog of progs) {
+        const rc = await fetch(`${base}/programacoes/${prog.id}/children`, { headers });
+        if (!rc.ok) continue;
+        const children = await rc.json();
+        const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
+        talhoes.forEach((t) => talhaoSet.add(String(t)));
+      }
+
+      if (talhaoSet.size === 0) {
+        return getFazendaFallback();
+      }
+
+      // 3. Buscar detalhes dos talhões
+      const fazendaObj = fazendas.find((f: any) => String(f.nomefazenda) === String(area));
+      const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
+      
+      const params = new URLSearchParams();
+      if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
+      if (safraId) params.set("safra_id", String(safraId));
+      
+      const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
+      if (!r2.ok) throw new Error("Falha ao buscar detalhes dos talhões");
+      
+      const j2 = await r2.json();
+      const items2 = ((j2?.items || []) as any[]).filter((t: any) => talhaoSet.has(String(t.id)));
+      
+      const options = items2.map((t: any) => ({
+        id: String(t.id),
+        nome: String(t.nome || "Talhão"),
+        area: Number(t.area || 0) || 0
+      }));
+
+      return { options, fallbackArea: 0, fromFazenda: false };
+    },
+    enabled: !!produtorNumerocm && !!area && !!safraId,
+    staleTime: 1000 * 60 * 5, // 5 minutos
+  });
+}

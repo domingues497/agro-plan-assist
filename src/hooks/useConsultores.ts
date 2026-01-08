@@ -17,7 +17,10 @@ export const useConsultores = () => {
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/consultores`);
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/consultores`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (!res.ok) throw new Error(`Erro ao carregar consultores: ${res.status}`);
       const json = await res.json();
       return (json?.items ?? []) as Consultor[];

@@ -19,17 +19,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { useImportDefensivosMutation, useSyncDefensivosMutation } from "@/hooks/useImportDefensivos";
 
 export const ImportDefensivos = () => {
-  const [isImporting, setIsImporting] = useState(false);
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   
   const [deletedRows, setDeletedRows] = useState(0);
   const [file, setFile] = useState<File | null>(null);
-  const [isSyncingApi, setIsSyncingApi] = useState(false);
   const [apiStatus, setApiStatus] = useState<'idle' | 'checking' | 'online' | 'offline'>('idle');
+
+  const importMutation = useImportDefensivosMutation();
+  const syncMutation = useSyncDefensivosMutation();
+
+  const isImporting = importMutation.isPending;
+  const isSyncingApi = syncMutation.isPending;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -75,16 +80,11 @@ export const ImportDefensivos = () => {
       return;
     }
 
-    setIsImporting(true);
     setShowSummary(false);
     setImportedRows(0);
     setDeletedRows(0);
 
     try {
-      let deletedRecords = 0;
-
-      const { getApiBaseUrl } = await import("@/lib/utils");
-      const baseUrl = getApiBaseUrl();
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -115,28 +115,27 @@ export const ImportDefensivos = () => {
       }
 
       const dataArray = Array.from(processedData.values());
-      const res = await fetch(`${baseUrl}/defensivos/bulk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: dataArray }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => null);
-        throw new Error(j?.error || 'Falha ao importar via API');
-      }
-      const j = await res.json();
-      const imported = Number(j?.imported || 0);
-      setImportedRows(imported);
-
-      toast.success(`Importação concluída! ${imported} registros únicos de ${totalRows} linhas processadas`);
-      setShowSummary(true);
-      setFile(null);
+      
+      importMutation.mutate(
+        { items: dataArray },
+        {
+            onSuccess: (j) => {
+                const imported = Number(j?.imported || 0);
+                setImportedRows(imported);
+                toast.success(`Importação concluída! ${imported} registros únicos de ${jsonData.length} linhas processadas`);
+                setShowSummary(true);
+                setFile(null);
+            },
+            onError: (error) => {
+                console.error("Erro ao processar arquivo:", error);
+                toast.error("Erro ao processar arquivo. Verifique o formato.");
+            }
+        }
+      );
       
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar arquivo. Verifique o formato.");
-    } finally {
-      setIsImporting(false);
     }
   };
 
@@ -144,8 +143,6 @@ export const ImportDefensivos = () => {
     const isConnected = await checkApiConnectivity();
     if (!isConnected) return;
 
-    setIsSyncingApi(true);
-    setIsImporting(true);
     setShowSummary(false);
     setImportedRows(0);
     setDeletedRows(0);
@@ -154,49 +151,23 @@ export const ImportDefensivos = () => {
       description: 'Novos dados serão mesclados com os existentes.'
     });
 
-    try {
-      const { getApiBaseUrl } = await import("@/lib/utils");
-      const baseUrl = getApiBaseUrl();
-      toast.loading('⏳ Conectando à API externa e processando dados...', { description: 'Este processo pode levar alguns minutos.' });
-      const res = await fetch(`${baseUrl}/defensivos/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      toast.dismiss();
-      if (!res.ok) {
-        const ct = res.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          const j = await res.json().catch(() => null);
-          const msg = j?.error || 'Erro ao sincronizar via API externa';
-          const details = j?.details ? ` Detalhes: ${j.details}` : '';
-          const status = j?.status ? ` (status ${j.status})` : '';
-          toast.error(`${msg}${status}${details}`);
-        } else {
-          const t = await res.text().catch(() => '');
-          toast.error(`Erro ao sincronizar via API externa (HTTP ${res.status}). ${t}`);
-        }
-        return;
-      }
-      const j = await res.json();
-      const imported = Number(j?.imported || 0);
-      setImportedRows(imported);
-      setTotalRows(imported);
-
-      toast.success('✅ Sincronização concluída com sucesso!');
-      setShowSummary(true);
-      setFile(null);
+    syncMutation.mutate(undefined, {
+        onSuccess: (j) => {
+            const imported = Number(j?.imported || 0);
+            setImportedRows(imported);
+            setTotalRows(imported);
       
-    } catch (err) {
-      toast.dismiss();
-      console.error('Erro ao sincronizar API:', err);
-      toast.error('❌ Erro inesperado ao sincronizar', {
-        description: err instanceof Error ? err.message : 'Erro desconhecido'
-      });
-    } finally {
-      setIsSyncingApi(false);
-      setIsImporting(false);
-    }
+            toast.success('✅ Sincronização concluída com sucesso!');
+            setShowSummary(true);
+            setFile(null);
+        },
+        onError: (err) => {
+            console.error('Erro ao sincronizar API:', err);
+            toast.error('❌ Erro inesperado ao sincronizar', {
+              description: err instanceof Error ? err.message : 'Erro desconhecido'
+            });
+        }
+    });
   };
 
   return (

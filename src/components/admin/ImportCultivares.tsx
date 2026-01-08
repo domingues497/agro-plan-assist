@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,10 +21,9 @@ import { Badge } from "@/components/ui/badge";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useProfile } from "@/hooks/useProfile";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { getApiBaseUrl } from "@/lib/utils";
+import { useCultivaresCounts, useImportCultivaresMutation, useCreateCultivarMutation } from "@/hooks/useImportCultivares";
 
 export const ImportCultivares = () => {
-  const [isImporting, setIsImporting] = useState(false);
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
@@ -32,52 +31,22 @@ export const ImportCultivares = () => {
   const [deletedRows, setDeletedRows] = useState(0);
   const [skippedRows, setSkippedRows] = useState(0);
   const [file, setFile] = useState<File | null>(null);
-  const [catalogTotal, setCatalogTotal] = useState<number>(0);
-  const [cultureCounts, setCultureCounts] = useState<Record<string, number>>({});
-  const [catalogSemCultura, setCatalogSemCultura] = useState<number>(0);
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const { data: adminRole } = useAdminRole();
   const { profile } = useProfile();
   const [openNew, setOpenNew] = useState(false);
-  const [savingNew, setSavingNew] = useState(false);
   const [newCultivar, setNewCultivar] = useState("");
   const [newCultura, setNewCultura] = useState("");
   const [newNomeCientifico, setNewNomeCientifico] = useState("");
 
-  const fetchCounts = async () => {
-    try {
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/cultivares_catalog`);
-      if (!res.ok) {
-        setCatalogTotal(0);
-        setCultureCounts({});
-        setCatalogSemCultura(0);
-        return;
-      }
-      const json = await res.json();
-      const items = (json?.items || []) as any[];
-      const countsMap = new Map<string, number>();
-      let nullCount = 0;
-      for (const row of items) {
-        const c = row.cultura as string | null;
-        if (!c) { nullCount++; continue; }
-        const key = c.toString().toUpperCase().trim();
-        countsMap.set(key, (countsMap.get(key) || 0) + 1);
-      }
-      const sortedEntries = Array.from(countsMap.entries()).sort(([a], [b]) => a.localeCompare(b));
-      setCultureCounts(Object.fromEntries(sortedEntries));
-      setCatalogSemCultura(nullCount);
-      setCatalogTotal(items.length);
-    } catch (e) {
-      setCatalogTotal(0);
-      setCultureCounts({});
-      setCatalogSemCultura(0);
-    }
-  };
+  const { data: counts = { catalogTotal: 0, cultureCounts: {}, catalogSemCultura: 0 } } = useCultivaresCounts();
+  const { catalogTotal, cultureCounts, catalogSemCultura } = counts;
 
-  useEffect(() => {
-    fetchCounts();
-  }, []);
+  const importMutation = useImportCultivaresMutation();
+  const createMutation = useCreateCultivarMutation();
+
+  const isImporting = importMutation.isPending;
+  const savingNew = createMutation.isPending;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -92,7 +61,6 @@ export const ImportCultivares = () => {
       return;
     }
 
-    setIsImporting(true);
     setImportedRows(0);
     setDeletedRows(0);
     setSkippedRows(0);
@@ -102,11 +70,9 @@ export const ImportCultivares = () => {
       const isAdmin = !!adminRole?.isAdmin;
       if (!isAdmin) {
         toast.error("Apenas administradores podem importar cultivares. Solicite acesso ao perfil admin.");
-        setIsImporting(false);
         return;
       }
 
-      let deletedRecords = 0;
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -197,47 +163,44 @@ export const ImportCultivares = () => {
       console.log(`Processamento: ${jsonData.length} linhas lidas, ${processedData.size} válidas, ${skippedEmpty} vazias, ${skippedDuplicate} duplicadas`);
       setSkippedRows(skippedEmpty + skippedDuplicate);
 
-      // Importar dados únicos em lotes de 500
+      // Importar dados únicos
       const dataArray = Array.from(processedData.values());
-      let imported = 0;
-      let failedBatches = 0;
       setErrorMessages([]);
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/cultivares_catalog/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: dataArray, limparAntes, user_id: profile?.id, arquivo_nome: file.name }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        setErrorMessages((prev) => [...prev, txt]);
-      } else {
-        const json = await res.json();
-        imported = Number(json?.imported || dataArray.length);
-        deletedRecords = Number(json?.deleted || 0);
-        setImportedRows(imported);
-        setDeletedRows(deletedRecords);
-      }
-
-      const skippedCount = totalRows - dataArray.length;
-      console.log(`Importação concluída: ${imported} importados, ${skippedCount} ignorados, ${failedBatches} lotes com erro`);
       
-      if (imported > 0) {
-        toast.success(`Importação concluída! ${imported} registros processados${skippedCount > 0 ? ` (${skippedCount} linhas ignoradas)` : ''}${failedBatches > 0 ? `, ${failedBatches} lotes com erro` : ''}`);
-      } else {
-        const detail = errorMessages.length > 0 ? `\nDetalhes: ${errorMessages.join(" | ")}` : "";
-        toast.error(`Nenhum registro foi importado.${detail}`);
-      }
-      setShowSummary(true);
-      setFile(null);
-      setLimparAntes(false);
-      // Atualizar contagens após importação
-      await fetchCounts();
+      importMutation.mutate(
+        { items: dataArray, limparAntes, userId: profile?.id, fileName: file.name },
+        {
+          onSuccess: (json) => {
+            const imported = Number(json?.imported || dataArray.length);
+            const deletedRecords = Number(json?.deleted || 0);
+            setImportedRows(imported);
+            setDeletedRows(deletedRecords);
+
+            const skippedCount = jsonData.length - dataArray.length;
+            
+            if (imported > 0) {
+              toast.success(`Importação concluída! ${imported} registros processados${skippedCount > 0 ? ` (${skippedCount} linhas ignoradas)` : ''}`);
+            } else {
+              const detail = errorMessages.length > 0 ? `\nDetalhes: ${errorMessages.join(" | ")}` : "";
+              toast.error(`Nenhum registro foi importado.${detail}`);
+            }
+            setShowSummary(true);
+            setFile(null);
+            setLimparAntes(false);
+          },
+          onError: (err) => {
+             console.error("Erro ao processar arquivo:", err);
+             toast.error(`Erro ao processar arquivo: ${err.message}`);
+             if (err.message) {
+                 setErrorMessages([err.message]);
+             }
+          }
+        }
+      );
+
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error(`Erro ao processar arquivo: ${(error as any)?.message || error}`);
-    } finally {
-      setIsImporting(false);
     }
   };
 
@@ -254,52 +217,28 @@ export const ImportCultivares = () => {
       toast.error("Apenas administradores podem cadastrar cultivares.");
       return;
     }
-    setSavingNew(true);
-    try {
-      const baseUrl = getApiBaseUrl();
-      const item = {
+
+    const item = {
         cultivar: cultivar.toUpperCase(),
         cultura: cultura ? cultura.toUpperCase() : null,
         nome_cientifico: nome_cientifico || null,
-      };
-      // Verificar duplicidade no catálogo atual
-      try {
-        const listRes = await fetch(`${baseUrl}/cultivares_catalog`);
-        if (listRes.ok) {
-          const listJson = await listRes.json().catch(() => ({ items: [] }));
-          const items = (listJson?.items || []) as any[];
-          const exists = items.some((it) => {
-            const ci = String(it.cultivar || "").toUpperCase().trim();
-            const cu = (it.cultura == null ? null : String(it.cultura).toUpperCase().trim());
-            return ci === item.cultivar && cu === item.cultura;
-          });
-          if (exists) {
-            toast.error("Essa combinação de cultivar e cultura já existe no catálogo");
-            setSavingNew(false);
-            return;
-          }
+    };
+
+    createMutation.mutate(
+        { item, userId: profile?.id },
+        {
+            onSuccess: () => {
+                toast.success("Cultivar cadastrada com sucesso");
+                setOpenNew(false);
+                setNewCultivar("");
+                setNewCultura("");
+                setNewNomeCientifico("");
+            },
+            onError: (e) => {
+                toast.error(e.message || String(e));
+            }
         }
-      } catch {}
-      const res = await fetch(`${baseUrl}/cultivares_catalog/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: [item], limparAntes: false, user_id: profile?.id, arquivo_nome: null }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-      toast.success("Cultivar cadastrada com sucesso");
-      setOpenNew(false);
-      setNewCultivar("");
-      setNewCultura("");
-      setNewNomeCientifico("");
-      await fetchCounts();
-    } catch (e: any) {
-      toast.error(e?.message || String(e));
-    } finally {
-      setSavingNew(false);
-    }
+    );
   };
 
   return (

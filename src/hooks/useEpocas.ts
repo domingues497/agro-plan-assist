@@ -16,7 +16,10 @@ export const useEpocas = () => {
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/epocas?ativas=true`);
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/epocas?ativas=true`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);

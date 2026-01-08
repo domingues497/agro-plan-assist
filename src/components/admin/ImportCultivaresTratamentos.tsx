@@ -8,7 +8,7 @@ import { useTratamentosSementes } from "@/hooks/useTratamentosSementes";
 import { useTratamentosPorCultivar } from "@/hooks/useTratamentosPorCultivar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { getApiBaseUrl } from "@/lib/utils";
+import { useBulkLinkCultivaresTratamentosMutation, useSetTratamentosForCultivarMutation } from "@/hooks/useCultivaresTratamentosMutations";
 
 export const ImportCultivaresTratamentos = () => {
   const { data: cultivares } = useCultivaresCatalog();
@@ -18,6 +18,12 @@ export const ImportCultivaresTratamentos = () => {
   const [modo, setModo] = useState<"por_tratamento" | "por_cultivar">("por_tratamento");
   const [selectedCultivar, setSelectedCultivar] = useState<string>("");
   const { data: tratamentosDoCultivar = [] } = useTratamentosPorCultivar(selectedCultivar || undefined);
+  
+  const bulkLinkMutation = useBulkLinkCultivaresTratamentosMutation();
+  const setTratamentosMutation = useSetTratamentosForCultivarMutation();
+  
+  const loading = bulkLinkMutation.isPending || setTratamentosMutation.isPending;
+
   // Sincroniza checkboxes ao selecionar cultivar
   // Atualiza apenas em modo por_cultivar
   if (modo === "por_cultivar" && selectedCultivar && selectedCultivares.length === 0 && tratamentosDoCultivar.length > 0) {
@@ -25,7 +31,6 @@ export const ImportCultivaresTratamentos = () => {
     // Evita loops: só aplica quando ainda não há itens marcados
     setSelectedCultivares(ids);
   }
-  const [loading, setLoading] = useState(false);
 
   const handleToggleCultivar = (cultivar: string) => {
     setSelectedCultivares(prev => 
@@ -36,55 +41,54 @@ export const ImportCultivaresTratamentos = () => {
   };
 
   const handleSave = async () => {
-    if (!selectedTratamento) {
+    if (!selectedTratamento && modo === "por_tratamento") {
       toast.error("Selecione um tratamento");
       return;
     }
 
-    if (selectedCultivares.length === 0) {
+    if (selectedCultivares.length === 0 && modo === "por_tratamento") {
       toast.error("Selecione pelo menos um cultivar");
       return;
     }
 
-    setLoading(true);
     try {
-      const baseUrl = getApiBaseUrl();
       if (modo === "por_tratamento") {
-        const res = await fetch(`${baseUrl}/cultivares_tratamentos/bulk`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tratamento_id: selectedTratamento, cultivares: selectedCultivares }),
+        bulkLinkMutation.mutate({
+          tratamentoId: selectedTratamento,
+          cultivares: selectedCultivares
+        }, {
+          onSuccess: () => {
+            toast.success("Cultivares vinculados ao tratamento com sucesso!");
+            setSelectedTratamento("");
+            setSelectedCultivares([]);
+          },
+          onError: (error) => {
+             toast.error("Erro ao salvar vínculos");
+          }
         });
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(txt);
-        }
-        toast.success("Cultivares vinculados ao tratamento com sucesso!");
-        setSelectedTratamento("");
-        setSelectedCultivares([]);
       } else {
         if (!selectedCultivar) {
           toast.error("Selecione um cultivar");
-        } else {
-          const tratamentoIdsSelecionados = selectedCultivares; // reutiliza selectedCultivares como ids
-          const res = await fetch(`${baseUrl}/cultivares_tratamentos/set_for_cultivar`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cultivar: selectedCultivar, tratamento_ids: tratamentoIdsSelecionados }),
-          });
-          if (!res.ok) {
-            const txt = await res.text();
-            throw new Error(txt);
-          }
-          toast.success("Tratamentos vinculados ao cultivar com sucesso!");
-          setSelectedCultivar("");
-          setSelectedCultivares([]);
+          return;
         }
+        const tratamentoIdsSelecionados = selectedCultivares; // reutiliza selectedCultivares como ids
+        
+        setTratamentosMutation.mutate({
+          cultivar: selectedCultivar,
+          tratamentoIds: tratamentoIdsSelecionados
+        }, {
+          onSuccess: () => {
+            toast.success("Tratamentos vinculados ao cultivar com sucesso!");
+            setSelectedCultivar("");
+            setSelectedCultivares([]);
+          },
+          onError: (error) => {
+             toast.error("Erro ao salvar vínculos");
+          }
+        });
       }
     } catch (error) {
       toast.error("Erro ao salvar vínculos");
-    } finally {
-      setLoading(false);
     }
   };
 

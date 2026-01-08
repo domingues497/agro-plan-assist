@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 import { useConsultores } from "@/hooks/useConsultores";
@@ -102,8 +102,8 @@ export const ListFazendas = () => {
     }
   };
 
-  const onDelete = async (key: { idfazenda: string; numerocm: string }) => {
-    try {
+  const deleteMutation = useMutation({
+    mutationFn: async (key: { idfazenda: string; numerocm: string }) => {
       const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/fazendas/by_key`, {
         method: "DELETE",
@@ -114,13 +114,51 @@ export const ListFazendas = () => {
         const txt = await res.text();
         throw new Error(txt);
       }
+      return true;
+    },
+    onSuccess: () => {
       toast.success("Fazenda removida");
       qc.invalidateQueries({ queryKey: ["fazendas", "by-consultor"] });
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao remover fazenda");
-    } finally {
       setOpenDeleteKey(null);
+    },
+    onError: (e: any) => {
+      toast.error(e.message || "Erro ao remover fazenda");
     }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (vars: { row: any; nome: string; consultor: string | null }) => {
+      const { row, nome, consultor } = vars;
+      const payload: any = { nomefazenda: nome };
+      payload.numerocm_consultor = consultor;
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/fazendas/by_key`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          numerocm: row.numerocm,
+          idfazenda: row.idfazenda,
+          ...payload,
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt);
+      }
+      return true;
+    },
+    onSuccess: () => {
+      toast.success("Fazenda atualizada");
+      qc.invalidateQueries({ queryKey: ["fazendas", "by-consultor"] });
+      setEditRow(null);
+    },
+    onError: (e: any) => {
+      toast.error(e.message || "Erro ao atualizar fazenda");
+    }
+  });
+
+  const onDelete = (key: { idfazenda: string; numerocm: string }) => {
+    deleteMutation.mutate(key);
   };
 
   const onOpenEdit = (row: any) => {
@@ -129,31 +167,13 @@ export const ListFazendas = () => {
     setEditNumerocmConsultor(row.numerocm_consultor != null ? String(row.numerocm_consultor) : "");
   };
 
-  const onSaveEdit = async () => {
+  const onSaveEdit = () => {
     if (!editRow) return;
-    try {
-      const payload: any = { nomefazenda: editNome };
-      payload.numerocm_consultor = editNumerocmConsultor ? String(editNumerocmConsultor) : null;
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/fazendas/by_key`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          numerocm: editRow.numerocm,
-          idfazenda: editRow.idfazenda,
-          ...payload,
-        }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-      toast.success("Fazenda atualizada");
-      qc.invalidateQueries({ queryKey: ["fazendas", "by-consultor"] });
-      setEditRow(null);
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao atualizar fazenda");
-    }
+    updateMutation.mutate({
+      row: editRow,
+      nome: editNome,
+      consultor: editNumerocmConsultor ? String(editNumerocmConsultor) : null,
+    });
   };
 
   return (

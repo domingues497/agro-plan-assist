@@ -4,90 +4,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/utils";
+import { useJustificativasMutation } from "@/hooks/useJustificativasMutation";
 
 export const ImportJustificativas = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [descricao, setDescricao] = useState("");
+  const { create, remove, isCreating, isDeleting } = useJustificativasMutation();
 
-  const { data: justificativas = [] } = useQuery({
-    queryKey: ["admin-justificativas"],
-    queryFn: async () => {
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/justificativas_adubacao`);
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-      const json = await res.json();
-      return (json?.items || []) as any[];
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/justificativas_adubacao`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ descricao, ativo: true }),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-justificativas"] });
-      toast({ title: "Justificativa cadastrada com sucesso!" });
-      setDescricao("");
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao cadastrar justificativa",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/justificativas_adubacao/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-justificativas"] });
-      toast({ title: "Justificativa excluída com sucesso!" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao excluir justificativa",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  const { data: justificativas = [] } = useJustificativasAdubacao(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!descricao.trim()) {
-      toast({
-        title: "Erro",
-        description: "Digite a descrição da justificativa",
-        variant: "destructive",
-      });
+      toast.error("Digite a descrição da justificativa");
       return;
     }
-    createMutation.mutate();
+    create(descricao, {
+      onSuccess: () => setDescricao(""),
+    });
   };
 
   return (
@@ -111,7 +48,7 @@ export const ImportJustificativas = () => {
               />
             </div>
             <div className="flex items-end">
-              <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+              <Button type="submit" className="w-full" disabled={isCreating}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar
               </Button>
@@ -137,8 +74,8 @@ export const ImportJustificativas = () => {
                     <Button
                       variant="destructive"
                       size="icon"
-                      onClick={() => deleteMutation.mutate(j.id)}
-                      disabled={deleteMutation.isPending}
+                      onClick={() => remove(j.id)}
+                      disabled={isDeleting}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

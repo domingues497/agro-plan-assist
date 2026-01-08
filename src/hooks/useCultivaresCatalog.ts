@@ -6,7 +6,10 @@ export const useCultivaresCatalog = () => {
     queryKey: ["cultivares-catalog"],
     queryFn: async () => {
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/cultivares_catalog`);
+      const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
+      const res = await fetch(`${baseUrl}/cultivares_catalog`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt);
