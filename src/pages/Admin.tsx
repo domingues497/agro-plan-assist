@@ -37,6 +37,7 @@ import { GerenciarGestores } from "@/components/admin/GerenciarGestores";
 import { GerenciarAcessoConsultores } from "@/components/admin/GerenciarAcessoConsultores";
 import { SystemConfig } from "@/components/admin/SystemConfig";
 import { EmbalagensConfig } from "@/components/admin/EmbalagensConfig";
+import { GlobalLoading } from "@/components/ui/global-loading";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ export default function Admin() {
   });
 
   if (isLoading) {
-    return null;
+    return <GlobalLoading isVisible={true} message="Carregando admin..." />;
   }
 
   if (!roleData?.isAdmin) {

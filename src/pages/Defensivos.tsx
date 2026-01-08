@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useProfile } from "@/hooks/useProfile";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useConsultores } from "@/hooks/useConsultores";
+import { GlobalLoading } from "@/components/ui/global-loading";
 import { toast } from "sonner";
 import {
   Accordion,
@@ -36,10 +37,10 @@ const Defensivos = () => {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<AplicacaoDefensivo | null>(null);
   const { aplicacoes, isLoading, create, remove, update, isCreating, isUpdating, replicate, isReplicating } = useAplicacoesDefensivos();
-  const { data: produtores = [] } = useProdutores();
-  const { programacoes = [] } = useProgramacoes();
-  const { programacoes: cultProgramacoes = [] } = useProgramacaoCultivares();
-  const { programacoes: adubProgramacoes = [] } = useProgramacaoAdubacao();
+  const { data: produtores = [], isLoading: produtoresLoading } = useProdutores();
+  const { programacoes = [], isLoading: programacoesLoading } = useProgramacoes();
+  const { programacoes: cultProgramacoes = [], isLoading: cultProgramacoesLoading } = useProgramacaoCultivares();
+  const { programacoes: adubProgramacoes = [], isLoading: adubProgramacoesLoading } = useProgramacaoAdubacao();
 
   const temProgramacoes = programacoes.length > 0;
   const [replicateOpen, setReplicateOpen] = useState(false);
@@ -60,7 +61,7 @@ const Defensivos = () => {
   const canEditDefensivos = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const { data: areasCalc = {} } = useAreasCalc(aplicacoes, programacoes, fazendasAll);
   const [searchTerm, setSearchTerm] = useState("");
-  const { safras, defaultSafra } = useSafras();
+  const { safras, defaultSafra, isLoading: safrasLoading } = useSafras();
   const [selectedSafra, setSelectedSafra] = useState<string>("all");
 
   useEffect(() => {
@@ -177,8 +178,17 @@ const Defensivos = () => {
     setShowForm(false);
   };
 
+  const isPageLoading =
+    (isLoading && aplicacoes.length === 0) ||
+    (produtoresLoading && produtores.length === 0) ||
+    (programacoesLoading && programacoes.length === 0) ||
+    (cultProgramacoesLoading && cultProgramacoes.length === 0) ||
+    (adubProgramacoesLoading && adubProgramacoes.length === 0) ||
+    (safrasLoading && safras.length === 0);
+
   return (
     <div className="min-h-screen bg-background">
+      <GlobalLoading isVisible={isPageLoading} message="Carregando defensivos..." />
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">

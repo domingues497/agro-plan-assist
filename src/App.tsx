@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider, useIsFetching, useIsMutating } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -26,15 +26,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-const GlobalLoaderWrapper = () => {
-  const isFetching = useIsFetching();
-  const isMutating = useIsMutating();
-  // Mostra loading se houver qualquer fetch ou mutation em andamento
-  const isLoading = isFetching > 0 || isMutating > 0;
-  
-  return <GlobalLoading isVisible={isLoading} message="Carregando dados..." />;
-};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any | null>(null);
@@ -88,7 +79,6 @@ const App = () => (
       <Toaster />
       <Sonner />
       <InactivityProvider>
-        <GlobalLoaderWrapper />
         {(() => {
           const isBrowser = typeof window !== "undefined";
           const host = isBrowser ? window.location.hostname : "localhost";

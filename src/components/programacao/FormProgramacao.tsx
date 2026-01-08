@@ -291,8 +291,8 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
               <SelectValue placeholder={culturaSelecionada ? "Selecione" : "Selecione cultura primeiro"} />
             </SelectTrigger>
             <SelectContent>
-              {cultivaresFiltradas.map((c) => (
-                <SelectItem key={`cult-${c.cultivar ?? 'null'}`} value={c.cultivar || ""}>
+              {cultivaresFiltradas.map((c, idx) => (
+                <SelectItem key={`cult-${c.cultivar ?? 'null'}-${idx}`} value={c.cultivar || ""}>
                   {c.cultivar}
                 </SelectItem>
               ))}

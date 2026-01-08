@@ -5,10 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
-import { getApiBaseUrl } from "@/lib/utils";
 import { useJustificativasMutation } from "@/hooks/useJustificativasMutation";
+import { useJustificativasAdubacao } from "@/hooks/useJustificativasAdubacao";
 
 export const ImportJustificativas = () => {
   const [descricao, setDescricao] = useState("");
@@ -66,7 +65,7 @@ export const ImportJustificativas = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {justificativas.map((j) => (
+              {justificativas.map((j: any) => (
                 <TableRow key={j.id}>
                   <TableCell>{j.descricao}</TableCell>
                   <TableCell>{j.ativo ? "Ativo" : "Inativo"}</TableCell>

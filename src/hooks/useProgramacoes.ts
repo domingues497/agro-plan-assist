@@ -129,6 +129,7 @@ export const useProgramacoes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
+      queryClient.invalidateQueries({ queryKey: ['programacao-areas-calc'] });
       // Importante: atualizar listas filhas usadas na edição
       queryClient.invalidateQueries({ queryKey: ['programacao-cultivares'] });
       queryClient.invalidateQueries({ queryKey: ['programacao-adubacao'] });
@@ -176,6 +177,7 @@ export const useProgramacoes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
+      queryClient.invalidateQueries({ queryKey: ['programacao-areas-calc'] });
       toast({ title: "Programação excluída com sucesso!" });
     },
     onError: (error: any) => {
@@ -233,6 +235,7 @@ Talhões: ${nomes}.`
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
+      queryClient.invalidateQueries({ queryKey: ['programacao-areas-calc'] });
       // Atualiza também as coleções derivadas para refletir imediatamente no formulário
       queryClient.invalidateQueries({ queryKey: ['programacao-cultivares'] });
       queryClient.invalidateQueries({ queryKey: ['programacao-adubacao'] });
@@ -348,6 +351,7 @@ Talhões: ${nomes}.`
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacoes-list'] });
+      queryClient.invalidateQueries({ queryKey: ['programacao-areas-calc'] });
       queryClient.invalidateQueries({ queryKey: ['programacao-cultivares'] });
       queryClient.invalidateQueries({ queryKey: ['programacao-adubacao'] });
       toast({ title: "Replicação concluída com sucesso!" });

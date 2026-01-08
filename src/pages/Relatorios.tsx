@@ -19,6 +19,7 @@ import { getApiBaseUrl, cn } from "@/lib/utils";
 import { RelatorioDetalhadoPDF, DetailedReportItem, ProductItem, CultivarItem } from "@/components/relatorios/RelatorioDetalhadoPDF";
 import { RelatorioDetalhadoConsultorPDF } from "@/components/relatorios/RelatorioDetalhadoConsultorPDF";
 import { RelatorioProdutores } from "@/components/relatorios/RelatorioProdutores";
+import { GlobalLoading } from "@/components/ui/global-loading";
 import {
   Command,
   CommandEmpty,
@@ -41,16 +42,26 @@ const parseNumber = (value: unknown): number => {
 import { useAdminRole } from "@/hooks/useAdminRole";
 
 const Relatorios = () => {
-  const { data: adminRole } = useAdminRole();
+  const { data: adminRole, isLoading: adminRoleLoading } = useAdminRole();
   const isAdmin = !!adminRole?.isAdmin;
-  const { programacoes: cultProgramacoes = [] } = useProgramacaoCultivares();
-  const { programacoes: adubacoes } = useProgramacaoAdubacao();
-  const { aplicacoes: defensivos } = useAplicacoesDefensivos();
-  const { safras = [] } = useSafras() as any;
-  const { data: produtores = [] } = useProdutores();
-  const { programacoes: allProgramacoes } = useProgramacoes();
-  const { data: allFazendas = [] } = useFazendas();
-  const { data: epocas = [] } = useEpocas();
+  const { programacoes: cultProgramacoes = [], isLoading: cultLoading } = useProgramacaoCultivares();
+  const { programacoes: adubacoes = [], isLoading: adubLoading } = useProgramacaoAdubacao();
+  const { aplicacoes: defensivos = [], isLoading: defensivosLoading } = useAplicacoesDefensivos();
+  const { safras = [], isLoading: safrasLoading } = useSafras() as any;
+  const { data: produtores = [], isLoading: produtoresLoading } = useProdutores();
+  const { programacoes: allProgramacoes = [], isLoading: programacoesLoading } = useProgramacoes();
+  const { data: allFazendas = [], isLoading: fazendasLoading } = useFazendas();
+  const { data: epocas = [], isLoading: epocasLoading } = useEpocas();
+  const isPageLoading =
+    (adminRoleLoading && !adminRole) ||
+    (cultLoading && cultProgramacoes.length === 0) ||
+    (adubLoading && adubacoes.length === 0) ||
+    (defensivosLoading && defensivos.length === 0) ||
+    (safrasLoading && safras.length === 0) ||
+    (produtoresLoading && produtores.length === 0) ||
+    (programacoesLoading && allProgramacoes.length === 0) ||
+    (fazendasLoading && allFazendas.length === 0) ||
+    (epocasLoading && epocas.length === 0);
   const [safraFilter, setSafraFilter] = useState<string>("");
   const [produtorFilter, setProdutorFilter] = useState<string>("");
   const [openCombobox, setOpenCombobox] = useState(false);
@@ -713,6 +724,7 @@ const Relatorios = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <GlobalLoading isVisible={isPageLoading} message="Carregando relatórios..." />
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">

@@ -975,7 +975,6 @@ def import_consultores():
 
 @app.route("/programacoes", methods=["GET"])
 def list_programacoes():
-    ensure_programacao_schema()
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -1043,7 +1042,6 @@ def list_programacoes():
 
 @app.route("/programacoes", methods=["POST"])
 def create_programacao():
-    ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
@@ -1205,7 +1203,6 @@ def create_programacao():
 
 @app.route("/programacoes/<id>", methods=["DELETE"])
 def delete_programacao(id: str):
-    ensure_programacao_schema()
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -1253,19 +1250,18 @@ def delete_programacao(id: str):
 
 @app.route("/programacoes/<id>/children", methods=["GET"])
 def get_programacao_children(id: str):
-    ensure_programacao_schema()
     pool = get_pool()
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT pt.talhao_id, t.nome 
+                SELECT pt.talhao_id, t.nome, t.area
                 FROM public.programacao_talhoes pt
                 LEFT JOIN public.talhoes t ON t.id = pt.talhao_id
                 WHERE pt.programacao_id = %s
             """, [id])
             rows = cur.fetchall()
-            talhoes = [r[0] for r in rows]
+            talhoes = [{"id": r[0], "nome": (r[1] or r[0]), "area": float(r[2] or 0)} for r in rows]
             talhoes_map = {r[0]: (r[1] or r[0]) for r in rows}
 
             cur.execute("SELECT * FROM public.programacao_cultivares WHERE programacao_id = %s", [id])
@@ -1302,7 +1298,6 @@ def get_programacao_children(id: str):
 
 @app.route("/programacoes/<id>", methods=["PUT"])
 def update_programacao(id: str):
-    ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
     user_id = payload.get("user_id")
     produtor_numerocm = payload.get("produtor_numerocm")
@@ -1474,7 +1469,6 @@ def update_programacao(id: str):
 
 @app.route("/programacao_talhoes", methods=["GET"])
 def list_programacao_talhoes():
-    ensure_programacao_schema()
     safra_id = request.args.get("safra_id")
     pool = get_pool()
     conn = pool.getconn()
@@ -1493,7 +1487,6 @@ def list_programacao_talhoes():
 
 @app.route("/programacao_talhoes", methods=["POST"])
 def create_programacao_talhoes():
-    ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
     id_val = payload.get("id") or str(uuid.uuid4())
     programacao_id = payload.get("programacao_id")
@@ -1532,7 +1525,6 @@ def create_programacao_talhoes():
 
 @app.route("/programacao_cultivares", methods=["GET"])
 def list_programacao_cultivares():
-    ensure_programacao_schema()
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -1595,7 +1587,6 @@ def list_programacao_cultivares():
 
 @app.route("/programacao_cultivares", methods=["POST"])
 def create_programacao_cultivar():
-    ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
     id_val = payload.get("id") or str(uuid.uuid4())
     programacao_id = payload.get("programacao_id")
@@ -1673,7 +1664,6 @@ def create_programacao_cultivar():
 
 @app.route("/programacao_cultivares/<id>", methods=["PUT"])
 def update_programacao_cultivar(id: str):
-    ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
     fields = {k: payload.get(k) for k in [
         "programacao_id","user_id","produtor_numerocm","area","area_hectares","cultivar","quantidade","unidade",
@@ -1743,7 +1733,6 @@ def update_programacao_cultivar(id: str):
 
 @app.route("/programacao_cultivares/<id>", methods=["DELETE"])
 def delete_programacao_cultivar(id: str):
-    ensure_programacao_schema()
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -1758,7 +1747,6 @@ def delete_programacao_cultivar(id: str):
 
 @app.route("/programacao_adubacao", methods=["GET"])
 def list_programacao_adubacao():
-    ensure_programacao_schema()
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -1803,7 +1791,6 @@ def list_programacao_adubacao():
 
 @app.route("/programacao_adubacao", methods=["POST"])
 def create_programacao_adub():
-    ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
     id_val = payload.get("id") or str(uuid.uuid4())
     programacao_id = payload.get("programacao_id")
@@ -1864,7 +1851,6 @@ def create_programacao_adub():
 
 @app.route("/programacao_adubacao/<id>", methods=["PUT"])
 def update_programacao_adub(id: str):
-    ensure_programacao_schema()
     payload = request.get_json(silent=True) or {}
     fields = {k: payload.get(k) for k in [
         "programacao_id","user_id","produtor_numerocm","area","formulacao","dose","percentual_cobertura",
@@ -3418,13 +3404,13 @@ def list_talhoes():
                                 ) AS conflito_programacao
                             FROM public.talhoes t
                     LEFT JOIN public.talhao_safras ts ON ts.talhao_id = t.id
-                    WHERE t.fazenda_id = ANY(%s)
+                    WHERE t.id = ANY(%s)
                       AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND f.numerocm_consultor = %s))
                       AND (%s IS NULL OR t.safras_todas OR EXISTS (SELECT 1 FROM public.talhao_safras ts2 WHERE ts2.talhao_id = t.id AND ts2.safra_id = %s))
                     GROUP BY t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.safras_todas, t.created_at, t.updated_at
                     ORDER BY t.nome
                     """,
-                    (safra_id, epoca_id, safra_id, epoca_id, id_list, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id)
+                    (safra_id, epoca_id, id_list, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id)
                 )
             elif fazenda_id:
                 print(f"DEBUG: list_talhoes fazenda_id={fazenda_id} safra_id={safra_id} epoca_id={epoca_id}")
@@ -4680,4 +4666,4 @@ def sync_fazendas_test():
 
 if __name__ == "__main__":
     ensure_app_versions_schema()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)

@@ -15,6 +15,7 @@ import { useProdutores } from "@/hooks/useProdutores";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
+import { GlobalLoading } from "@/components/ui/global-loading";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -25,9 +26,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 import { useSafras } from "@/hooks/useSafras";
-import { useEpocas } from "@/hooks/useEpocas";
 
 import { useProgramacaoAreasCalc } from "@/hooks/useProgramacaoAreasCalc";
+
+import { ProgramacaoCard } from "@/components/programacao/ProgramacaoCard";
 
 export default function Programacao() {
   const [showForm, setShowForm] = useState(false);
@@ -36,23 +38,22 @@ export default function Programacao() {
   const [editingDefensivos, setEditingDefensivos] = useState<Record<string, any[]>>({});
   const [editingCultivares, setEditingCultivares] = useState<any[]>([]);
   const [editingAdubacao, setEditingAdubacao] = useState<any[]>([]);
-  const { programacoes, isLoading, create, delete: deleteProgramacao, update, isUpdating, replicate, isReplicating } = useProgramacoes();
-  const { data: fazendas = [] } = useFazendas();
-  const { data: produtores = [] } = useProdutores();
-  const { programacoes: cultivaresList = [] } = useProgramacaoCultivares();
-  const { data: cultivaresCatalog = [] } = useCultivaresCatalog();
-  const { aplicacoes: aplicacoesDef = [] } = useAplicacoesDefensivos();
-  const { profile } = useProfile();
-  const { data: adminRole } = useAdminRole();
-  const { data: consultores = [] } = useConsultores();
+  const { programacoes, isLoading: programacoesLoading, create, delete: deleteProgramacao, update, isUpdating, replicate, isReplicating } = useProgramacoes();
+  const { data: fazendas = [], isLoading: fazendasLoading } = useFazendas();
+  const { data: produtores = [], isLoading: produtoresLoading } = useProdutores();
+  const { programacoes: cultivaresList = [], isLoading: cultivaresLoading } = useProgramacaoCultivares();
+  const { data: cultivaresCatalog = [], isLoading: cultivaresCatalogLoading } = useCultivaresCatalog();
+  const { aplicacoes: aplicacoesDef = [], isLoading: aplicacoesDefLoading } = useAplicacoesDefensivos();
+  const { profile, isLoading: profileLoading } = useProfile();
+  const { data: adminRole, isLoading: adminRoleLoading } = useAdminRole();
+  const { data: consultores = [], isLoading: consultoresLoading } = useConsultores();
   const isAdmin = !!adminRole?.isAdmin;
   const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
   const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
   const canEditProgramacao = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
-  const { defaultSafra, safras } = useSafras();
-  const { data: epocas = [] } = useEpocas();
+  const { defaultSafra, safras, isLoading: safrasLoading } = useSafras();
   
-  const { data: embalagensCultivar = [] } = useQuery({
+  const { data: embalagensCultivar = [], isLoading: embalagensCultivarLoading } = useQuery({
     queryKey: ["embalagens-cultivar"],
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
@@ -69,7 +70,7 @@ export default function Programacao() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: embalagensFertilizantesAll = [] } = useQuery({
+  const { data: embalagensFertilizantesAll = [], isLoading: embalagensFertilizantesLoading } = useQuery({
     queryKey: ["embalagens-fertilizantes-all"],
     queryFn: async () => {
       const { getApiBaseUrl } = await import("@/lib/utils");
@@ -86,7 +87,6 @@ export default function Programacao() {
   });
 
   const [selectedSafra, setSelectedSafra] = useState<string>("all");
-  const [selectedEpocaId, setSelectedEpocaId] = useState<string>("");
   const [filterRevisada, setFilterRevisada] = useState<string>("all");
   const [isLoadingEdit, setIsLoadingEdit] = useState<string | null>(null);
 
@@ -95,14 +95,6 @@ export default function Programacao() {
       setSelectedSafra(String(defaultSafra.id));
     }
   }, [defaultSafra]);
-
-  useEffect(() => {
-    if (epocas.length > 0 && !selectedEpocaId) {
-      const normal = epocas.find((e: any) => e.nome === "Normal");
-      if (normal) setSelectedEpocaId(normal.id);
-      else setSelectedEpocaId(epocas[0].id);
-    }
-  }, [epocas, selectedEpocaId]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,10 +105,6 @@ export default function Programacao() {
 
     if (selectedSafra && selectedSafra !== "all") {
       filtered = filtered.filter(p => String(p.safra_id) === String(selectedSafra));
-    }
-
-    if (selectedEpocaId) {
-      filtered = filtered.filter(p => !p.epoca_id || String(p.epoca_id) === String(selectedEpocaId));
     }
 
     if (filterRevisada !== "all") {
@@ -196,6 +184,20 @@ export default function Programacao() {
 
   const temAreasCadastradas = fazendas.length > 0;
 
+  const isPageLoading =
+    (adminRoleLoading && !adminRole) ||
+    (profileLoading && !profile) ||
+    (consultoresLoading && consultores.length === 0) ||
+    (safrasLoading && safras.length === 0) ||
+    (fazendasLoading && fazendas.length === 0) ||
+    (produtoresLoading && produtores.length === 0) ||
+    (programacoesLoading && programacoes.length === 0) ||
+    (cultivaresLoading && cultivaresList.length === 0) ||
+    (cultivaresCatalogLoading && cultivaresCatalog.length === 0) ||
+    (aplicacoesDefLoading && aplicacoesDef.length === 0) ||
+    (embalagensCultivarLoading && embalagensCultivar.length === 0) ||
+    (embalagensFertilizantesLoading && embalagensFertilizantesAll.length === 0);
+
   const initialDataMemo = useMemo(() => {
     if (!editing) return undefined;
 
@@ -212,7 +214,7 @@ export default function Programacao() {
         const cults = editingCultivares;
         return cults.map((c: any) => {
           // Buscar a cultura do catálogo baseado no cultivar
-          const cultivarInfo = cultivaresCatalog.find(cat => cat.cultivar === c.cultivar);
+          const cultivarInfo = cultivaresCatalog.find((cat: any) => cat.cultivar === c.cultivar);
           return {
             cultivar: c.cultivar,
             cultura: cultivarInfo?.cultura || c.cultura || "",
@@ -259,6 +261,7 @@ export default function Programacao() {
 
   return (
     <div className="min-h-screen bg-background">
+      <GlobalLoading isVisible={isPageLoading} message="Carregando programação..." />
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
@@ -387,19 +390,6 @@ export default function Programacao() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedEpocaId} onValueChange={setSelectedEpocaId}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Selecione a época" />
-            </SelectTrigger>
-            <SelectContent>
-              {epocas.map((e) => (
-                <SelectItem key={e.id} value={String(e.id)}>
-                  {e.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -477,7 +467,7 @@ export default function Programacao() {
           </DialogContent>
         </Dialog>
 
-        {isLoading ? (
+        {programacoesLoading ? (
           <p className="text-muted-foreground">Carregando programações...</p>
         ) : (
           <div className="space-y-4">
@@ -490,93 +480,54 @@ export default function Programacao() {
                 paginatedProgramacoes.map((prog) => {
                   const produtor = produtores.find(p => p.numerocm === prog.produtor_numerocm);
                   const fazenda = fazendas.find(f => f.idfazenda === prog.fazenda_idfazenda && f.numerocm === prog.produtor_numerocm);
+
+                  const areaProg = Number(areasCalc[prog.id] ?? prog.area_hectares ?? 0);
+                  const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === prog.id);
+                  const cultPerc = cults.reduce((acc, c: any) => acc + (Number(c.percentual_cobertura) || 0), 0);
+                  const calculatedAreaCult = areaProg > 0 ? (areaProg * Math.min(100, Math.max(0, cultPerc)) / 100) : 0;
                   
                   return (
-                    <Card key={prog.id} className="p-6 hover:shadow-lg transition-shadow">
-                      <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <Calendar className="h-5 w-5 text-primary" />
-                          <h3 className="font-semibold text-lg">
-                            {prog.produtor_numerocm} - {produtor?.nome || ""}
-                          </h3>
-                          {prog.tipo === 'PREVIA' && (
-                            <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200">
-                              Prévia
-                            </Badge>
-                          )}
-                          {talhoesCount[prog.id] === 0 && (
-                            <Badge variant="destructive" className="text-xs">
-                              Programação Replicada Favor Informar Talhão
-                            </Badge>
-                          )}
-                        </div>
-                          <p className="flex items-center gap-2">
-                            <span className="font-medium">Fazenda:</span>
-                            <span>
-                              {fazenda?.nomefazenda || "—"}
-                              {(() => {
-                                const areaTotal = Number(fazenda?.area_cultivavel || 0);
-                                return areaTotal > 0 ? ` (${areaTotal.toFixed(2)} ha)` : "";
-                              })()}
-                            </span>
-                            {(() => {
-                              const areaProg = Number(areasCalc[prog.id] ?? prog.area_hectares ?? 0);
-                              const cults = (cultivaresList as any[]).filter((c: any) => c.programacao_id === prog.id);
-                              const cultPerc = cults.reduce((acc, c: any) => acc + (Number(c.percentual_cobertura) || 0), 0);
-                              const areaCult = areaProg > 0 ? (areaProg * Math.min(100, Math.max(0, cultPerc)) / 100) : 0;
-                              return (
-                                <>
-                                  <span className="mx-2 text-muted-foreground">•</span>
-                                  <span className="font-medium">Programado:</span>
-                                  <span className="ml-1">{areaCult.toFixed(2)} ha</span>
-                                </>
-                              );
-                            })()}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => {
-                                if (fazenda) {
-                                  setFazendaParaTalhoes({ id: fazenda.id, nome: fazenda.nomefazenda, produtorId: produtor?.id });
-                                  setGerenciarTalhoesOpen(true);
-                                }
-                              }}
-                              title="Gerenciar talhões"
-                            >
-                              <Settings className="h-4 w-4" />
-                            </Button>
-                          </p>
-                        </div>
-                        
-                        
-                   <div className="flex items-center gap-2">
-                    {isAdmin && (
-                      <div className="flex items-center gap-2 mr-2" onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          id={`revisada-${prog.id}`}
-                          checked={!!prog.revisada}
-                          onCheckedChange={(checked) => {
-                            update({ id: prog.id, revisada: !!checked });
-                          }}
-                        />
-                        <label
-                          htmlFor={`revisada-${prog.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          Revisada
-                        </label>
-                      </div>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      disabled={isLoadingEdit === prog.id}
-                      onClick={async () => {
+                    <ProgramacaoCard
+                      key={prog.id}
+                      prog={prog}
+                      produtor={produtor}
+                      fazenda={fazenda}
+                      isAdmin={isAdmin}
+                      isConsultor={isConsultor}
+                      canEditProgramacao={canEditProgramacao}
+                      isLoadingEdit={isLoadingEdit}
+                      talhoesCount={talhoesCount[prog.id] ?? 0}
+                      areaProgramada={calculatedAreaCult}
+                      areaTotal={Number(fazenda?.area_cultivavel || 0)}
+                      onUpdateRevisada={(checked) => update({ id: prog.id, revisada: checked })}
+                      onGerenciarTalhoes={() => {
+                        if (fazenda) {
+                          setFazendaParaTalhoes({ id: fazenda.id, nome: fazenda.nomefazenda, produtorId: produtor?.id });
+                          setGerenciarTalhoesOpen(true);
+                        }
+                      }}
+                      onReplicate={() => {
+                        setReplicateTargetId(prog.id);
+                        setReplicateProdutorNumerocm("");
+                        setReplicateOpen(true);
+                        setSelectedAreaPairs([]);
+                        setReplicateTargets([]);
+                      }}
+                      onDelete={() => {
+                        if (isDeleteBlocked(prog)) {
+                          toast.error("Não é possível excluir esta programação pois já existem aplicações de defensivos vinculadas.");
+                          return;
+                        }
+                        toast("Tem certeza?", {
+                          action: {
+                            label: "Excluir",
+                            onClick: () => deleteProgramacao(prog.id),
+                          },
+                        });
+                      }}
+                      onEdit={async () => {
                         setIsLoadingEdit(prog.id);
                         try {
-                          // Buscar talhões da programacao
                           const { getApiBaseUrl } = await import("@/lib/utils");
                           const baseUrl = getApiBaseUrl();
                           const res = await fetch(`${baseUrl}/programacoes/${prog.id}/children`);
@@ -585,7 +536,7 @@ export default function Programacao() {
                             return;
                           }
                           const json = await res.json();
-                          const talhoesData = (json?.talhoes || []).map((t: any) => ({ talhao_id: t }));
+                          const talhoesData = (json?.talhoes || []).map((t: any) => ({ talhao_id: t.id || t }));
                           const cults = (json?.cultivares || []) as any[];
                           const tratamentosMap: Record<string, string[]> = json?.tratamentos || {};
                           const defensivosRows: any[] = json?.defensivos || [];
@@ -625,37 +576,8 @@ export default function Programacao() {
                           setIsLoadingEdit(null);
                         }
                       }}
-                      title="Editar"
-                    >
-                      {isLoadingEdit === prog.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        setReplicateTargetId(prog.id);
-                        setReplicateProdutorNumerocm("");
-                        setReplicateOpen(true);
-                        setSelectedAreaPairs([]);
-                        setReplicateTargets([]);
-                      }}
-                      title="Replicar"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => deleteProgramacao(prog.id)}
-                      disabled={isDeleteBlocked(prog)}
-                      title={isDeleteBlocked(prog) ? "Exclusão bloqueada: há defensivos para esta fazenda/safra" : "Excluir"}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                    </div>
-                  </Card>
-                );
+                    />
+                  );
               })
             )}
             {totalPages > 1 && (
@@ -838,7 +760,7 @@ export default function Programacao() {
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      setReplicateTargets(replicateTargets.filter((rt, i) => i !== idx));
+                      setReplicateTargets(replicateTargets.filter((_, i) => i !== idx));
                     }}
                     title="Remover destino"
                   >
@@ -896,7 +818,7 @@ export default function Programacao() {
         produtorId={fazendaParaTalhoes.produtorId}
         produtorNumerocm={fazendaParaTalhoes.produtorNumerocm}
         safraId={defaultSafra?.id}
-        epocaId={selectedEpocaId}
+        epocaId={undefined}
         open={gerenciarTalhoesOpen}
         onOpenChange={setGerenciarTalhoesOpen}
       />

@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { getApiBaseUrl } from "@/lib/utils";
 import { useInactivity } from "@/hooks/useInactivityLogout.tsx";
+import { GlobalLoading } from "@/components/ui/global-loading";
 
 import { useBuildVersion } from "@/hooks/useBuildVersion";
 
@@ -52,9 +53,9 @@ const Dashboard = () => {
     .toLowerCase() === "true";
 
   // Modal obrigatório: preenchimento de área cultivável ao logar
-  const { profile, updateProfile, changePassword } = useProfile();
-  const { data: allFazendas = [] } = useFazendas();
-  const { data: allProdutores = [] } = useProdutores();
+  const { profile, updateProfile, changePassword, isLoading: profileLoading } = useProfile();
+  const { data: allFazendas = [], isLoading: fazendasLoading } = useFazendas();
+  const { data: allProdutores = [], isLoading: produtoresLoading } = useProdutores();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -74,7 +75,7 @@ const Dashboard = () => {
   const [editNome, setEditNome] = useState("");
   const [editCmConsultor, setEditCmConsultor] = useState("");
   const [editEmail, setEditEmail] = useState("");
-  const { data: buildData } = useBuildVersion();
+  const { data: buildData, isLoading: buildLoading } = useBuildVersion();
   const buildVersion = buildData?.version;
   const buildEnv = buildData?.env;
   const { idleLeft } = useInactivity();
@@ -194,10 +195,21 @@ const Dashboard = () => {
     updateProfile({ nome: editNome });
   };
 
-  const { data: roleData } = useAdminRole();
+  const { data: roleData, isLoading: roleLoading } = useAdminRole();
+
+  const isPageLoading =
+    (roleLoading && !roleData) ||
+    (profileLoading && !profile) ||
+    (fazendasLoading && allFazendas.length === 0) ||
+    (produtoresLoading && allProdutores.length === 0) ||
+    (cultivaresLoading && cultivaresList.length === 0) ||
+    (adubacoesLoading && adubacoesList.length === 0) ||
+    (defensivosLoading && defensivosList.length === 0) ||
+    buildLoading;
 
   return (
     <div className="min-h-screen bg-background">
+      <GlobalLoading isVisible={isPageLoading} message="Carregando dashboard..." />
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
