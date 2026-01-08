@@ -3819,13 +3819,33 @@ def list_aplicacoes_defensivos():
             auth = request.headers.get("Authorization") or ""
             role = None
             cm_token = None
+            user_id = None
             if auth.lower().startswith("bearer "):
                 try:
                     payload = verify_jwt(auth.split(" ", 1)[1])
                     role = (payload.get("role") or "consultor").lower()
                     cm_token = payload.get("numerocm_consultor")
+                    user_id = payload.get("user_id")
                 except Exception:
                     role = None
+
+            allowed_numerocm = set()
+            if role == "consultor":
+                if user_id:
+                    try:
+                        cur.execute("SELECT produtor_numerocm FROM public.user_produtores WHERE user_id = %s", [user_id])
+                        allowed_numerocm.update(str(r[0] or "") for r in cur.fetchall())
+                        cur.execute("SELECT DISTINCT f.numerocm FROM public.fazendas f JOIN public.user_fazendas uf ON uf.fazenda_id = f.id WHERE uf.user_id = %s", [user_id])
+                        allowed_numerocm.update(str(r[0] or "") for r in cur.fetchall())
+                    except Exception:
+                        pass
+                if cm_token:
+                    try:
+                        cur.execute("SELECT numerocm FROM public.produtores WHERE numerocm_consultor = %s", [cm_token])
+                        allowed_numerocm.update(str(r[0] or "") for r in cur.fetchall())
+                    except Exception:
+                        pass
+
             cur.execute("SELECT id, user_id, produtor_numerocm, area, tipo, created_at, updated_at FROM public.aplicacoes_defensivos ORDER BY created_at DESC")
             rows = cur.fetchall()
             cols = [d[0] for d in cur.description]
@@ -3840,10 +3860,15 @@ def list_aplicacoes_defensivos():
                 dcols = [d[0] for d in cur.description]
                 drows = cur.fetchall()
                 defensivos = [dict(zip(dcols, r)) for r in drows]
-                if role == "consultor" and cm_token:
-                    defensivos = [d for d in defensivos if (d.get("numerocm_consultor") or "") == cm_token]
-                    if not defensivos:
-                        continue
+                if role == "consultor":
+                    is_my_producer = str(a.get("produtor_numerocm") or "") in allowed_numerocm
+                    if not is_my_producer:
+                        if cm_token:
+                            defensivos = [d for d in defensivos if str(d.get("numerocm_consultor") or "") == str(cm_token)]
+                        else:
+                            defensivos = []
+                        if not defensivos:
+                            continue
                 a2 = dict(a)
                 a2["defensivos"] = defensivos
                 a2["talhao_ids"] = talhao_ids

@@ -184,7 +184,7 @@ export function ProgramacaoCard({
         onClick={toggleDetails}
       >
         <span className="text-sm font-medium">
-          Ver detalhes (Talhões, Cultivares, Fertilizantes)
+          Detalhes.
         </span>
         <ChevronDown 
           className={cn(
