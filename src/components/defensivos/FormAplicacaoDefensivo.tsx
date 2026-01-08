@@ -22,7 +22,7 @@ import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useTalhoesForApp } from "@/hooks/useTalhoesForApp";
 
 type FormAplicacaoDefensivoProps = {
-  onSubmit: (data: { produtor_numerocm: string; area: string; tipo?: "PROGRAMACAO" | "PREVIA"; talhao_ids?: string[]; defensivos: Omit<DefensivoItem, "id">[] }) => void;
+  onSubmit: (data: { produtor_numerocm: string; area: string; safra_id?: string; tipo?: "PROGRAMACAO" | "PREVIA"; talhao_ids?: string[]; defensivos: Omit<DefensivoItem, "id">[] }) => void;
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: {
@@ -258,7 +258,7 @@ export const FormAplicacaoDefensivo = ({
     const dup = (aplicacoes || []).find((ap: any) =>
       String(ap.produtor_numerocm || "") === String(produtorNumerocm || "") &&
       String(ap.area || "") === String(area || "") &&
-      ((ap.defensivos || []) as any[]).some((d: any) => String(d?.safra_id || "") === String(safraId || ""))
+      String(ap.safra_id || "") === String(safraId || "")
     );
     if (dup && (!initialData?.id || String(dup.id) !== String(initialData.id))) {
       alert("Já existe aplicação de defensivos para este Produtor/Fazenda nesta Safra.");
@@ -305,7 +305,7 @@ export const FormAplicacaoDefensivo = ({
       area_hectares: selectedAreaHa,
       alvo: aplicacoes && aplicacoes.length > 0 ? aplicacoes.join(", ") : def.alvo,
     }));
-    onSubmit({ produtor_numerocm: produtorNumerocm, area, tipo, talhao_ids: selectedTalhaoIds, defensivos: defensivosToSubmit });
+    onSubmit({ produtor_numerocm: produtorNumerocm, area, tipo, safra_id: safraId, talhao_ids: selectedTalhaoIds, defensivos: defensivosToSubmit });
   };
 
   const selectedProdutor = produtores?.find((p) => p.numerocm === produtorNumerocm);

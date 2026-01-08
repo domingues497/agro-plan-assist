@@ -18,6 +18,7 @@ export type ProgramacaoAdubacao = {
   porcentagem_salva: number;
   total: number | null;
   safra_id?: string | null;
+  safra_nome?: string;
   created_at: string;
   updated_at: string;
 };

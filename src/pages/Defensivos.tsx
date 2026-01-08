@@ -61,22 +61,17 @@ const Defensivos = () => {
   const canEditDefensivos = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const { data: areasCalc = {} } = useAreasCalc(aplicacoes, programacoes, fazendasAll);
   const [searchTerm, setSearchTerm] = useState("");
-  const { safras, defaultSafra, isLoading: safrasLoading } = useSafras();
+  const { safras, isLoading: safrasLoading } = useSafras();
   const [selectedSafra, setSelectedSafra] = useState<string>("all");
 
-  useEffect(() => {
-    if (defaultSafra && selectedSafra === "all") {
-      setSelectedSafra(String(defaultSafra.id));
-    }
-  }, [defaultSafra]);
+
 
   const filteredAplicacoes = useMemo(() => {
     let filtered = aplicacoes;
 
     if (selectedSafra && selectedSafra !== "all") {
       filtered = filtered.filter(ap => {
-        const defs = (ap.defensivos || []) as any[];
-        const safraId = defs.find((it: any) => it && it.safra_id)?.safra_id;
+        const safraId = ap.safra_id;
         // Se não tiver safra definida, exibe para evitar sumiço de dados antigos
         return !safraId || String(safraId) === String(selectedSafra);
       });
@@ -173,9 +168,13 @@ const Defensivos = () => {
     return String(d?.safra_id || "").trim();
   }, [sourceAplicacao]);
 
-  const handleSubmit = (data: any) => {
-    create(data);
-    setShowForm(false);
+  const handleSubmit = async (data: any) => {
+    try {
+      await create(data);
+      setShowForm(false);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const isPageLoading =
@@ -285,8 +284,8 @@ const Defensivos = () => {
                   defensivos: editing.defensivos,
                 }}
                 readOnly={isConsultor && !canEditDefensivos}
-                onSubmit={(data) => {
-                  update({ id: editing.id, ...data });
+                onSubmit={async (data) => {
+                  await update({ id: editing.id, ...data });
                   setEditing(null);
                 }}
                 onCancel={() => setEditing(null)}
@@ -316,16 +315,31 @@ const Defensivos = () => {
                             <h3 className="font-semibold text-lg">{aplicacao.produtor_numerocm} - {produtores.find(p => p.numerocm === aplicacao.produtor_numerocm)?.nome || ""} </h3>
                             {(() => {
                               const defs = (aplicacao.defensivos || []) as any[];
-                              const safraId = (() => {
-                                const d = defs.find((it: any) => it && it.safra_id);
-                                return String(d?.safra_id || "").trim();
-                              })();
+                              const safraId = String(aplicacao.safra_id || "").trim();
                               const key = `${String(aplicacao.produtor_numerocm)}|${String(aplicacao.area)}|${safraId}`;
                               const areaHa = Number(areasCalc[key] ?? 0);
+                              const safraNome = aplicacao.safra_nome || safras.find(s => String(s.id) === String(safraId))?.nome || "—";
+                              const totalGeral = defs.reduce((acc: number, d: any) => {
+                                const dose = Number(d?.dose || 0);
+                                const area = Number(d?.area_hectares || 0);
+                                const cobertura = Math.min(100, Math.max(0, Number(d?.porcentagem_salva ?? 100))) / 100;
+                                const t = typeof d?.total === "number" ? Number(d.total) : dose * area * cobertura;
+                                return acc + (isNaN(t) ? 0 : t);
+                              }, 0);
+
                               return (
-                                <p className="text-sm text-muted-foreground">
-                                  {aplicacao.area}
-                                  {areaHa > 0 ? ` (${areaHa.toFixed(2)} ha)` : ""}
+                                <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium">Safra:</span>
+                                  <span>{safraNome}</span>
+                                  <span className="text-muted-foreground/30">|</span>
+                                  <span className="font-medium">Área:</span>
+                                  <span>
+                                    {aplicacao.area}
+                                    {areaHa > 0 ? ` (${areaHa.toFixed(2)} ha)` : ""}
+                                  </span>
+                                  <span className="text-muted-foreground/30">|</span>
+                                  <span className="font-medium">Total:</span>
+                                  <span>{totalGeral.toFixed(2)}</span>
                                 </p>
                               );
                             })()}
@@ -358,7 +372,7 @@ const Defensivos = () => {
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => remove(aplicacao.id)}
+                            onClick={async () => await remove(aplicacao.id)}
                             title="Excluir programação"
                           >
                             <Trash2 className="h-4 w-4" />

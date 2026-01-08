@@ -107,6 +107,7 @@ def ensure_aplicacoes_defensivos_schema():
                       user_id TEXT,
                       produtor_numerocm TEXT,
                       area TEXT NOT NULL,
+                      safra_id TEXT,
                       tipo TEXT NOT NULL DEFAULT 'PROGRAMACAO',
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
@@ -149,6 +150,26 @@ def ensure_aplicacoes_defensivos_schema():
                 # Garantir coluna safra_id em programacao_defensivos
                 try:
                     cur.execute("ALTER TABLE public.programacao_defensivos ADD COLUMN IF NOT EXISTS safra_id TEXT")
+                except Exception:
+                    pass
+                # Garantir coluna safra_id em aplicacoes_defensivos (Header)
+                try:
+                    cur.execute("ALTER TABLE public.aplicacoes_defensivos ADD COLUMN IF NOT EXISTS safra_id TEXT")
+                except Exception:
+                    pass
+                # Backfill de safra_id no header baseado nos itens
+                try:
+                    cur.execute("""
+                        UPDATE public.aplicacoes_defensivos ad
+                        SET safra_id = (
+                            SELECT pd.safra_id
+                            FROM public.programacao_defensivos pd
+                            WHERE pd.aplicacao_id = ad.id
+                            ORDER BY pd.created_at DESC
+                            LIMIT 1
+                        )
+                        WHERE ad.safra_id IS NULL
+                    """)
                 except Exception:
                     pass
                 # Garantir coluna tipo para segregação por tipo

@@ -90,11 +90,7 @@ export default function Programacao() {
   const [filterRevisada, setFilterRevisada] = useState<string>("all");
   const [isLoadingEdit, setIsLoadingEdit] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (defaultSafra && selectedSafra === "all") {
-      setSelectedSafra(String(defaultSafra.id));
-    }
-  }, [defaultSafra]);
+
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -204,6 +200,7 @@ export default function Programacao() {
     return {
       produtor_numerocm: editing.produtor_numerocm,
       fazenda_idfazenda: editing.fazenda_idfazenda,
+      fazenda_uuid: editing.fazenda_uuid,
       area: editing.area,
       area_hectares: editing.area_hectares,
       safra_id: editing.safra_id || undefined,

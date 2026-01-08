@@ -37,37 +37,8 @@ export const useFazendas = (produtorNumerocm?: string, safraId?: string) => {
         const p2 = new URLSearchParams(params);
         p2.set("numerocm", String(produtorNumerocm));
         url = `${baseUrl}/fazendas?${p2.toString()}`;
-      } else if (!isAdmin && !isGestor) {
-        const meRes = await fetch(`${baseUrl}/auth/me`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-        if (!meRes.ok) {
-          const txt = await meRes.text();
-          throw new Error(txt || "Falha ao obter perfil");
-        }
-        const meJson = await meRes.json();
-        const cmConsultor = meJson?.user?.numerocm_consultor as string | undefined;
-        if (cmConsultor) {
-          const resAll = await fetch(`${baseUrl}/fazendas`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-          if (resAll.ok) {
-            const jsonAll = await resAll.json();
-            const arr = (jsonAll?.items || []) as any[];
-            const cmLower = String(cmConsultor || "").toLowerCase();
-            const filteredByConsultor = arr.filter((f: any) => String(f.numerocm_consultor || "").toLowerCase() === cmLower);
-            if (safraId) {
-              try {
-                const ids = filteredByConsultor.map((f: any) => f.id);
-                const pTal = new URLSearchParams({ ids: ids.join(","), safra_id: String(safraId) });
-                const resTal = await fetch(`${baseUrl}/talhoes?${pTal.toString()}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-                if (resTal.ok) {
-                  const jt = await resTal.json();
-                  const allowedFazendaIds = new Set(((jt?.items || []) as any[]).map((t: any) => t.fazenda_id));
-                  return filteredByConsultor.filter((f: any) => allowedFazendaIds.has(f.id)) as Fazenda[];
-                }
-              } catch {}
-            }
-            return filteredByConsultor as Fazenda[];
-          }
-        }
       }
+      
       const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) {
         const txt = await res.text();

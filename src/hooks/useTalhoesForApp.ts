@@ -25,13 +25,20 @@ export function useTalhoesForApp(
         return { options: [] as TalhaoOption[], fallbackArea: 0, fromFazenda: false };
       }
 
-      // 1. Buscar programações
-      const res = await fetch(`${base}/programacoes`, { headers });
+      // 1. Buscar programações com filtro
+      const params = new URLSearchParams();
+      if (produtorNumerocm) params.set("produtor_numerocm", produtorNumerocm);
+      if (safraId) params.set("safra_id", safraId);
+      // Note: area (nomefazenda) is not directly supported by list_programacoes without fazenda_id
+      // But we can filter client-side for area if needed, or if we had fazenda_id
+      
+      const res = await fetch(`${base}/programacoes?${params.toString()}&limit=1000`, { headers });
       if (!res.ok) throw new Error("Falha ao buscar programações");
       const j = await res.json();
       const items = (j?.items || []) as any[];
       
       const progs = items.filter((p: any) => {
+        // Produtor and Safra are already filtered by backend, but double check doesn't hurt
         const sameProd = String(p.produtor_numerocm) === String(produtorNumerocm);
         const sameArea = String(p.area) === String(area);
         const safraOk = String(p.safra_id || "") === String(safraId || "");
@@ -70,11 +77,11 @@ export function useTalhoesForApp(
       const fazendaObj = fazendas.find((f: any) => String(f.nomefazenda) === String(area));
       const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
       
-      const params = new URLSearchParams();
-      if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
-      if (safraId) params.set("safra_id", String(safraId));
+      const talhoesParams = new URLSearchParams();
+      if (fazendaUuid) talhoesParams.set("fazenda_id", fazendaUuid);
+      if (safraId) talhoesParams.set("safra_id", String(safraId));
       
-      const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
+      const r2 = await fetch(`${base}/talhoes?${talhoesParams.toString()}`, { headers });
       if (!r2.ok) throw new Error("Falha ao buscar detalhes dos talhões");
       
       const j2 = await r2.json();

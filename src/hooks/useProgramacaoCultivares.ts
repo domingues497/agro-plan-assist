@@ -23,6 +23,7 @@ export type ProgramacaoCultivar = {
   unidade: string;
   data_plantio: string | null;
   safra: string | null;
+  safra_nome?: string;
   semente_propria: boolean;
   referencia_rnc_mapa: string | null;
   porcentagem_salva: number;

@@ -103,6 +103,9 @@ export function ProgramacaoCard({
             </div>
             
             <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap mt-1">
+              <span className="font-medium">Safra:</span>
+              <span>{prog.safra_nome || "—"}</span>
+              <span className="text-muted-foreground/30">|</span>
               <span className="font-medium">Fazenda:</span>
               <span>
                 {fazenda?.nomefazenda || "—"}

@@ -52,6 +52,7 @@ export interface Programacao {
   area_hectares: number;
   safra_id: string | null;
   epoca_id?: string;
+  fazenda_uuid?: string;
   tipo?: "PREVIA" | "PROGRAMACAO";
   revisada?: boolean;
   created_at: string;
@@ -61,6 +62,7 @@ export interface Programacao {
 export interface CreateProgramacao {
   produtor_numerocm: string;
   fazenda_idfazenda: string;
+  fazenda_uuid?: string;
   area: string;
   area_hectares: number;
   safra_id?: string;

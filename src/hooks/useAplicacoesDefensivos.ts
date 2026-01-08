@@ -27,6 +27,8 @@ export type AplicacaoDefensivo = {
   user_id: string;
   produtor_numerocm: string | null;
   area: string;
+  safra_nome?: string;
+  safra_id?: string;
   tipo?: "PROGRAMACAO" | "PREVIA";
   created_at: string;
   updated_at: string;
@@ -37,6 +39,7 @@ export type AplicacaoDefensivo = {
 export type CreateAplicacaoDefensivo = {
   produtor_numerocm: string;
   area: string;
+  safra_id?: string;
   tipo?: "PROGRAMACAO" | "PREVIA";
   talhao_ids?: string[];
   defensivos: Omit<DefensivoItem, "id">[];
@@ -79,8 +82,8 @@ export const useAplicacoesDefensivos = () => {
       const json = await res.json();
       return { id: json.id, produtor_numerocm: data.produtor_numerocm, area: data.area, defensivos: data.defensivos } as any;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
       toast.success("Aplicação criada com sucesso!");
     },
     onError: (error: any) => {
@@ -103,8 +106,8 @@ export const useAplicacoesDefensivos = () => {
         throw new Error(txt);
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
       toast.success("Aplicação atualizada com sucesso!");
     },
     onError: (error: any) => {
@@ -123,8 +126,8 @@ export const useAplicacoesDefensivos = () => {
         throw new Error(txt);
       }
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
       toast.success("Aplicação excluída com sucesso!");
     },
     onError: (error: any) => {
@@ -158,8 +161,8 @@ export const useAplicacoesDefensivos = () => {
         defensivos: aplicacao.defensivos.map(({ id, ...def }) => def),
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["aplicacoes-defensivos"] });
       toast.success("Aplicação replicada com sucesso!");
     },
     onError: (error: any) => {

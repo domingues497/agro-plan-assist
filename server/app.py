@@ -198,9 +198,25 @@ def list_fazendas():
                             cm_val = r[0]
                     except Exception:
                         pass
+                
+                conds = []
                 if cm_val:
-                    where.append("f.numerocm_consultor = %s")
+                    conds.append("f.numerocm_consultor = %s")
                     params.append(cm_val)
+                    # Também permitir se o produtor dono da fazenda é do consultor
+                    conds.append("f.numerocm IN (SELECT p.numerocm FROM public.produtores p WHERE p.numerocm_consultor = %s)")
+                    params.append(cm_val)
+                
+                if allowed_numerocm:
+                    conds.append("f.numerocm = ANY(%s)")
+                    params.append(allowed_numerocm)
+                    
+                if allowed_fazendas:
+                    conds.append("f.id = ANY(%s)")
+                    params.append(allowed_fazendas)
+                    
+                if conds:
+                    where.append("(" + " OR ".join(conds) + ")")
                 else:
                     where.append("1=0")
             elif role == "gestor":
@@ -458,10 +474,19 @@ def list_produtores():
                             cm_val = r[0]
                     except Exception:
                         pass
+                
+                conds = []
                 if cm_val:
-                    where.append("(numerocm_consultor = %s OR numerocm IN (SELECT numerocm FROM public.fazendas WHERE numerocm_consultor = %s))")
+                    conds.append("(numerocm_consultor = %s OR numerocm IN (SELECT numerocm FROM public.fazendas WHERE numerocm_consultor = %s))")
                     params.append(cm_val)
                     params.append(cm_val)
+                
+                if allowed_numerocm:
+                    conds.append("numerocm = ANY(%s)")
+                    params.append(allowed_numerocm)
+                
+                if conds:
+                    where.append("(" + " OR ".join(conds) + ")")
                 else:
                     where.append("1=0")
             elif role == "gestor":
@@ -981,7 +1006,9 @@ def list_programacoes():
         with conn.cursor() as cur:
             base = (
                 "SELECT p.id, p.user_id, p.produtor_numerocm, p.fazenda_idfazenda, p.area, p.area_hectares, p.safra_id, p.tipo, p.revisada, p.created_at, p.updated_at, "
-                "(SELECT pt.epoca_id FROM public.programacao_talhoes pt WHERE pt.programacao_id = p.id LIMIT 1) as epoca_id "
+                "(SELECT s.ano_inicio || '/' || s.ano_fim FROM public.safras s WHERE s.id = p.safra_id LIMIT 1) as safra_nome, "
+                "(SELECT pt.epoca_id FROM public.programacao_talhoes pt WHERE pt.programacao_id = p.id LIMIT 1) as epoca_id, "
+                "(SELECT f.id FROM public.fazendas f WHERE f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm LIMIT 1) as fazenda_uuid "
                 "FROM public.programacoes p"
             )
             auth = request.headers.get("Authorization") or ""
@@ -1010,24 +1037,28 @@ def list_programacoes():
                 allowed_numerocm = [r[0] for r in cur.fetchall()]
                 cur.execute("SELECT fazenda_id FROM public.user_fazendas WHERE user_id = %s", [user_id])
                 allowed_fazendas = [r[0] for r in cur.fetchall()]
-                if role == "consultor":
-                    if cm_token:
-                        where.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.numerocm_consultor = %s AND f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm))")
-                        params.append(cm_token)
-                        params.append(cm_token)
-                        params.append(cm_token)
-                    else:
-                        where.append("FALSE")
+
+                subconds = []
+                # 1. Permissões via vínculo explícito (user_produtores / user_fazendas)
+                if allowed_numerocm:
+                    subconds.append("p.produtor_numerocm = ANY(%s)")
+                    params.append(allowed_numerocm)
+                if allowed_fazendas:
+                    subconds.append("EXISTS (SELECT 1 FROM public.fazendas f2 WHERE f2.id = ANY(%s) AND f2.idfazenda = p.fazenda_idfazenda)")
+                    params.append(allowed_fazendas)
+                
+                # 2. Permissões via Token de Consultor (legacy/metadata)
+                if role == "consultor" and cm_token:
+                    subconds.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.numerocm_consultor = %s AND f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm) OR EXISTS (SELECT 1 FROM public.produtores pr WHERE pr.numerocm = p.produtor_numerocm AND pr.numerocm_consultor = %s))")
+                    params.append(cm_token)
+                    params.append(cm_token)
+                    params.append(cm_token)
+                    params.append(cm_token)
+
+                if subconds:
+                    where.append("(" + " OR ".join(subconds) + ")")
                 else:
-                    subconds = []
-                    if allowed_numerocm:
-                        subconds.append("p.produtor_numerocm = ANY(%s)")
-                        params.append(allowed_numerocm)
-                    if allowed_fazendas:
-                        subconds.append("EXISTS (SELECT 1 FROM public.fazendas f2 WHERE f2.id = ANY(%s) AND f2.idfazenda = p.fazenda_idfazenda)")
-                        params.append(allowed_fazendas)
-                    if subconds:
-                        where.append("(" + " OR ".join(subconds) + ")")
+                    where.append("FALSE")
             if safra_id:
                 where.append("p.safra_id = %s")
                 params.append(safra_id)
@@ -1540,11 +1571,11 @@ def list_programacao_cultivares():
                 except Exception:
                     role = None
             if role == "consultor" and cm_token:
-                cur.execute("SELECT * FROM public.programacao_cultivares WHERE numerocm_consultor = %s ORDER BY created_at DESC", [cm_token])
+                cur.execute("SELECT pc.*, (SELECT s.ano_inicio || '/' || s.ano_fim FROM public.safras s WHERE s.id = pc.safra LIMIT 1) as safra_nome FROM public.programacao_cultivares pc WHERE pc.numerocm_consultor = %s ORDER BY pc.created_at DESC", [cm_token])
             elif role == "consultor":
-                cur.execute("SELECT * FROM public.programacao_cultivares WHERE 1=0")
+                cur.execute("SELECT pc.*, (SELECT s.ano_inicio || '/' || s.ano_fim FROM public.safras s WHERE s.id = pc.safra LIMIT 1) as safra_nome FROM public.programacao_cultivares pc WHERE 1=0")
             else:
-                cur.execute("SELECT * FROM public.programacao_cultivares ORDER BY created_at DESC")
+                cur.execute("SELECT pc.*, (SELECT s.ano_inicio || '/' || s.ano_fim FROM public.safras s WHERE s.id = pc.safra LIMIT 1) as safra_nome FROM public.programacao_cultivares pc ORDER BY pc.created_at DESC")
             cols = [d[0] for d in cur.description]
             rows = cur.fetchall()
             items = [dict(zip(cols, r)) for r in rows]
@@ -1776,10 +1807,10 @@ def list_programacao_adubacao():
                 where.append("safra_id = %s")
                 params.append(safra_id)
                 
-            sql = "SELECT * FROM public.programacao_adubacao"
+            sql = "SELECT pa.*, (SELECT s.ano_inicio || '/' || s.ano_fim FROM public.safras s WHERE s.id = pa.safra_id LIMIT 1) as safra_nome FROM public.programacao_adubacao pa"
             if where:
                 sql += " WHERE " + " AND ".join(where)
-            sql += " ORDER BY created_at DESC"
+            sql += " ORDER BY pa.created_at DESC"
             
             cur.execute(sql, params)
             cols = [d[0] for d in cur.description]
@@ -3360,17 +3391,24 @@ def list_talhoes():
     auth = request.headers.get("Authorization") or ""
     role = None
     cm_token = None
+    user_id = None
     if auth.lower().startswith("bearer "):
         try:
             payload = verify_jwt(auth.split(" ", 1)[1])
             role = (payload.get("role") or "consultor").lower()
             cm_token = payload.get("numerocm_consultor")
+            user_id = payload.get("user_id")
         except Exception:
             role = None
     pool = get_pool()
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
+            allowed_numerocm = []
+            if user_id and role == "consultor":
+                cur.execute("SELECT produtor_numerocm FROM public.user_produtores WHERE user_id = %s", [user_id])
+                allowed_numerocm = [r[0] for r in cur.fetchall()]
+
             if ids:
                 id_list = [s for s in str(ids).split(",") if s]
                 cur.execute(
@@ -3405,12 +3443,12 @@ def list_talhoes():
                             FROM public.talhoes t
                     LEFT JOIN public.talhao_safras ts ON ts.talhao_id = t.id
                     WHERE t.id = ANY(%s)
-                      AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND f.numerocm_consultor = %s))
+                      AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND (f.numerocm_consultor = %s OR f.numerocm = ANY(%s))))
                       AND (%s IS NULL OR t.safras_todas OR EXISTS (SELECT 1 FROM public.talhao_safras ts2 WHERE ts2.talhao_id = t.id AND ts2.safra_id = %s))
                     GROUP BY t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.safras_todas, t.created_at, t.updated_at
                     ORDER BY t.nome
                     """,
-                    (safra_id, epoca_id, id_list, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id)
+                    (safra_id, epoca_id, id_list, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), allowed_numerocm, safra_id, safra_id)
                 )
             elif fazenda_id:
                 print(f"DEBUG: list_talhoes fazenda_id={fazenda_id} safra_id={safra_id} epoca_id={epoca_id}")
@@ -3446,12 +3484,12 @@ def list_talhoes():
                     FROM public.talhoes t
                     LEFT JOIN public.talhao_safras ts ON ts.talhao_id = t.id
                     WHERE t.fazenda_id = %s
-                      AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND f.numerocm_consultor = %s))
+                      AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND (f.numerocm_consultor = %s OR f.numerocm = ANY(%s))))
                       AND (%s IS NULL OR t.safras_todas OR EXISTS (SELECT 1 FROM public.talhao_safras ts2 WHERE ts2.talhao_id = t.id AND ts2.safra_id = %s))
                     GROUP BY t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.safras_todas, t.created_at, t.updated_at
                     ORDER BY t.nome
                     """,
-                    [safra_id, epoca_id, fazenda_id, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), safra_id, safra_id]
+                    [safra_id, epoca_id, fazenda_id, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), allowed_numerocm, safra_id, safra_id]
                 )
                 # Debug output results
                 # rows_debug = cur.fetchall()
@@ -3846,7 +3884,7 @@ def list_aplicacoes_defensivos():
                     except Exception:
                         pass
 
-            cur.execute("SELECT id, user_id, produtor_numerocm, area, tipo, created_at, updated_at FROM public.aplicacoes_defensivos ORDER BY created_at DESC")
+            cur.execute("SELECT a.id, a.user_id, a.produtor_numerocm, a.area, a.safra_id, a.tipo, a.created_at, a.updated_at, (SELECT s.ano_inicio || '/' || s.ano_fim FROM public.safras s WHERE s.id = a.safra_id LIMIT 1) as safra_nome FROM public.aplicacoes_defensivos a ORDER BY a.created_at DESC")
             rows = cur.fetchall()
             cols = [d[0] for d in cur.description]
             apps = [dict(zip(cols, r)) for r in rows]
@@ -3885,6 +3923,7 @@ def create_aplicacao_defensivos():
     produtor_numerocm = payload.get("produtor_numerocm")
     area = payload.get("area")
     tipo = (payload.get("tipo") or "PROGRAMACAO").strip().upper()
+    safra_root = (payload.get("safra_id") or "").strip()
     defensivos = payload.get("defensivos") or []
     talhao_ids = payload.get("talhao_ids") or []
     id_val = str(uuid.uuid4())
@@ -3903,11 +3942,15 @@ def create_aplicacao_defensivos():
             with conn.cursor() as cur:
                 # Bloqueio: já existe aplicação de defensivos para produtor/fazenda/safra
                 safra_ids = []
+                if safra_root:
+                    safra_ids.append(safra_root)
                 for d in defensivos:
                     s = (d.get("safra_id") or "").strip()
                     if s:
                         safra_ids.append(s)
                 safra_ids = list(dict.fromkeys(safra_ids))
+                safra_header = safra_ids[0] if safra_ids else None
+
                 if produtor_numerocm and area and safra_ids:
                     for s in safra_ids:
                         cur.execute(
@@ -3929,21 +3972,14 @@ def create_aplicacao_defensivos():
                             }), 409
                 cur.execute(
                     """
-                    INSERT INTO public.aplicacoes_defensivos (id, user_id, produtor_numerocm, area, tipo)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO public.aplicacoes_defensivos (id, user_id, produtor_numerocm, area, safra_id, tipo)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     """,
-                    [id_val, user_id, produtor_numerocm, area, tipo]
+                    [id_val, user_id, produtor_numerocm, area, safra_header, tipo]
                 )
                 # Persistir vínculo de talhões selecionados para relatórios
                 try:
-                    safra_for_talhoes = None
-                    for d in defensivos:
-                        s = (d.get("safra_id") or "").strip()
-                        if s:
-                            safra_for_talhoes = s
-                            break
-                    if not safra_for_talhoes:
-                        safra_for_talhoes = None
+                    safra_for_talhoes = safra_header
                     for tid in list(dict.fromkeys([str(t) for t in talhao_ids if t])):
                         cur.execute(
                             """
@@ -4009,6 +4045,8 @@ def update_aplicacao_defensivos(id: str):
                     if s:
                         safra_ids.append(s)
                 safra_ids = list(dict.fromkeys(safra_ids))
+                safra_header = safra_ids[0] if safra_ids else None
+
                 if produtor_numerocm and area and safra_ids:
                     for s in safra_ids:
                         cur.execute(
@@ -4028,18 +4066,11 @@ def update_aplicacao_defensivos(id: str):
                                 "area": area,
                                 "safra_id": s,
                             }), 409
-                cur.execute("UPDATE public.aplicacoes_defensivos SET user_id = %s, produtor_numerocm = %s, area = %s, tipo = %s, updated_at = now() WHERE id = %s", [user_id, produtor_numerocm, area, tipo, id])
+                cur.execute("UPDATE public.aplicacoes_defensivos SET user_id = %s, produtor_numerocm = %s, area = %s, safra_id = %s, tipo = %s, updated_at = now() WHERE id = %s", [user_id, produtor_numerocm, area, safra_header, tipo, id])
                 # Atualizar vínculos de talhões
                 try:
                     cur.execute("DELETE FROM public.aplicacao_defensivos_talhoes WHERE aplicacao_id = %s", [id])
-                    safra_for_talhoes = None
-                    for d in defensivos:
-                        s = (d.get("safra_id") or "").strip()
-                        if s:
-                            safra_for_talhoes = s
-                            break
-                    if not safra_for_talhoes:
-                        safra_for_talhoes = None
+                    safra_for_talhoes = safra_header
                     for tid in list(dict.fromkeys([str(t) for t in talhao_ids if t])):
                         cur.execute(
                             """

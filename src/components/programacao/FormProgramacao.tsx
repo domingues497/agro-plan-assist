@@ -807,6 +807,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
 
   // Resolve o UUID da fazenda selecionada (necessário para buscar talhões)
   useEffect(() => {
+    if (initialData?.fazenda_uuid) {
+      setSelectedFazendaUuid(initialData.fazenda_uuid);
+      return;
+    }
+
     if (!initialData?.fazenda_idfazenda) return;
     
     const f0 = (fazendas || []).find((f: any) => String(f.idfazenda) === String(initialData.fazenda_idfazenda))
@@ -880,7 +885,9 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (!fazendaIdfazenda) return;
     const fazendaSelecionada = fazendaFiltrada.find((f) => f.idfazenda === fazendaIdfazenda);
     // Sincroniza o campo de "área" (nome da fazenda) com a fazenda selecionada
-    setArea(fazendaSelecionada?.nomefazenda || "");
+    if (fazendaSelecionada?.nomefazenda) {
+      setArea(fazendaSelecionada.nomefazenda);
+    }
     
     // Limpa talhões selecionados APENAS se trocou de fazenda (ID mudou)
     // Se for apenas atualização da lista de fazendas (refetch), mantém a seleção

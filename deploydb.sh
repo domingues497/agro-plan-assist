@@ -19,32 +19,7 @@ echo ">>> Diretório: $APP_DIR"
 echo "======================================="
 echo
 
-# ===========================
-# 1. ATUALIZAR CÓDIGO
-# ===========================
-echo ">>> git pull origin main..."
-git pull origin main
-echo
 
-# ===========================
-# 2. VENV + DEPENDÊNCIAS BACKEND
-# ===========================
-echo ">>> Preparando ambiente virtual Python..."
-
-if [ ! -d "$VENV_PATH" ]; then
-  echo ">>> Nenhum venv encontrado em $VENV_PATH. Criando..."
-  python3 -m venv "$VENV_PATH"
-fi
-
-echo ">>> Usando venv em: $VENV_PATH"
-# shellcheck disable=SC1090
-source "$VENV_PATH/bin/activate"
-
-cd "$SERVER_DIR"
-
-echo ">>> Instalando dependências backend (pip install -r requirements.txt)..."
-pip install -r requirements.txt
-echo
 
 # ===========================
 # 2.1. ATUALIZAR/VALIDAR SCHEMA DO BANCO (NOVO)
@@ -74,12 +49,6 @@ deactivate
 cd "$APP_DIR"
 echo
 
-# ===========================
-# 3. BUILD FRONTEND
-# ===========================
-echo ">>> Build do frontend (npm run build)..."
-npm run build
-echo
 
 # ===========================
 # 4. REINICIAR BACKEND
