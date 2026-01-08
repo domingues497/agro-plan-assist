@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Shield, ArrowLeft, Copy, Trash2, Plus, Pencil, ChevronDown, Check, ChevronsUpDown, Search } from "lucide-react";
+import { ArrowLeft, Copy, Trash2, Plus, Pencil, Check, ChevronsUpDown, Search, Shield } from "lucide-react";
 import { useAplicacoesDefensivos, AplicacaoDefensivo } from "@/hooks/useAplicacoesDefensivos";
 import { FormAplicacaoDefensivo } from "@/components/defensivos/FormAplicacaoDefensivo";
 import { useProdutores } from "@/hooks/useProdutores";
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
-import { cn, getApiBaseUrl } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useSafras } from "@/hooks/useSafras";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,10 +30,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+import { useAreasCalc } from "@/hooks/useAreasCalc";
+
 const Defensivos = () => {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<AplicacaoDefensivo | null>(null);
-  const { aplicacoes, isLoading, create, duplicate, remove, update, isCreating, isUpdating, replicate, isReplicating } = useAplicacoesDefensivos();
+  const { aplicacoes, isLoading, create, remove, update, isCreating, isUpdating, replicate, isReplicating } = useAplicacoesDefensivos();
   const { data: produtores = [] } = useProdutores();
   const { programacoes = [] } = useProgramacoes();
   const { programacoes: cultProgramacoes = [] } = useProgramacaoCultivares();
@@ -43,7 +45,6 @@ const Defensivos = () => {
   const [replicateOpen, setReplicateOpen] = useState(false);
   const [replicateTargetId, setReplicateTargetId] = useState<string | null>(null);
   const [replicateProdutorNumerocm, setReplicateProdutorNumerocm] = useState<string>("");
-  const [replicateArea, setReplicateArea] = useState<string>("");
   const [replicateTargets, setReplicateTargets] = useState<Array<{ produtor_numerocm: string; area: string }>>([]);
   const [openReplicateProdutorPopover, setOpenReplicateProdutorPopover] = useState(false);
   const [openReplicateFazendaPopover, setOpenReplicateFazendaPopover] = useState(false);
@@ -57,7 +58,7 @@ const Defensivos = () => {
   const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
   const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
   const canEditDefensivos = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
-  const [areasCalc, setAreasCalc] = useState<Record<string, number>>({});
+  const { data: areasCalc = {} } = useAreasCalc(aplicacoes, programacoes, fazendasAll);
   const [searchTerm, setSearchTerm] = useState("");
   const { safras, defaultSafra } = useSafras();
   const [selectedSafra, setSelectedSafra] = useState<string>("all");
@@ -104,57 +105,6 @@ const Defensivos = () => {
   }, [filteredAplicacoes, currentPage]);
 
   const totalPages = Math.ceil(filteredAplicacoes.length / itemsPerPage);
-
-  useEffect(() => {
-    const loadAreas = async () => {
-      try {
-        const base = getApiBaseUrl();
-        const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const updates: Record<string, number> = {};
-        for (const ap of aplicacoes) {
-          const defs = (ap.defensivos || []) as any[];
-          const safraId = (() => {
-            const d = defs.find((it: any) => it && it.safra_id);
-            return String(d?.safra_id || "").trim();
-          })();
-          const key = `${String(ap.produtor_numerocm)}|${String(ap.area)}|${safraId}`;
-          if (!safraId || areasCalc[key] !== undefined) continue;
-          const progs = (programacoes || []).filter((p: any) => {
-            const sameProd = String(p.produtor_numerocm) === String(ap.produtor_numerocm);
-            const sameArea = String(p.area) === String(ap.area);
-            const safraOk = String(p.safra_id || "") === safraId;
-            return sameProd && sameArea && safraOk;
-          });
-          if (!progs || progs.length === 0) continue;
-          const talhaoSet = new Set<string>();
-          for (const prog of progs) {
-            const res = await fetch(`${base}/programacoes/${prog.id}/children`, { headers });
-            if (!res.ok) continue;
-            const children = await res.json();
-            const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
-            talhoes.forEach((t) => talhaoSet.add(String(t)));
-          }
-          if (talhaoSet.size === 0) continue;
-          const fazendaObj = (fazendasAll || []).find((f: any) => String(f.nomefazenda) === String(ap.area) && String(f.numerocm) === String(ap.produtor_numerocm));
-          const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
-          const params = new URLSearchParams();
-          if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
-          if (safraId) params.set("safra_id", safraId);
-          const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
-          if (!r2.ok) continue;
-          const j2 = await r2.json();
-          const items = ((j2?.items || []) as any[]).filter((t: any) => talhaoSet.has(String(t.id)));
-          const sum = items.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
-          if (sum > 0) updates[key] = sum;
-        }
-        if (Object.keys(updates).length > 0) {
-          setAreasCalc((prev) => ({ ...prev, ...updates }));
-        }
-      } catch {}
-    };
-    loadAreas();
-  }, [aplicacoes, programacoes, fazendasAll]);
 
   const produtoresComCultivar = useMemo(() => {
     const set = new Set<string>();
@@ -389,7 +339,6 @@ const Defensivos = () => {
                             onClick={() => {
                               setReplicateTargetId(aplicacao.id);
                               setReplicateProdutorNumerocm("");
-                              setReplicateArea("");
                               setReplicateOpen(true);
                             }}
                             title="Replicar programação"
@@ -734,7 +683,6 @@ const Defensivos = () => {
                 setReplicateOpen(false);
                 setReplicateTargetId(null);
                 setReplicateProdutorNumerocm("");
-                setReplicateArea("");
                 setReplicateTargets([]);
                 setSelectedAreaPairs([]);
               }}
@@ -756,7 +704,6 @@ const Defensivos = () => {
                 setReplicateOpen(false);
                 setReplicateTargetId(null);
                 setReplicateProdutorNumerocm("");
-                setReplicateArea("");
                 setSelectedAreaPairs([]);
                 setReplicateTargets([]);
               }}

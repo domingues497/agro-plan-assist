@@ -13,20 +13,21 @@ import { FormProgramacao } from "@/components/programacao/FormProgramacao";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
-import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
-import { cn, safeRandomUUID, getApiBaseUrl } from "@/lib/utils";
+import { cn, safeRandomUUID } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { GerenciarTalhoes } from "@/components/programacao/GerenciarTalhoes";
 import { useSafras } from "@/hooks/useSafras";
 import { useEpocas } from "@/hooks/useEpocas";
+
+import { useProgramacaoAreasCalc } from "@/hooks/useProgramacaoAreasCalc";
 
 export default function Programacao() {
   const [showForm, setShowForm] = useState(false);
@@ -39,7 +40,6 @@ export default function Programacao() {
   const { data: fazendas = [] } = useFazendas();
   const { data: produtores = [] } = useProdutores();
   const { programacoes: cultivaresList = [] } = useProgramacaoCultivares();
-  const { programacoes: adubacaoList = [] } = useProgramacaoAdubacao();
   const { data: cultivaresCatalog = [] } = useCultivaresCatalog();
   const { aplicacoes: aplicacoesDef = [] } = useAplicacoesDefensivos();
   const { profile } = useProfile();
@@ -182,8 +182,9 @@ export default function Programacao() {
   const [selectedAreaPairs, setSelectedAreaPairs] = useState<Array<{ produtor_numerocm: string; fazenda_idfazenda: string; nomefazenda: string; area_hectares: number }>>([]);
   const [replicateTargets, setReplicateTargets] = useState<Array<{ produtor_numerocm: string; fazenda_idfazenda: string; area_hectares: number }>>([]);
   const { data: fazendasReplicate = [] } = useFazendas(replicateProdutorNumerocm);
-  const [areasCalc, setAreasCalc] = useState<Record<string, number>>({});
-  const [talhoesCount, setTalhoesCount] = useState<Record<string, number>>({});
+  const { data: calcData = { updates: {}, countUpdates: {} } } = useProgramacaoAreasCalc(programacoes, fazendas);
+  const areasCalc = calcData.updates;
+  const talhoesCount = calcData.countUpdates;
   const [lockedInitialData, setLockedInitialData] = useState<any>(undefined);
 
   // Gerenciar talhões
@@ -194,64 +195,6 @@ export default function Programacao() {
   const [onlyFazendasSemTalhao, setOnlyFazendasSemTalhao] = useState(false);
 
   const temAreasCadastradas = fazendas.length > 0;
-
-  useEffect(() => {
-    const loadAreas = async () => {
-      try {
-        const base = getApiBaseUrl();
-        const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const updates: Record<string, number> = {};
-        const countUpdates: Record<string, number> = {};
-        
-        for (const p of programacoes) {
-          try {
-            // Se já calculou área e contagem, pula
-            if (areasCalc[p.id] !== undefined && talhoesCount[p.id] !== undefined) continue;
-            
-            const res = await fetch(`${base}/programacoes/${p.id}/children`, { headers });
-            if (!res.ok) {
-              countUpdates[p.id] = 0;
-              updates[p.id] = 0;
-              continue;
-            }
-            const children = await res.json();
-            const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
-            
-            countUpdates[p.id] = talhoes.length;
-            
-            if (!talhoes || talhoes.length === 0) {
-              updates[p.id] = 0;
-              continue;
-            }
-            const fazendaObj = fazendas.find((f: any) => f.idfazenda === p.fazenda_idfazenda && f.numerocm === p.produtor_numerocm);
-            const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
-            const params = new URLSearchParams();
-            if (fazendaUuid) params.set("fazenda_id", fazendaUuid);
-            if (p.safra_id) params.set("safra_id", String(p.safra_id));
-            const r2 = await fetch(`${base}/talhoes?${params.toString()}`, { headers });
-            if (!r2.ok) {
-              updates[p.id] = 0;
-              continue;
-            }
-            const j2 = await r2.json();
-            const items = ((j2?.items || []) as any[]).filter((t: any) => talhoes.includes(String(t.id)));
-            const sum = items.reduce((acc, t: any) => acc + (Number(t.area || 0) || 0), 0);
-            updates[p.id] = sum;
-          } catch (error) {
-            // console.error(`Erro ao calcular área da programação ${p.id}:`, error);
-          }
-        }
-        if (Object.keys(updates).length > 0) {
-          setAreasCalc((prev) => ({ ...prev, ...updates }));
-        }
-        if (Object.keys(countUpdates).length > 0) {
-          setTalhoesCount((prev) => ({ ...prev, ...countUpdates }));
-        }
-      } catch {}
-    };
-    loadAreas();
-  }, [programacoes, areasCalc, talhoesCount]);
 
   const initialDataMemo = useMemo(() => {
     if (!editing) return undefined;

@@ -1,12 +1,13 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useIsFetching, useIsMutating } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { InactivityProvider } from "@/hooks/useInactivityLogout.tsx";
 import { getApiBaseUrl } from "@/lib/utils";
+import { GlobalLoading } from "@/components/ui/global-loading";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
@@ -25,6 +26,15 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const GlobalLoaderWrapper = () => {
+  const isFetching = useIsFetching();
+  const isMutating = useIsMutating();
+  // Mostra loading se houver qualquer fetch ou mutation em andamento
+  const isLoading = isFetching > 0 || isMutating > 0;
+  
+  return <GlobalLoading isVisible={isLoading} message="Carregando dados..." />;
+};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any | null>(null);
@@ -62,11 +72,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Carregando...</p>
-      </div>
-    );
+    return <GlobalLoading isVisible={true} message="Validando sessão..." />;
   }
 
   if (!session) {
@@ -82,6 +88,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <InactivityProvider>
+        <GlobalLoaderWrapper />
         {(() => {
           const isBrowser = typeof window !== "undefined";
           const host = isBrowser ? window.location.hostname : "localhost";
