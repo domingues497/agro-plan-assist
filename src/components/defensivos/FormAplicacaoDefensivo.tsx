@@ -44,7 +44,7 @@ export const FormAplicacaoDefensivo = ({
   isLoading = false,
   initialData,
   title = "Nova Aplicação de Defensivos",
-  submitLabel = "Salvar aplicação",
+  submitLabel = "Salvar",
   readOnly = false,
 }: FormAplicacaoDefensivoProps) => {
   const { data: produtores } = useProdutores();
