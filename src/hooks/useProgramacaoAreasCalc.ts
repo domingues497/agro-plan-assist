@@ -30,7 +30,10 @@ export function useProgramacaoAreasCalc(
               return { id: p.id, count: 0, area: 0 };
             }
             const children = await res.json();
-            const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
+            const talhoes: string[] = (children?.talhoes || [])
+              .map((t: any) => (typeof t === "string" ? t : t?.id))
+              .filter((t: any) => !!t)
+              .map(String);
             
             const count = talhoes.length;
             

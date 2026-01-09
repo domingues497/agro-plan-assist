@@ -89,14 +89,27 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
       return ecs.length === 0 || (cc && ecs.includes(cc));
     });
     
+    // Deduplicate by ID to avoid "duplicate key" warnings
+    const uniqueList: typeof list = [];
+    const seenIds = new Set<string>();
+    for (const item of list) {
+      const id = String(item.id || "");
+      if (id && !seenIds.has(id)) {
+        seenIds.add(id);
+        uniqueList.push(item);
+      } else if (!id) {
+        uniqueList.push(item);
+      }
+    }
+
     // Se houver uma embalagem selecionada que não está na lista (ex: inativa ou erro de carga),
     // adiciona ela temporariamente para não quebrar a visualização no Select
     const atual = String(item.tipo_embalagem || "").trim();
-    if (atual && !list.some(e => e.nome === atual)) {
-      return [...list, { id: 'temp-legacy', nome: atual, cultura: null }];
+    if (atual && !uniqueList.some(e => e.nome === atual)) {
+      return [...uniqueList, { id: 'temp-legacy', nome: atual, cultura: null }];
     }
     
-    return list;
+    return uniqueList;
   }, [embalagensCultivar, culturaSelecionada, item.tipo_embalagem]);
 
   // Removido useEffect que limpava tipo_embalagem automaticamente para evitar perda de dados em race conditions
@@ -487,7 +500,7 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
                           <CommandGroup>
                             {defensivosCatalog.map((d, idx) => (
                               <CommandItem
-                                key={d.cod_item || `def-${idx}`}
+                                key={`${d.cod_item ?? 'def'}-${idx}`}
                                 value={`${d.item}`}
                                 onSelect={() => handleDefensivoChange(defensivo.tempId, "defensivo", d.item)}
                               >
@@ -1493,7 +1506,7 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                                 )}
                                 {fertilizantesDistinct.map((f) => (
                                   <CommandItem
-                                    key={f.cod_item ?? f.item ?? `${index}-f`}
+                                    key={f.id ?? f.cod_item ?? f.item ?? `${index}-f`}
                                     value={`${f.item || ""}${f.marca ? ` ${f.marca}` : ""}`}
                                     onSelect={(currentValue) => {
                                       handleAdubacaoChange(index, "formulacao", String(f.item || currentValue));

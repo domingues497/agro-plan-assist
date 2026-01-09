@@ -65,8 +65,11 @@ export function useTalhoesForApp(
         const rc = await fetch(`${base}/programacoes/${prog.id}/children`, { headers });
         if (!rc.ok) continue;
         const children = await rc.json();
-        const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
-        talhoes.forEach((t) => talhaoSet.add(String(t)));
+        const talhoesRaw = (children?.talhoes || []) as any[];
+        for (const t of talhoesRaw) {
+          const id = typeof t === "string" ? t : t?.id;
+          if (id) talhaoSet.add(String(id));
+        }
       }
 
       if (talhaoSet.size === 0) {
@@ -74,24 +77,25 @@ export function useTalhoesForApp(
       }
 
       // 3. Buscar detalhes dos talhões
-      const fazendaObj = fazendas.find((f: any) => String(f.nomefazenda) === String(area));
-      const fazendaUuid = fazendaObj?.id ? String(fazendaObj.id) : "";
-      
       const talhoesParams = new URLSearchParams();
-      if (fazendaUuid) talhoesParams.set("fazenda_id", fazendaUuid);
+      talhoesParams.set("ids", Array.from(talhaoSet).join(","));
       if (safraId) talhoesParams.set("safra_id", String(safraId));
       
       const r2 = await fetch(`${base}/talhoes?${talhoesParams.toString()}`, { headers });
       if (!r2.ok) throw new Error("Falha ao buscar detalhes dos talhões");
       
       const j2 = await r2.json();
-      const items2 = ((j2?.items || []) as any[]).filter((t: any) => talhaoSet.has(String(t.id)));
+      const items2 = (j2?.items || []) as any[];
       
       const options = items2.map((t: any) => ({
         id: String(t.id),
         nome: String(t.nome || "Talhão"),
         area: Number(t.area || 0) || 0
       }));
+
+      if (options.length === 0) {
+        return getFazendaFallback();
+      }
 
       return { options, fallbackArea: 0, fromFazenda: false };
     },

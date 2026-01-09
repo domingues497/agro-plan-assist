@@ -1319,7 +1319,12 @@ def get_programacao_children(id: str):
             def_cols = [d[0] for d in cur.description]
             def_rows = cur.fetchall()
             defensivos = [dict(zip(def_cols, r)) for r in def_rows] if def_rows else []
-            cur.execute("SELECT * FROM public.programacao_adubacao WHERE programacao_id = %s", [id])
+            cur.execute("""
+                SELECT pa.*, j.descricao as justificativa_descricao
+                FROM public.programacao_adubacao pa
+                LEFT JOIN public.justificativas_adubacao j ON j.id = pa.justificativa_nao_adubacao_id
+                WHERE pa.programacao_id = %s
+            """, [id])
             ad_cols = [d[0] for d in cur.description]
             ad_rows = cur.fetchall()
             adubacao = [dict(zip(ad_cols, r)) for r in ad_rows] if ad_rows else []

@@ -265,8 +265,8 @@ export const FormAplicacaoDefensivo = ({
       return;
     }
 
-    // Validação: Talhão obrigatório
-    if (selectedTalhaoIds.length === 0) {
+    // Validação: Talhão obrigatório (se houver talhões disponíveis para seleção)
+    if (talhoesOptions.length > 0 && selectedTalhaoIds.length === 0) {
       alert("Por favor, selecione pelo menos um Talhão.");
       return;
     }
@@ -470,9 +470,9 @@ export const FormAplicacaoDefensivo = ({
       {title && <h3 className="text-lg font-semibold mb-4">{title}</h3>}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Alerta de regra de negócio */}
-        {produtorNumerocm && area && !isCultLoading && !isAdubLoading && !(hasCultivarProgram && hasAdubacaoProgram) && (
+        {produtorNumerocm && area && !isCultLoading && !isAdubLoading && !(hasCultivarProgram || hasAdubacaoProgram) && (
           <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-            Não é possível cadastrar defensivos antes de registrar a programação de Cultivar e Adubação para este produtor/fazenda.
+            Não é possível cadastrar defensivos antes de registrar a programação de Cultivar ou Adubação para este produtor/fazenda.
           </div>
         )}
         {/* Seção fixa */}
@@ -599,7 +599,7 @@ export const FormAplicacaoDefensivo = ({
                 <Command>
                   <CommandInput placeholder="Buscar fazenda..." />
                   <CommandList>
-                    <CommandEmpty>Nenhuma fazenda com Cultivar nesta safra.</CommandEmpty>
+                    <CommandEmpty>Nenhuma fazenda com Cultivar ou Adubação nesta safra.</CommandEmpty>
                     <CommandGroup>
                       {(fazendasFiltradas || []).map((f) => (
                         <CommandItem

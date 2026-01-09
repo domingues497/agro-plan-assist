@@ -270,6 +270,11 @@ export function ProgramacaoCard({
                           </span>
                         </div>
                         {a.embalagem && <span className="text-xs opacity-80">{a.embalagem}</span>}
+                        {a.justificativa_descricao && (
+                          <span className="text-xs text-orange-600 mt-0.5 italic">
+                            {a.justificativa_descricao}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>

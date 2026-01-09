@@ -135,7 +135,7 @@ const Relatorios = () => {
           const fazenda = allFazendas.find(f => f.idfazenda === prog.fazenda_idfazenda && f.numerocm === prog.produtor_numerocm);
           
           // Get Talhoes names
-          const talhoesIds = (children.talhoes || []) as string[];
+          const talhoesIds = (children.talhoes || []).map((t: any) => typeof t === 'object' ? t.id : t);
           const talhoesNomesMap = children.talhoes_nomes || {};
 
           // Get Cultivares
@@ -395,7 +395,7 @@ const Relatorios = () => {
           const produtor = produtores.find(p => p.numerocm === prog.produtor_numerocm);
           const fazenda = allFazendas.find(f => f.idfazenda === prog.fazenda_idfazenda && f.numerocm === prog.produtor_numerocm);
           
-          const talhoesIds = (children.talhoes || []) as string[];
+          const talhoesIds = (children.talhoes || []).map((t: any) => typeof t === 'object' ? t.id : t);
           const talhoesNomesMap = children.talhoes_nomes || {};
 
           const cultivares = Array.isArray(children.cultivares) ? children.cultivares : [];

@@ -48,8 +48,11 @@ export function useAreasCalc(
             const res = await fetch(`${base}/programacoes/${prog.id}/children`, { headers });
             if (!res.ok) continue;
             const children = await res.json();
-            const talhoes: string[] = (children?.talhoes || []).filter((t: any) => !!t);
-            talhoes.forEach((t) => talhaoSet.add(String(t)));
+            const talhoes: string[] = (children?.talhoes || [])
+              .map((t: any) => (typeof t === "string" ? t : t?.id))
+              .filter((t: any) => !!t)
+              .map(String);
+            talhoes.forEach((t) => talhaoSet.add(t));
           } catch {}
         }
 
