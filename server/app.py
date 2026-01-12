@@ -1416,6 +1416,15 @@ def update_programacao(id: str):
                             safra_id = safra_id or current[5]
                             if tipo is None: tipo = current[6]
                             if revisada is None: revisada = current[7]
+                            
+                            if epoca_id is None:
+                                try:
+                                    cur.execute("SELECT epoca_id FROM public.programacao_talhoes WHERE programacao_id = %s LIMIT 1", [id])
+                                    r_ep = cur.fetchone()
+                                    if r_ep:
+                                        epoca_id = r_ep[0]
+                                except Exception:
+                                    pass
 
                     cm_cons = cm_token
                     if not cm_cons:
@@ -1566,6 +1575,15 @@ def create_programacao_talhoes():
                 )
                 if cur.fetchone():
                     return jsonify({"error": "talhao já vinculado nesta safra"}), 400
+
+                if not epoca_id:
+                    try:
+                        cur.execute("SELECT epoca_id FROM public.programacao_talhoes WHERE programacao_id = %s LIMIT 1", [programacao_id])
+                        r_ep = cur.fetchone()
+                        if r_ep:
+                            epoca_id = r_ep[0]
+                    except Exception:
+                        pass
 
                 cur.execute(
                     """
@@ -3280,18 +3298,128 @@ def run_sync_fazendas(limpar: bool = False):
     finally:
         pool.putconn(conn)
 
+def run_sync_consultores(limpar: bool = False):
+    ensure_system_config_schema()
+    ensure_consultores_schema()
+    cfg = get_config_map([
+        "api_consultores_client_id",
+        "api_consultores_secret",
+        "api_consultores_url",
+        "api_consultores_exp",
+    ])
+    url = str(cfg.get("api_consultores_url") or "").strip().strip("`")
+    if not url:
+        return {"error": "Config api_consultores_url ausente", "status": 400}
+    
+    headers = {"Accept": "application/json"}
+    if cfg.get("api_consultores_client_id") and cfg.get("api_consultores_secret") and cfg.get("api_consultores_exp"):
+        try:
+            token = _make_jwt(str(cfg.get("api_consultores_client_id")), int(cfg.get("api_consultores_exp")), str(cfg.get("api_consultores_secret")), None)
+            headers["Authorization"] = f"Bearer {token}"
+        except Exception:
+            pass
+            
+    req = Request(url, headers=headers)
+    try:
+        with urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+            data = json.loads(raw.decode("utf-8"))
+    except HTTPError as e:
+        try:
+            body = e.read().decode("utf-8")
+        except Exception:
+            body = ""
+        return {
+            "error": "HTTPError",
+            "status": e.code,
+            "details": body or str(e),
+            "url": url
+        }
+    except URLError as e:
+        return {
+            "error": "URLError",
+            "details": getattr(e, 'reason', str(e)),
+            "url": url,
+            "status": 502
+        }
+    except Exception as e:
+        return {"error": f"Erro ao ler resposta da API externa: {e}", "status": 500}
+
+    items = data.get("items") if isinstance(data, dict) else data
+    if not isinstance(items, list):
+        return {"error": "Resposta da API externa inválida", "url": url, "preview": data, "status": 500}
+
+    def pick(obj, keys):
+        for k in keys:
+            if k in obj and obj[k] not in (None, ""):
+                return obj[k]
+        return None
+
+    pool = get_pool()
+    conn = pool.getconn()
+    imported = 0
+    ignored = 0
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                if limpar:
+                    cur.execute("DELETE FROM public.consultores")
+                values = []
+                seen = set()
+                for d in items:
+                    cm_cons_val = pick(d, ["numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM", "NUMEROCMCONSULTOR", "CONSULTORCM", "CM_CONSULTOR", "CONSULTOR_NUMEROCM", "codigo", "id", "CODIGO"])
+                    numerocm_consultor = str(cm_cons_val).strip() if cm_cons_val is not None else None
+                    
+                    nome_val = pick(d, ["consultor", "CONSULTOR", "nome", "NOME", "nome_consultor", "NOME_CONSULTOR"])
+                    consultor = str(nome_val).strip() if nome_val is not None else None
+                    
+                    email_val = pick(d, ["email", "EMAIL", "e-mail", "E-MAIL", "mail"])
+                    email = str(email_val).strip().lower() if email_val is not None else None
+                    
+                    if not numerocm_consultor or not consultor or not email:
+                        ignored += 1
+                        continue
+                        
+                    # Use email as key because it's unique in DB
+                    key = email
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    # id, numerocm_consultor, consultor, email, role, ativo, pode_editar_programacao
+                    values.append([str(uuid.uuid4()), numerocm_consultor, consultor, email, 'consultor', True, False])
+                
+                if values:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO public.consultores (id, numerocm_consultor, consultor, email, role, ativo, pode_editar_programacao)
+                        VALUES %s
+                        ON CONFLICT (email) DO UPDATE SET
+                          numerocm_consultor = EXCLUDED.numerocm_consultor,
+                          consultor = EXCLUDED.consultor,
+                          updated_at = now()
+                        """,
+                        values,
+                    )
+                    imported = len(values)
+        return {"ok": True, "imported": imported, "ignored": ignored}
+    finally:
+        pool.putconn(conn)
+
 def _start_sync_scheduler():
     def loop():
         last_run_def = 0
         last_run_prod = 0
         last_run_faz = 0
+        last_run_cons = 0
         while True:
             try:
                 ensure_system_config_schema()
                 cfg = get_config_map([
                     "defensivos_sync_enabled", "defensivos_sync_interval_minutes",
                     "produtores_sync_enabled", "produtores_sync_interval_minutes",
-                    "fazendas_sync_enabled", "fazendas_sync_interval_minutes"
+                    "fazendas_sync_enabled", "fazendas_sync_interval_minutes",
+                    "consultores_sync_enabled", "consultores_sync_interval_minutes"
                 ])
                 now_ts = time.time()
                 
@@ -3330,6 +3458,18 @@ def _start_sync_scheduler():
                     except Exception as e:
                         print(f"[fazendas-sync] erro: {e}")
                     last_run_faz = now_ts
+
+                # Consultores
+                en_cons = str(cfg.get("consultores_sync_enabled", "")).strip().lower() in ("1", "true", "yes", "on")
+                int_cons = int(str(cfg.get("consultores_sync_interval_minutes", "30") or "30"))
+                if int_cons < 1: int_cons = 30
+                if en_cons and now_ts - last_run_cons >= int_cons * 60:
+                    try:
+                        res = run_sync_consultores(False)
+                        print(f"[consultores-sync] imported={res.get('imported')} ignored={res.get('ignored')}")
+                    except Exception as e:
+                        print(f"[consultores-sync] erro: {e}")
+                    last_run_cons = now_ts
 
             except Exception as e:
                 print(f"[scheduler] erro loop: {e}")
@@ -4719,6 +4859,55 @@ def sync_fazendas_test():
     exp = str(cfg.get("api_fazendas_exp") or "").strip()
     if not url:
         return jsonify({"error": "Config api_fazendas_url ausente"}), 400
+    if not client_id or not secret or not exp:
+        return jsonify({"error": "Config JWT ausente (cliente_id/secret/exp)"}), 400
+    try:
+        token = _make_jwt(client_id, int(exp), secret, None)
+        req = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+        with urlopen(req, timeout=15) as resp:
+            raw = resp.read()
+            sample = None
+            try:
+                data = json.loads(raw.decode("utf-8"))
+                items = data.get("items") if isinstance(data, dict) else data
+                if isinstance(items, list) and items:
+                    if isinstance(items[0], dict):
+                        sample = list(items[0].keys())[:20]
+            except Exception:
+                sample = None
+            return jsonify({"status": resp.status, "ok": True, "sample_keys": sample})
+    except HTTPError as e:
+        try:
+            body = e.read().decode("utf-8")
+        except Exception:
+            body = ""
+        return jsonify({"error": "HTTPError", "status": e.code, "details": body or str(e)}), 502
+    except URLError as e:
+        details = str(getattr(e, 'reason', e))
+        return jsonify({"error": "URLError", "details": details}), 502
+
+@app.route("/consultores/sync", methods=["GET", "POST", "OPTIONS"])
+def sync_consultores():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    payload = request.get_json(silent=True) or {}
+    limpar = bool(payload.get("limparAntes"))
+    res = run_sync_consultores(limpar)
+    status = res.get("status", 200)
+    if "error" in res:
+        return jsonify(res), status
+    return jsonify(res)
+
+@app.route("/consultores/sync/test", methods=["GET"])
+def sync_consultores_test():
+    ensure_system_config_schema()
+    cfg = get_config_map(["api_consultores_url", "api_consultores_client_id", "api_consultores_secret", "api_consultores_exp"])
+    url = str(cfg.get("api_consultores_url") or "").strip()
+    client_id = str(cfg.get("api_consultores_client_id") or "").strip()
+    secret = str(cfg.get("api_consultores_secret") or "").strip()
+    exp = str(cfg.get("api_consultores_exp") or "").strip()
+    if not url:
+        return jsonify({"error": "Config api_consultores_url ausente"}), 400
     if not client_id or not secret or not exp:
         return jsonify({"error": "Config JWT ausente (cliente_id/secret/exp)"}), 400
     try:

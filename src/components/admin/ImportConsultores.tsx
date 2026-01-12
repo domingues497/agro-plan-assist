@@ -7,6 +7,9 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 // Migração para API Flask
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Wifi, WifiOff, Loader2 } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -17,21 +20,67 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useImportConsultoresMutation } from "@/hooks/useImportConsultores";
+import { useSyncConsultoresMutation } from "@/hooks/useSyncConsultoresMutation";
 
 export function ImportConsultores() {
   const [file, setFile] = useState<File | null>(null);
   const [totalRows, setTotalRows] = useState(0);
   const [importedRows, setImportedRows] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
+  const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("offline");
   
   const [deletedRows, setDeletedRows] = useState(0);
 
   const importMutation = useImportConsultoresMutation();
+  const syncMutation = useSyncConsultoresMutation();
   const isImporting = importMutation.isPending;
+  const isSyncingApi = syncMutation.isPending;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
     setFile(selectedFile);
+  };
+
+  const checkApiConnectivity = async () => {
+    try {
+      setApiStatus("checking");
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/consultores/sync/test`, { method: "GET" });
+      if (!res.ok) {
+        setApiStatus("offline");
+        return false;
+      }
+      const j = await res.json().catch(() => null);
+      const ok = j && (j.ok || j.status === 200);
+      setApiStatus(ok ? "online" : "offline");
+      return !!ok;
+    } catch {
+      setApiStatus("offline");
+      return false;
+    }
+  };
+
+  const handleSyncApi = async () => {
+    try {
+      const connected = await checkApiConnectivity();
+      if (!connected) {
+        toast.error("API de Consultores indisponível");
+        return;
+      }
+      setShowSummary(false);
+      
+      syncMutation.mutate(undefined, {
+        onSuccess: (json) => {
+          const imported = Number(json?.imported || 0);
+          toast.success(`Consultores sincronizados: ${imported}`);
+        },
+        onError: (err) => {
+          toast.error(err.message);
+        }
+      });
+    } catch (err: any) {
+      toast.error(`Erro ao verificar conectividade: ${err.message || err}`);
+    }
   };
 
   const handleImport = async () => {
@@ -104,11 +153,47 @@ export function ImportConsultores() {
           <Input type="file" accept=".xlsx,.xls" onChange={handleFileChange} />
         </div>
 
-        
+        <div className="flex items-center gap-3">
+          {apiStatus === "checking" && (
+            <Badge variant="secondary">
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              Verificando...
+            </Badge>
+          )}
+          {apiStatus === "online" && (
+            <Badge variant="secondary">
+              <Wifi className="mr-1 h-3 w-3" />
+              Online
+            </Badge>
+          )}
+          {apiStatus === "offline" && (
+            <Badge variant="destructive">
+              <WifiOff className="mr-1 h-3 w-3" />
+              Offline
+            </Badge>
+          )}
+          <Button variant="ghost" size="sm" onClick={checkApiConnectivity} disabled={apiStatus === "checking"}>
+            Verificar Conexão
+          </Button>
+        </div>
 
-        <Button onClick={handleImport} disabled={isImporting || !file}>
-          {isImporting ? "Importando..." : "Importar"}
-        </Button>
+        <div className="flex gap-3">
+          <Button onClick={handleImport} disabled={isImporting || !file}>
+            {isImporting ? "Importando..." : "Importar XLSX"}
+          </Button>
+          
+          <Button variant="outline" onClick={handleSyncApi} disabled={isSyncingApi || apiStatus === "checking"}>
+            {isSyncingApi ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sincronizando...
+              </>
+            ) : (
+              "Sincronizar API"
+            )}
+          </Button>
+        </div>
+
         {isImporting && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">

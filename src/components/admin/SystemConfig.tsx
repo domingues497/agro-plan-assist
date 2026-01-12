@@ -40,6 +40,12 @@ export const SystemConfig = () => {
   const [fazSyncInterval, setFazSyncInterval] = useState("30");
   const [prodSyncEnabled, setProdSyncEnabled] = useState(false);
   const [fazSyncEnabled, setFazSyncEnabled] = useState(false);
+  const [consClientId, setConsClientId] = useState("");
+  const [consSecret, setConsSecret] = useState("");
+  const [consExp, setConsExp] = useState("");
+  const [consUrl, setConsUrl] = useState("");
+  const [consSyncInterval, setConsSyncInterval] = useState("30");
+  const [consSyncEnabled, setConsSyncEnabled] = useState(false);
 
   useEffect(() => {
     setDefClientId(map["api_defensivos_client_id"] ?? "");
@@ -61,10 +67,16 @@ export const SystemConfig = () => {
     setFazSecret(map["api_fazendas_secret"] ?? "");
     setFazExp(map["api_fazendas_exp"] ?? "");
     setFazUrl(map["api_fazendas_url"] ?? "");
+    setConsClientId(map["api_consultores_client_id"] ?? "");
+    setConsSecret(map["api_consultores_secret"] ?? "");
+    setConsExp(map["api_consultores_exp"] ?? "");
+    setConsUrl(map["api_consultores_url"] ?? "");
     setProdSyncEnabled((map["produtores_sync_enabled"] ?? "").toLowerCase() === "true" || (map["produtores_sync_enabled"] ?? "") === "1");
     setFazSyncEnabled((map["fazendas_sync_enabled"] ?? "").toLowerCase() === "true" || (map["fazendas_sync_enabled"] ?? "") === "1");
+    setConsSyncEnabled((map["consultores_sync_enabled"] ?? "").toLowerCase() === "true" || (map["consultores_sync_enabled"] ?? "") === "1");
     setProdSyncInterval(map["produtores_sync_interval_minutes"] ?? "30");
     setFazSyncInterval(map["fazendas_sync_interval_minutes"] ?? "30");
+    setConsSyncInterval(map["consultores_sync_interval_minutes"] ?? "30");
   }, [map]);
 
   const onSave = async () => {
@@ -92,6 +104,12 @@ export const SystemConfig = () => {
       { config_key: "api_fazendas_url", config_value: fazUrl, description: "URL da API externa para sincronização de fazendas" },
       { config_key: "fazendas_sync_enabled", config_value: fazSyncEnabled ? "true" : "false", description: "Ativar sincronização automática de fazendas" },
       { config_key: "fazendas_sync_interval_minutes", config_value: fazSyncInterval || "30", description: "Intervalo da sincronização automática de fazendas (min)" },
+      { config_key: "api_consultores_client_id", config_value: consClientId, description: "Client ID para autenticação JWT na API de consultores" },
+      { config_key: "api_consultores_secret", config_value: consSecret, description: "Secret para geração do JWT da API de consultores" },
+      { config_key: "api_consultores_exp", config_value: consExp, description: "Timestamp de expiração do JWT para API de consultores" },
+      { config_key: "api_consultores_url", config_value: consUrl, description: "URL da API externa para sincronização de consultores" },
+      { config_key: "consultores_sync_enabled", config_value: consSyncEnabled ? "true" : "false", description: "Ativar sincronização automática de consultores" },
+      { config_key: "consultores_sync_interval_minutes", config_value: consSyncInterval || "30", description: "Intervalo da sincronização automática de consultores (min)" },
     ];
     try {
       await upsertSystemConfig(items);
@@ -218,6 +236,35 @@ export const SystemConfig = () => {
             <div className="space-y-2">
               <Label>Intervalo Fazendas (minutos)</Label>
               <Input value={fazSyncInterval} onChange={(e) => setFazSyncInterval(e.target.value)} />
+            </div>
+
+            <div className="col-span-1 md:col-span-2 border-t pt-4" />
+            <div className="space-y-2">
+              <Label>Client ID (Consultores)</Label>
+              <Input value={consClientId} onChange={(e) => setConsClientId(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Secret (Consultores)</Label>
+              <Input value={consSecret} onChange={(e) => setConsSecret(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Expiração JWT Consultores (timestamp)</Label>
+              <Input value={consExp} onChange={(e) => setConsExp(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>URL API (Consultores)</Label>
+              <Input value={consUrl} onChange={(e) => setConsUrl(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Sincronização automática (Consultores)</Label>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={consSyncEnabled} onChange={(e) => setConsSyncEnabled(e.target.checked)} />
+                <span className="text-sm">Ativar</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Intervalo Consultores (minutos)</Label>
+              <Input value={consSyncInterval} onChange={(e) => setConsSyncInterval(e.target.value)} />
             </div>
           </div>
         )}
