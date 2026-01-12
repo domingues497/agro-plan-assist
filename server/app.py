@@ -1044,16 +1044,18 @@ def list_programacoes():
                     subconds.append("p.produtor_numerocm = ANY(%s)")
                     params.append(allowed_numerocm)
                 if allowed_fazendas:
-                    subconds.append("EXISTS (SELECT 1 FROM public.fazendas f2 WHERE f2.id = ANY(%s) AND f2.idfazenda = p.fazenda_idfazenda)")
+                    subconds.append("EXISTS (SELECT 1 FROM public.fazendas f2 WHERE f2.id = ANY(%s) AND f2.idfazenda = p.fazenda_idfazenda AND f2.numerocm = p.produtor_numerocm)")
                     params.append(allowed_fazendas)
                 
                 # 2. Permissões via Token de Consultor (legacy/metadata)
                 if role == "consultor" and cm_token:
-                    subconds.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.numerocm_consultor = %s AND f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm) OR EXISTS (SELECT 1 FROM public.produtores pr WHERE pr.numerocm = p.produtor_numerocm AND pr.numerocm_consultor = %s))")
+                    # Ajuste: Removida a permissão por "consultor do produtor" para evitar vazamento entre fazendas de consultores diferentes
+                    # E reforçada a verificação de fazenda para incluir produtor_numerocm
+                    subconds.append("(EXISTS (SELECT 1 FROM public.programacao_cultivares pc WHERE pc.programacao_id = p.id AND pc.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.programacao_adubacao pa WHERE pa.programacao_id = p.id AND pa.numerocm_consultor = %s) OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.numerocm_consultor = %s AND f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm))")
                     params.append(cm_token)
                     params.append(cm_token)
                     params.append(cm_token)
-                    params.append(cm_token)
+
 
                 if subconds:
                     where.append("(" + " OR ".join(subconds) + ")")
