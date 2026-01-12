@@ -1349,6 +1349,16 @@ def update_programacao(id: str):
     talhao_ids = payload.get("talhao_ids") or []
     cultivares = payload.get("cultivares") or []
     adubacao = payload.get("adubacao") or []
+
+    auth = request.headers.get("Authorization") or ""
+    cm_token = None
+    if auth.lower().startswith("bearer "):
+        try:
+            payload_jwt = verify_jwt(auth.split(" ", 1)[1])
+            cm_token = payload_jwt.get("numerocm_consultor")
+        except Exception:
+            pass
+
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -1407,6 +1417,15 @@ def update_programacao(id: str):
                             if tipo is None: tipo = current[6]
                             if revisada is None: revisada = current[7]
 
+                    cm_cons = cm_token
+                    if not cm_cons:
+                        try:
+                            cur.execute("SELECT numerocm_consultor FROM public.fazendas WHERE idfazenda = %s AND numerocm = %s", [fazenda_idfazenda, produtor_numerocm])
+                            r = cur.fetchone()
+                            cm_cons = r[0] if r else None
+                        except Exception:
+                            cm_cons = None
+
                     cur.execute(
                         """
                         UPDATE public.programacoes
@@ -1426,12 +1445,12 @@ def update_programacao(id: str):
                         cur.execute(
                             """
                             INSERT INTO public.programacao_cultivares (
-                              id, programacao_id, user_id, produtor_numerocm, area, area_hectares, cultivar, quantidade, unidade,
+                              id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                               percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
                               semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva
-                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             """,
-                            [cult_id, id, user_id, produtor_numerocm, area, area_hectares, item.get("cultivar"), 0, "kg",
+                            [cult_id, id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                              item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                              item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
                              item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0]
@@ -1482,12 +1501,12 @@ def update_programacao(id: str):
                         cur.execute(
                             """
                             INSERT INTO public.programacao_adubacao (
-                              id, programacao_id, user_id, produtor_numerocm, area, formulacao, cod_item, dose, percentual_cobertura,
+                              id, programacao_id, user_id, produtor_numerocm, area, numerocm_consultor, formulacao, cod_item, dose, percentual_cobertura,
                               data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo,
                               porcentagem_salva, total, safra_id
-                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             """,
-                            [str(uuid.uuid4()), id, user_id, produtor_numerocm, area, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
+                            [str(uuid.uuid4()), id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
                              a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
                              float(a.get("porcentagem_salva") or 0), None, safra_id]
                         )
