@@ -85,7 +85,7 @@ export function ImportConsultores() {
 
   const handleImport = async () => {
     if (!file) {
-      toast.error("Selecione um arquivo XLSX primeiro");
+      toast.error("Selecione um arquivo .XLSX primeiro");
       return;
     }
 
@@ -145,7 +145,7 @@ export function ImportConsultores() {
     <Card>
       <CardHeader>
         <CardTitle>Importar Consultores</CardTitle>
-        <CardDescription>Planilha com colunas: NUMEROCMCONSULTOR, CONSULTOR, EMAIL</CardDescription>
+        <CardDescription>Planilha com as colunas: NUMEROCMCONSULTOR, CONSULTOR, EMAIL</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
