@@ -1,0 +1,8 @@
+ Em um terminal inicia o Backend
+ .\venv\Scripts\python.exe server\app.py  
+ Em outro terminal inicia o Frontend
+ npm rum dev
+
+ Portas do banco devem ser verificadas 
+ \server\db.py
+ \server\sa.py

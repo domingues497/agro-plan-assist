@@ -4,7 +4,7 @@ from alembic.config import Config as _AlembicConfig
 from alembic import command as _alembic_command
 from flask_cors import CORS
 from db import get_pool, ensure_defensivos_schema, ensure_system_config_schema, get_config_map, upsert_config_items, ensure_fertilizantes_schema, ensure_safras_schema, ensure_programacao_schema, ensure_consultores_schema, ensure_import_history_schema, ensure_calendario_aplicacoes_schema, ensure_epocas_schema, ensure_justificativas_adubacao_schema, ensure_produtores_schema, ensure_fazendas_schema, ensure_talhoes_schema, ensure_cultivares_catalog_schema, ensure_tratamentos_sementes_schema, ensure_cultivares_tratamentos_schema, ensure_aplicacoes_defensivos_schema, ensure_gestor_consultores_schema, ensure_app_versions_schema, ensure_embalagens_schema, ensure_access_logs_schema
-from sqlalchemy import text, select, delete, or_
+from sqlalchemy import text, select, delete, or_, update
 from sqlalchemy.dialects.postgresql import insert as _pg_insert
 from sa import get_engine, get_session
 from models import AppVersion, SystemConfig, ImportHistory, DefensivoCatalog, FertilizanteCatalog, CultivarCatalog, TratamentoSemente, CultivarTratamento, Epoca, JustificativaAdubacao, Embalagem, UserFazenda, GestorConsultor, Consultor, CalendarioAplicacao, AccessLog
@@ -2167,27 +2167,47 @@ def import_cultivares_catalog():
 def update_cultivares_by_key():
     ensure_cultivares_catalog_schema()
     payload = request.get_json(silent=True) or {}
-    cultivar = (payload.get("cultivar") or "").strip().upper()
-    cultura = (payload.get("cultura") or "").strip().upper() or None
+    # Não forçar upper aqui para permitir encontrar registros legados com case misto
+    cultivar = (payload.get("cultivar") or "").strip()
+    cultura_raw = (payload.get("cultura") or "").strip()
+    cultura = cultura_raw or None
+    
     set_cultura = payload.get("set_cultura")
     set_nome_cientifico = payload.get("set_nome_cientifico")
     if not cultivar:
         return jsonify({"error": "cultivar obrigatório"}), 400
     session = get_session()
     try:
-        q = select(CultivarCatalog).where(CultivarCatalog.cultivar == cultivar)
+        # Check if exists first
+        q = select(CultivarCatalog.cultivar).where(CultivarCatalog.cultivar == cultivar)
         if cultura is None:
             q = q.where(CultivarCatalog.cultura.is_(None))
         else:
             q = q.where(CultivarCatalog.cultura == cultura)
-        row = session.execute(q).scalars().first()
-        if not row:
+        
+        exists = session.execute(q).first()
+        if not exists:
             return jsonify({"error": "não encontrado"}), 404
+
+        values = {}
         if set_cultura is not None:
-            row.cultura = (str(set_cultura) or "").upper()
+            val = (str(set_cultura) or "").strip().upper()
+            values["cultura"] = val or None
         if set_nome_cientifico is not None:
-            row.nome_cientifico = set_nome_cientifico
-        session.commit()
+            values["nome_cientifico"] = set_nome_cientifico
+
+        if values:
+            values["updated_at"] = text("now()")
+            stmt = update(CultivarCatalog).where(CultivarCatalog.cultivar == cultivar)
+            if cultura is None:
+                stmt = stmt.where(CultivarCatalog.cultura.is_(None))
+            else:
+                stmt = stmt.where(CultivarCatalog.cultura == cultura)
+            
+            stmt = stmt.values(**values)
+            session.execute(stmt)
+            session.commit()
+
         return jsonify({"ok": True})
     except Exception as e:
         session.rollback()
