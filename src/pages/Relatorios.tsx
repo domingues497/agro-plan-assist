@@ -727,10 +727,10 @@ const Relatorios = () => {
   if (viewMode === "programacao_safra") {
     return (
       <div className="min-h-screen bg-background">
-        <GlobalLoading isVisible={isPageLoading} message="Carregando relatórios..." />
-        <header className="border-b bg-card">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center gap-4">
+      <GlobalLoading isVisible={isPageLoading} message="Carregando relatórios..." />
+      <header className="border-b bg-card print:hidden">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-4">
               <Link to="/">
                 <Button variant="ghost" size="icon">
                   <ArrowLeft className="h-5 w-5" />

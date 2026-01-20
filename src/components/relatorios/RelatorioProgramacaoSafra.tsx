@@ -61,7 +61,7 @@ export const RelatorioProgramacaoSafra = () => {
     <div className="space-y-6 print:space-y-2">
       <Card className="print:hidden">
         <CardHeader>
-          <CardTitle>Relatório de Programação de Safra</CardTitle>
+          <CardTitle>Filtros do Relatório</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -144,8 +144,8 @@ export const RelatorioProgramacaoSafra = () => {
             </Button>
           </div>
 
-          <div className="hidden print:block mb-6">
-            <h1 className="text-2xl font-bold mb-2">Relatório de Programação de Safra</h1>
+          <div className="hidden print:block mb-8 text-center">
+            <h1 className="text-3xl font-bold mb-2">Relatório de Programação de Safra</h1>
           </div>
 
           {programacoes.length === 0 ? (
@@ -232,6 +232,18 @@ export const RelatorioProgramacaoSafra = () => {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Assinaturas */}
+                  <div className="mt-8 pt-8 border-t grid grid-cols-2 gap-16 break-inside-avoid">
+                    <div className="text-center">
+                      <div className="border-b border-gray-400 mb-2"></div>
+                      <p className="text-sm font-medium text-gray-700">{prog.produtor}</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="border-b border-gray-400 mb-2"></div>
+                      <p className="text-sm font-medium text-gray-700">{prog.consultor || "Consultor"}</p>
                     </div>
                   </div>
                 </div>
