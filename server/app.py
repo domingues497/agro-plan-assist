@@ -4955,6 +4955,199 @@ def sync_consultores_test():
         details = str(getattr(e, 'reason', e))
         return jsonify({"error": "URLError", "details": details}), 502
 
+@app.route("/reports/programacao_safra", methods=["GET"])
+def report_programacao_safra():
+    safra_id = request.args.get("safra_id")
+    produtor_numerocm = request.args.get("produtor_numerocm")
+    fazenda_id = request.args.get("fazenda_id")
+    epoca_id = request.args.get("epoca_id")
+
+    if not safra_id or not produtor_numerocm:
+        return jsonify({"error": "Parâmetros safra_id e produtor_numerocm são obrigatórios"}), 400
+
+    session = get_session()
+    try:
+        # Construção dinâmica dos filtros
+        params = {
+            "safra_id": safra_id,
+            "produtor_numerocm": produtor_numerocm,
+            "fazenda_id": fazenda_id,
+            "epoca_id": epoca_id
+        }
+        
+        where_fazenda = "AND p.fazenda_idfazenda = :fazenda_id" if fazenda_id else ""
+        where_epoca = "AND pt.epoca_id = :epoca_id" if epoca_id else ""
+
+        # 1. Buscar Programações (Agrupador Principal)
+        # Ajuste para trazer Consultor, Época e Tipo conforme solicitado
+        q_programacoes = text(f"""
+            SELECT DISTINCT
+                p.id,
+                p.area_hectares,
+                p.tipo,
+                f.nomefazenda as fazenda,
+                pr.nome as produtor,
+                s.ano_inicio || '/' || s.ano_fim as safra_nome,
+                (
+                    SELECT e.nome 
+                    FROM programacao_talhoes pt2
+                    JOIN epocas e ON pt2.epoca_id = e.id
+                    WHERE pt2.programacao_id = p.id
+                    LIMIT 1
+                ) as epoca,
+                (
+                    SELECT c.consultor
+                    FROM programacao_cultivares pc2
+                    JOIN consultores c ON pc2.numerocm_consultor = c.numerocm_consultor
+                    WHERE pc2.programacao_id = p.id
+                    LIMIT 1
+                ) as consultor
+            FROM programacoes p
+            JOIN fazendas f ON p.fazenda_idfazenda = f.idfazenda AND p.produtor_numerocm = f.numerocm
+            JOIN produtores pr ON p.produtor_numerocm = pr.numerocm
+            LEFT JOIN safras s ON p.safra_id = s.id
+            JOIN programacao_talhoes pt ON p.id = pt.programacao_id
+            WHERE p.safra_id = :safra_id
+              AND p.produtor_numerocm = :produtor_numerocm
+              {where_fazenda}
+              {where_epoca}
+            ORDER BY f.nomefazenda, p.id
+        """)
+        res_progs = session.execute(q_programacoes, params).fetchall()
+        
+        progs_map = {}
+        prog_ids = []
+        
+        for r in res_progs:
+            progs_map[r.id] = {
+                "id": r.id,
+                "fazenda": r.fazenda,
+                "produtor": r.produtor,
+                "safra": r.safra_nome,
+                "area_total": float(r.area_hectares) if r.area_hectares else 0,
+                "tipo": r.tipo,
+                "epoca": r.epoca,
+                "consultor": r.consultor,
+                "talhoes": [],
+                "cultivares": [],
+                "adubacao": []
+            }
+            prog_ids.append(r.id)
+            
+        if not prog_ids:
+            return jsonify({"programacoes": []})
+
+        # 2. Buscar Talhões das Programações
+        q_talhoes = text(f"""
+            SELECT DISTINCT
+                pt.programacao_id,
+                t.nome,
+                t.area
+            FROM programacao_talhoes pt
+            JOIN talhoes t ON pt.talhao_id = t.id
+            WHERE pt.programacao_id IN :prog_ids
+            ORDER BY t.nome
+        """)
+        res_talhoes = session.execute(q_talhoes, {"prog_ids": tuple(prog_ids)}).fetchall()
+        
+        for r in res_talhoes:
+            if r.programacao_id in progs_map:
+                progs_map[r.programacao_id]["talhoes"].append({
+                    "nome": r.nome,
+                    "area": float(r.area) if r.area else 0
+                })
+
+        # 3. Buscar Cultivares das Programações
+        q_cultivares = text(f"""
+            SELECT DISTINCT
+                pc.programacao_id,
+                pc.id,
+                COALESCE(cc.cultura, pc.cultura) as cultura,
+                pc.cultivar,
+                pc.tipo_embalagem,
+                pc.populacao_recomendada,
+                pc.data_plantio,
+                pc.tipo_tratamento,
+                pc.percentual_cobertura,
+                ts.nome as tratamento_nome,
+                (
+                    SELECT SUM(t2.area)
+                    FROM programacao_talhoes pt2
+                    JOIN talhoes t2 ON pt2.talhao_id = t2.id
+                    WHERE pt2.programacao_id = pc.programacao_id
+                ) as area_total_talhoes
+            FROM programacao_cultivares pc
+            LEFT JOIN cultivares_catalog cc ON pc.cultivar = cc.cultivar
+            LEFT JOIN tratamentos_sementes ts ON pc.tratamento_id = ts.id
+            WHERE pc.programacao_id IN :prog_ids
+            ORDER BY cultura, pc.cultivar
+        """)
+        res_cultivares = session.execute(q_cultivares, {"prog_ids": tuple(prog_ids)}).fetchall()
+        
+        for r in res_cultivares:
+            if r.programacao_id in progs_map:
+                # Calculo de área plantável conforme solicitado: total_talhoes * percentual / 100
+                area_talhoes = float(r.area_total_talhoes) if r.area_total_talhoes else 0
+                cobertura = float(r.percentual_cobertura) if r.percentual_cobertura else 100
+                area_plantavel = area_talhoes * (cobertura / 100.0)
+
+                tratamento_display = r.tratamento_nome if r.tipo_tratamento != 'NÃO' else 'Sem Tratamento'
+
+                progs_map[r.programacao_id]["cultivares"].append({
+                    "id": r.id,
+                    "cultura": r.cultura,
+                    "cultivar": r.cultivar,
+                    "tipo_embalagem": r.tipo_embalagem,
+                    "area_plantavel": area_plantavel,
+                    "populacao": float(r.populacao_recomendada) if r.populacao_recomendada else 0,
+                    "data_plantio": r.data_plantio.isoformat() if r.data_plantio else None,
+                    "tratamento": r.tipo_tratamento,
+                    "tratamento_display": tratamento_display,
+                    "cobertura": cobertura
+                })
+
+        # 4. Buscar Adubação das Programações
+        q_adubacao = text(f"""
+            SELECT DISTINCT
+                pa.programacao_id,
+                pa.id,
+                COALESCE(pa.formulacao, ja.descricao) as formulacao,
+                pa.dose,
+                pa.percentual_cobertura,
+                pa.embalagem,
+                (pa.dose * p.area_hectares * COALESCE(pa.percentual_cobertura, 100) / 100.0) as total,
+                pa.data_aplicacao
+            FROM programacao_adubacao pa
+            JOIN programacoes p ON pa.programacao_id = p.id
+            LEFT JOIN justificativas_adubacao ja ON pa.justificativa_nao_adubacao_id = ja.id
+            WHERE pa.programacao_id IN :prog_ids
+            ORDER BY pa.data_aplicacao NULLS LAST
+        """)
+        res_adubacao = session.execute(q_adubacao, {"prog_ids": tuple(prog_ids)}).fetchall()
+        
+        for r in res_adubacao:
+            if r.programacao_id in progs_map:
+                progs_map[r.programacao_id]["adubacao"].append({
+                    "id": r.id,
+                    "formulacao": r.formulacao,
+                    "dose": float(r.dose) if r.dose else 0,
+                    "cobertura": float(r.percentual_cobertura) if r.percentual_cobertura else 0,
+                    "total": float(r.total) if r.total else 0,
+                    "embalagem": r.embalagem,
+                    "data_aplicacao": r.data_aplicacao.isoformat() if r.data_aplicacao else None
+                })
+
+        return jsonify({
+            "programacoes": list(progs_map.values())
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        session.close()
+
 if __name__ == "__main__":
     ensure_app_versions_schema()
     app.run(host="0.0.0.0", port=5000, debug=True)
