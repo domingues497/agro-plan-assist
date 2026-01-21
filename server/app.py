@@ -5042,7 +5042,8 @@ def report_programacao_safra():
             SELECT DISTINCT
                 pt.programacao_id,
                 t.nome,
-                t.area
+                t.area,
+                t.geojson
             FROM programacao_talhoes pt
             JOIN talhoes t ON pt.talhao_id = t.id
             WHERE pt.programacao_id IN :prog_ids
@@ -5052,9 +5053,17 @@ def report_programacao_safra():
         
         for r in res_talhoes:
             if r.programacao_id in progs_map:
+                geojson_data = None
+                if r.geojson:
+                    try:
+                        geojson_data = json.loads(r.geojson)
+                    except:
+                        pass
+                
                 progs_map[r.programacao_id]["talhoes"].append({
                     "nome": r.nome,
-                    "area": float(r.area) if r.area else 0
+                    "area": float(r.area) if r.area else 0,
+                    "geojson": geojson_data
                 })
 
         # 3. Buscar Cultivares das Programações

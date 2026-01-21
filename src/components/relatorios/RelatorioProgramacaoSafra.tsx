@@ -11,6 +11,100 @@ import { useEpocas } from "@/hooks/useEpocas";
 import { getApiBaseUrl } from "@/lib/utils";
 import { Loader2, Printer } from "lucide-react";
 
+// Componente para desenhar o talhão (thumbnail)
+const TalhaoThumbnail = ({ geojson }: { geojson: any }) => {
+  if (!geojson) return null;
+
+  try {
+    let coordinates: any[] = [];
+    
+    // Extrair coordenadas baseadas no tipo de geometria
+    // GeoJSON structure: { type: "GeometryCollection", geometries: [...] } OR { type: "Polygon", ... }
+    const geometries = geojson.type === "GeometryCollection" ? geojson.geometries : [geojson];
+
+    geometries.forEach((geom: any) => {
+      if (geom.type === "Polygon") {
+        coordinates.push(...geom.coordinates); // Polygon rings
+      } else if (geom.type === "MultiPolygon") {
+        geom.coordinates.forEach((poly: any) => coordinates.push(...poly));
+      }
+    });
+
+    if (coordinates.length === 0) return null;
+
+    // Achatar para lista de pontos [lng, lat]
+    // coordinates[0] é o anel externo do primeiro polígono
+    const allPoints: [number, number][] = [];
+    coordinates.forEach(ring => {
+      ring.forEach((pt: any) => {
+        if (Array.isArray(pt) && pt.length >= 2) {
+          allPoints.push([pt[0], pt[1]]); // [lng, lat]
+        }
+      });
+    });
+
+    if (allPoints.length === 0) return null;
+
+    // Calcular Bounding Box
+    const lngs = allPoints.map(p => p[0]);
+    const lats = allPoints.map(p => p[1]);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+
+    // Se for um ponto ou linha muito pequena, não desenha
+    if (minLng === maxLng || minLat === maxLat) return null;
+
+    // Criar paths SVG normalizados (0-100)
+    // Inverter Y porque SVG coordenadas crescem para baixo, Latitude cresce para cima (Hemisfério Norte)
+    // Mas no Brasil (Sul), Lat é negativa.
+    // SVG: (0,0) top-left.
+    // Map: (minLng, maxLat) should be top-left.
+
+    const width = maxLng - minLng;
+    const height = maxLat - minLat;
+    
+    // Manter aspect ratio
+    const scale = Math.max(width, height);
+    
+    // Função de normalização
+    // x = (lng - minLng) / width * 100
+    // y = (maxLat - lat) / height * 100 (inverter eixo Y)
+    
+    const paths = coordinates.map((ring: any[]) => {
+      const points = ring.map((pt: any) => {
+        const x = ((pt[0] - minLng) / scale) * 100;
+        const y = ((maxLat - pt[1]) / scale) * 100;
+        return `${x},${y}`;
+      }).join(" ");
+      return <polygon key={points} points={points} fill="#fed7aa" stroke="#f97316" strokeWidth="2" vectorEffect="non-scaling-stroke" />;
+    });
+
+    // Centralizar se o aspect ratio for diferente de 1
+    const viewBoxWidth = (width / scale) * 100;
+    const viewBoxHeight = (height / scale) * 100;
+    
+    // Mas como normalizei dividindo por scale (max dim), o viewBox deve ser 0 0 100 100 se centralizarmos,
+    // ou podemos ajustar o viewBox para envolver exatamente a forma.
+    // A abordagem acima gera coordenadas entre 0 e (ratio*100).
+    // Ex: se width=2, height=1. scale=2. x vai 0..100. y vai 0..50.
+    
+    return (
+      <svg viewBox={`0 0 100 100`} className="w-8 h-8 mr-2 bg-orange-50/50 rounded flex-shrink-0">
+         {/* Ajustar offsets para centralizar */}
+        <g transform={`translate(${(100 - (width/scale)*100)/2}, ${(100 - (height/scale)*100)/2})`}>
+          {paths}
+        </g>
+      </svg>
+    );
+
+  } catch (e) {
+    console.error("Erro ao renderizar talhão SVG", e);
+    return null;
+  }
+};
+
 export const RelatorioProgramacaoSafra = () => {
   const { safras } = useSafras() as any;
   const { data: produtores } = useProdutores();
@@ -176,8 +270,11 @@ export const RelatorioProgramacaoSafra = () => {
                     </h3>
                     <div className="space-y-2">
                       {prog.talhoes.map((t: any, idx: number) => (
-                        <div key={idx} className="flex justify-between text-sm border-b border-orange-100 pb-1 last:border-0">
-                          <span>{t.nome}</span>
+                        <div key={idx} className="flex justify-between items-center text-sm border-b border-orange-100 pb-1 last:border-0">
+                          <div className="flex items-center">
+                            <TalhaoThumbnail geojson={t.geojson} />
+                            <span>{t.nome}</span>
+                          </div>
                           <span className="bg-white px-1 rounded border border-orange-100 text-xs text-gray-600">
                             {t.area?.toFixed(2)} ha
                           </span>
