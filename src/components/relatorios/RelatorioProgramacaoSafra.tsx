@@ -123,12 +123,12 @@ export const RelatorioProgramacaoSafra = () => {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["report-programacao-safra", safraId, produtorNumerocm, fazendaId, epocaId, programacaoId],
     queryFn: async () => {
-      if (!safraId || !produtorNumerocm) return null;
+      if (!safraId) return null;
       const baseUrl = getApiBaseUrl();
       const params = new URLSearchParams({
         safra_id: safraId,
-        produtor_numerocm: produtorNumerocm,
       });
+      if (produtorNumerocm && produtorNumerocm !== "all") params.append("produtor_numerocm", produtorNumerocm);
       if (fazendaId) params.append("fazenda_id", fazendaId);
       if (epocaId) params.append("epoca_id", epocaId);
       if (programacaoId) params.append("id", programacaoId);
@@ -141,7 +141,7 @@ export const RelatorioProgramacaoSafra = () => {
   });
 
   const handleGenerate = () => {
-    if (safraId && produtorNumerocm) {
+    if (safraId) {
       refetch();
     }
   };
@@ -179,9 +179,10 @@ export const RelatorioProgramacaoSafra = () => {
               <label className="text-sm font-medium">Produtor</label>
               <Select value={produtorNumerocm} onValueChange={(val) => { setProdutorNumerocm(val); setFazendaId(""); }}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o Produtor" />
+                  <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
                   {produtores?.map((p: any) => (
                     <SelectItem key={p.id} value={p.numerocm}>{p.nome}</SelectItem>
                   ))}
@@ -190,7 +191,7 @@ export const RelatorioProgramacaoSafra = () => {
             </div>
             <div>
               <label className="text-sm font-medium">Fazenda</label>
-              <Select value={fazendaId || "all"} onValueChange={(val) => setFazendaId(val === "all" ? "" : val)} disabled={!produtorNumerocm}>
+              <Select value={fazendaId || "all"} onValueChange={(val) => setFazendaId(val === "all" ? "" : val)} disabled={!produtorNumerocm || produtorNumerocm === "all"}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todas" />
                 </SelectTrigger>
@@ -225,7 +226,7 @@ export const RelatorioProgramacaoSafra = () => {
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={handleGenerate} disabled={isLoading || !safraId || !produtorNumerocm} className="w-full">
+              <Button onClick={handleGenerate} disabled={isLoading || !safraId} className="w-full">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Gerar Relatório
               </Button>

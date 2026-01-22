@@ -4963,8 +4963,8 @@ def report_programacao_safra():
     epoca_id = request.args.get("epoca_id")
     programacao_id = request.args.get("id")
 
-    if not safra_id or not produtor_numerocm:
-        return jsonify({"error": "Parâmetros safra_id e produtor_numerocm são obrigatórios"}), 400
+    if not safra_id:
+        return jsonify({"error": "Parâmetro safra_id é obrigatório"}), 400
 
     session = get_session()
     try:
@@ -4977,6 +4977,7 @@ def report_programacao_safra():
             "id": programacao_id
         }
         
+        where_produtor = "AND p.produtor_numerocm = :produtor_numerocm" if produtor_numerocm and produtor_numerocm != 'all' else ""
         where_fazenda = "AND p.fazenda_idfazenda = :fazenda_id" if fazenda_id else ""
         where_epoca = "AND pt.epoca_id = :epoca_id" if epoca_id else ""
         where_id = "AND p.id = :id" if programacao_id else ""
@@ -5011,7 +5012,7 @@ def report_programacao_safra():
             LEFT JOIN safras s ON p.safra_id = s.id
             JOIN programacao_talhoes pt ON p.id = pt.programacao_id
             WHERE p.safra_id = :safra_id
-              AND p.produtor_numerocm = :produtor_numerocm
+              {where_produtor}
               {where_fazenda}
               {where_epoca}
               {where_id}
