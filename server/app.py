@@ -5459,6 +5459,77 @@ def report_consultor_produtor_summary():
     finally:
         session.close()
 
+@app.route("/reports/mapa_fazendas", methods=["GET"])
+def report_mapa_fazendas():
+    produtor_numerocm = request.args.get("produtor_numerocm")
+    fazenda_idfazenda = request.args.get("fazenda_id")
+    
+    session = get_session()
+    try:
+        where_produtor = "AND f.numerocm = :produtor_numerocm" if produtor_numerocm and produtor_numerocm != 'all' else ""
+        where_fazenda = "AND f.idfazenda = :fazenda_id" if fazenda_idfazenda else ""
+        
+        q = text(f"""
+            SELECT 
+                f.id as fazenda_uuid,
+                f.nomefazenda,
+                f.numerocm,
+                p.nome as produtor_nome,
+                t.id as talhao_id,
+                t.nome as talhao_nome,
+                t.area as talhao_area,
+                t.geojson as talhao_geojson
+            FROM fazendas f
+            JOIN produtores p ON f.numerocm = p.numerocm
+            JOIN talhoes t ON t.fazenda_id = f.id
+            WHERE 1=1
+            {where_produtor}
+            {where_fazenda}
+            ORDER BY p.nome, f.nomefazenda, t.nome
+        """)
+        
+        params = {
+            "produtor_numerocm": produtor_numerocm,
+            "fazenda_id": fazenda_idfazenda
+        }
+        
+        rows = session.execute(q, params).fetchall()
+        
+        # Group by Fazenda
+        grouped = {}
+        for row in rows:
+            f_key = row.fazenda_uuid
+            if f_key not in grouped:
+                grouped[f_key] = {
+                    "fazenda": row.nomefazenda,
+                    "produtor": row.produtor_nome,
+                    "talhoes": []
+                }
+            
+            # Parse geojson if string
+            geojson = row.talhao_geojson
+            if isinstance(geojson, str):
+                try:
+                    geojson = json.loads(geojson)
+                except:
+                    geojson = None
+            
+            grouped[f_key]["talhoes"].append({
+                "id": row.talhao_id,
+                "nome": row.talhao_nome,
+                "area": float(row.talhao_area) if row.talhao_area else 0,
+                "geojson": geojson
+            })
+            
+        return jsonify(list(grouped.values()))
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        session.close()
+
 if __name__ == "__main__":
     ensure_app_versions_schema()
     app.run(host="0.0.0.0", port=5000, debug=True)

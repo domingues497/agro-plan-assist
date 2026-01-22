@@ -21,6 +21,7 @@ import { RelatorioDetalhadoConsultorPDF } from "@/components/relatorios/Relatori
 import { RelatorioResumoConsultorProdutorPDF } from "@/components/relatorios/RelatorioResumoConsultorProdutorPDF";
 import { RelatorioProdutores } from "@/components/relatorios/RelatorioProdutores";
 import { RelatorioProgramacaoSafra } from "@/components/relatorios/RelatorioProgramacaoSafra";
+import { RelatorioMapaFazendas } from "@/components/relatorios/RelatorioMapaFazendas";
 import { GlobalLoading } from "@/components/ui/global-loading";
 import {
   Command,
@@ -70,7 +71,7 @@ const Relatorios = () => {
   const [openCombobox, setOpenCombobox] = useState(false);
   const [consultorFilter, setConsultorFilter] = useState<string>("");
   const [openConsultorCombobox, setOpenConsultorCombobox] = useState(false);
-  const [viewMode, setViewMode] = useState<"default" | "programacao_safra">("default");
+  const [viewMode, setViewMode] = useState<"default" | "programacao_safra" | "mapa_fazendas">("default");
 
   const consultores = useMemo(() => {
     const list = new Set<string>();
@@ -732,6 +733,34 @@ const Relatorios = () => {
     downloadCsv(`defensivos_${safraFilter || 'todas'}.csv`, headers, rows);
   };
 
+  if (viewMode === "mapa_fazendas") {
+    return (
+      <div className="min-h-screen bg-background">
+      <GlobalLoading isVisible={isPageLoading} message="Carregando relatórios..." />
+      <header className="border-b bg-card print:hidden">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-4">
+              <Link to="/">
+                <Button variant="ghost" size="icon">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <h1 className="text-xl font-bold">Relatório Mapa de Fazendas</h1>
+              <div className="ml-auto">
+                 <Button variant="outline" onClick={() => setViewMode("default")}>
+                   Voltar para Relatório Geral
+                 </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8">
+          <RelatorioMapaFazendas />
+        </main>
+      </div>
+    );
+  }
+
   if (viewMode === "programacao_safra") {
     return (
       <div className="min-h-screen bg-background">
@@ -795,6 +824,18 @@ const Relatorios = () => {
               <div>
                 <h3 className="font-semibold text-lg">Programação de Safra</h3>
                 <p className="text-sm text-muted-foreground">Gerar relatório filtrado por Safra, Produtor, Fazenda e Época</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow border-primary/20 bg-primary/5" onClick={() => setViewMode("mapa_fazendas")}>
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-full">
+                <FileText className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Mapa de Fazendas</h3>
+                <p className="text-sm text-muted-foreground">Visualizar fazendas e desenhos dos talhões</p>
               </div>
             </div>
           </Card>
