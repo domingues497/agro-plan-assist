@@ -15,6 +15,8 @@ export type DefensivoFazenda = {
 export type ProgramacaoCultivar = {
   id: string;
   user_id?: string;
+  programacao_id?: string;
+  cultura?: string;
   cultivar: string;
   area: string;
   produtor_numerocm: string;

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, ArrowLeft, Download, FileDown, Check, ChevronsUpDown } from "lucide-react";
 import { useProgramacaoCultivares } from "@/hooks/useProgramacaoCultivares";
@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getApiBaseUrl, cn } from "@/lib/utils";
 import { RelatorioDetalhadoPDF, DetailedReportItem, ProductItem, CultivarItem } from "@/components/relatorios/RelatorioDetalhadoPDF";
 import { RelatorioDetalhadoConsultorPDF } from "@/components/relatorios/RelatorioDetalhadoConsultorPDF";
+import { RelatorioResumoConsultorProdutorPDF } from "@/components/relatorios/RelatorioResumoConsultorProdutorPDF";
 import { RelatorioProdutores } from "@/components/relatorios/RelatorioProdutores";
 import { RelatorioProgramacaoSafra } from "@/components/relatorios/RelatorioProgramacaoSafra";
 import { GlobalLoading } from "@/components/ui/global-loading";
@@ -64,6 +65,7 @@ const Relatorios = () => {
     (fazendasLoading && allFazendas.length === 0) ||
     (epocasLoading && epocas.length === 0);
   const [safraFilter, setSafraFilter] = useState<string>("");
+  const [culturaFilter, setCulturaFilter] = useState<string>("");
   const [produtorFilter, setProdutorFilter] = useState<string>("");
   const [openCombobox, setOpenCombobox] = useState(false);
   const [consultorFilter, setConsultorFilter] = useState<string>("");
@@ -77,6 +79,14 @@ const Relatorios = () => {
     });
     return Array.from(list).sort();
   }, [produtores]);
+
+  const culturasDisponiveis = useMemo(() => {
+    const list = new Set<string>();
+    cultProgramacoes.forEach(c => {
+        if (c.cultura) list.add(c.cultura);
+    });
+    return Array.from(list).sort();
+  }, [cultProgramacoes]);
 
   // Fetch detailed data for the selected produtor
   const { data: detailedReportData = [], isLoading: loadingDetailed } = useQuery({
@@ -591,65 +601,63 @@ const Relatorios = () => {
   const adubacoesList = adubacoes ?? [];
   const defensivosList = defensivos ?? [];
 
+  // Query Consolidados Backend
+  const { data: consolidatedData, isLoading: loadingConsolidated } = useQuery({
+    queryKey: ["reports-consolidated", safraFilter, culturaFilter],
+    queryFn: async () => {
+        const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const params = new URLSearchParams();
+        if (safraFilter) params.append("safra_id", safraFilter);
+        if (culturaFilter) params.append("cultura", culturaFilter);
+        
+        const res = await fetch(`${getApiBaseUrl()}/reports/consolidated?${params.toString()}`, { headers });
+        if (!res.ok) throw new Error("Erro ao buscar consolidados");
+        return res.json();
+    }
+  });
+
+  // Query Resumo Consultor Backend
+  const { data: summaryConsultorData = [], isLoading: loadingSummaryConsultor } = useQuery({
+    queryKey: ["reports-summary-consultor", safraFilter, culturaFilter],
+    queryFn: async () => {
+        if (!safraFilter) return [];
+        const token = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("auth_token") : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const params = new URLSearchParams();
+        params.append("safra_id", safraFilter);
+        if (culturaFilter) params.append("cultura", culturaFilter);
+        
+        const res = await fetch(`${getApiBaseUrl()}/reports/consultor_produtor_summary?${params.toString()}`, { headers });
+        if (!res.ok) throw new Error("Erro ao buscar resumo consultor");
+        return res.json();
+    },
+    enabled: !!safraFilter
+  });
+
   const resumo = useMemo(() => {
-    const filterCult = (cultivaresList || []).filter((item) => {
-      if (!safraFilter) return true;
-      return String(item.safra || "").trim() === safraFilter;
-    });
-    const filterAdub = (adubacoesList || []).filter((item) => {
-      if (!safraFilter) return true;
-      return String(item.safra_id || "").trim() === safraFilter;
-    });
-    const filterDef = (defensivosList || []).map((ap) => ({
-      ...ap,
-      defensivos: (ap.defensivos || []).filter((d) => !safraFilter || String(d.safra_id || "").trim() === safraFilter),
-    })).filter((ap) => ap.defensivos.length > 0 || !safraFilter);
-    const totalQuantidade = cultivaresList.reduce(
-      (acc, item) => acc + parseNumber(item.quantidade),
-      0
-    );
-
-    const totalHectares = cultivaresList.reduce((acc, item) => {
-      const areaValue = item.area;
-      const match = typeof areaValue === "string" ? areaValue.match(/(\d+(\.\d+)?)/) : null;
-      if (match) {
-        return acc + parseFloat(match[1]);
-      }
-      return acc;
-    }, 0);
-
-    const totalAdubacao = filterAdub.reduce(
-      (acc, item) => acc + parseNumber(item.total),
-      0
-    );
-
-    const totalDefensivo = filterDef.reduce((acc, aplicacao) => {
-      const somaAplicacao = (aplicacao.defensivos || []).reduce(
-        (sum, def) => sum + parseNumber(def.dose),
-        0
-      );
-      return acc + somaAplicacao;
-    }, 0);
-
-    const safras = new Set<string>();
-    cultivaresList.forEach((item) => {
-      const safra = String(item.safra ?? "").trim();
-      if (safra) {
-        safras.add(safra);
-      }
-    });
+    if (!consolidatedData) return {
+        cultivares: 0,
+        quantidadeSementes: 0,
+        hectares: 0,
+        adubacoes: 0,
+        volumeAdubacao: 0,
+        defensivos: 0,
+        volumeDefensivo: 0,
+        safras: []
+    };
 
     return {
-      cultivares: filterCult.length,
-      quantidadeSementes: totalQuantidade,
-      hectares: totalHectares,
-      adubacoes: filterAdub.length,
-      volumeAdubacao: totalAdubacao,
-      defensivos: filterDef.length,
-      volumeDefensivo: totalDefensivo,
-      safras: Array.from(safras),
+      cultivares: consolidatedData.cultivares_count,
+      quantidadeSementes: consolidatedData.sementes_total,
+      hectares: consolidatedData.area_total_ha,
+      adubacoes: consolidatedData.adubacoes_count,
+      volumeAdubacao: consolidatedData.adubo_total_kg,
+      defensivos: consolidatedData.defensivos_count,
+      volumeDefensivo: 0, // Backend retorna count, volume não calculado
+      safras: safraFilter ? [(safras || []).find((s: any) => String(s.id) === safraFilter)?.nome || safraFilter] : [],
     };
-  }, [cultivaresList, adubacoesList, defensivosList, safraFilter, safras]);
+  }, [consolidatedData, safraFilter, safras]);
 
   const downloadCsv = (filename: string, headers: string[], rows: Array<Record<string, any>>) => {
     const escape = (v: any) => {
@@ -792,210 +800,334 @@ const Relatorios = () => {
           </Card>
         </div>
 
-        <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Relatórios consolidados</h2>
-            <p className="text-muted-foreground">Visualize dados consolidados filtrando por safra</p>
-            <div className="mt-3 flex items-center gap-4">
-              <div>
-                <label className="text-sm mr-2">Safra</label>
+        <div className="grid gap-6 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Filtros Gerais</CardTitle>
+              <CardDescription>Selecione safra e cultura para filtrar os relatórios consolidados e resumos.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col md:flex-row gap-4">
+              <div className="w-full md:w-1/3">
+                <label className="text-sm font-medium mb-1 block">Safra</label>
                 <select
-                  className="border rounded h-8 px-2 text-sm"
+                  className="w-full border rounded h-10 px-3 text-sm bg-background"
                   value={safraFilter}
                   onChange={(e) => setSafraFilter(e.target.value)}
                 >
-                  <option value="">Todas</option>
+                  <option value="">Selecione uma safra...</option>
                   {(safras || []).map((s: any) => (
                     <option key={s.id} value={String(s.id)}>{s.nome}</option>
                   ))}
                 </select>
               </div>
-            </div>
-          </div>
-          
-          <PDFDownloadLink
-            document={
-              <RelatorioPDF
-                data={{
-                  ...resumo,
-                  safra: (safras || []).find((s: any) => String(s.id) === safraFilter)?.nome || ""
-                }}
-              />
-            }
-            fileName={`relatorio_${safraFilter ? safraFilter : 'geral'}.pdf`}
-          >
-            {({ loading }) => (
-              <Button variant="default" disabled={loading}>
-                <FileDown className="mr-2 h-4 w-4" />
-                {loading ? 'Gerando PDF...' : 'Baixar PDF Consolidado'}
-              </Button>
-            )}
-          </PDFDownloadLink>
+              <div className="w-full md:w-1/3">
+                <label className="text-sm font-medium mb-1 block">Cultura</label>
+                <select
+                  className="w-full border rounded h-10 px-3 text-sm bg-background"
+                  value={culturaFilter}
+                  onChange={(e) => setCulturaFilter(e.target.value)}
+                >
+                  <option value="">Todas</option>
+                  {culturasDisponiveis.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Card Relatórios Consolidados */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Consolidado da Safra</CardTitle>
+              <CardDescription>Totais de área, sementes e insumos.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingConsolidated ? (
+                <div className="flex items-center justify-center py-4">
+                   <GlobalLoading isVisible={true} message="" /> Carregando...
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-secondary/20 p-3 rounded-md">
+                      <p className="text-xs text-muted-foreground">Área Total</p>
+                      <p className="text-lg font-bold">{resumo.hectares.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ha</p>
+                    </div>
+                    <div className="bg-secondary/20 p-3 rounded-md">
+                      <p className="text-xs text-muted-foreground">Sementes</p>
+                      <p className="text-lg font-bold">{resumo.quantidadeSementes.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                    </div>
+                    <div className="bg-secondary/20 p-3 rounded-md">
+                      <p className="text-xs text-muted-foreground">Adubo Total</p>
+                      <p className="text-lg font-bold">{resumo.volumeAdubacao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg</p>
+                    </div>
+                    <div className="bg-secondary/20 p-3 rounded-md">
+                      <p className="text-xs text-muted-foreground">Defensivos (Doses)</p>
+                      <p className="text-lg font-bold">{resumo.defensivos.toLocaleString('pt-BR')}</p>
+                    </div>
+                  </div>
+                  
+                  <PDFDownloadLink
+                    document={
+                      <RelatorioPDF
+                        data={{
+                          ...resumo,
+                          safra: (safras || []).find((s: any) => String(s.id) === safraFilter)?.nome || ""
+                        }}
+                      />
+                    }
+                    fileName={`relatorio_consolidado_${safraFilter || 'geral'}.pdf`}
+                  >
+                    {({ loading }) => (
+                      <Button className="w-full" disabled={loading || loadingConsolidated}>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {loading ? 'Gerando PDF...' : 'Baixar PDF Consolidado'}
+                      </Button>
+                    )}
+                  </PDFDownloadLink>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Card Resumo Consultor/Produtor */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Resumo Consultor/Produtor</CardTitle>
+              <CardDescription>Áreas físicas e programadas por consultor.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!safraFilter ? (
+                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                   <p>Selecione uma safra para visualizar este relatório.</p>
+                 </div>
+              ) : loadingSummaryConsultor ? (
+                 <div className="flex items-center justify-center py-8">Carregando dados...</div>
+              ) : (
+                <div className="space-y-4">
+                   <div className="max-h-[200px] overflow-y-auto border rounded-md text-sm">
+                      <table className="w-full">
+                        <thead className="bg-muted sticky top-0">
+                          <tr>
+                            <th className="p-2 text-left">Consultor</th>
+                            <th className="p-2 text-left">Produtor</th>
+                            <th className="p-2 text-right">Área (ha)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {summaryConsultorData.slice(0, 10).map((item: any, idx: number) => (
+                             <tr key={idx} className="border-t">
+                               <td className="p-2">{item.consultor}</td>
+                               <td className="p-2">{item.produtor}</td>
+                               <td className="p-2 text-right">{item.area_fisica.toFixed(1)}</td>
+                             </tr>
+                          ))}
+                          {summaryConsultorData.length > 10 && (
+                            <tr><td colSpan={3} className="p-2 text-center text-muted-foreground">...e mais {summaryConsultorData.length - 10} registros</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                   </div>
+
+                   <PDFDownloadLink
+                      document={
+                        <RelatorioResumoConsultorProdutorPDF
+                          data={summaryConsultorData}
+                          safra={(safras || []).find((s: any) => String(s.id) === safraFilter)?.nome || ""}
+                          cultura={culturaFilter}
+                        />
+                      }
+                      fileName={`resumo_consultor_produtor_${safraFilter}.pdf`}
+                    >
+                      {({ loading }) => (
+                        <Button className="w-full" disabled={loading}>
+                          <FileDown className="mr-2 h-4 w-4" />
+                          {loading ? 'Gerando PDF...' : 'Baixar Resumo Consultor/Produtor'}
+                        </Button>
+                      )}
+                    </PDFDownloadLink>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <RelatorioProdutores produtores={produtores} />
 
-        <div className="mb-6 p-4 border rounded-lg bg-card">
-          <h2 className="text-lg font-bold mb-4">Relatório Detalhado por Produtor</h2>
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="w-full md:w-1/3">
-              <label className="text-sm block mb-1">Selecione o Produtor</label>
-              <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openCombobox}
-                    className="w-full justify-between"
-                  >
-                    {produtorFilter
-                      ? produtores.find((p) => p.numerocm === produtorFilter)?.nome || produtorFilter
-                      : "Selecione..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[350px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar produtor..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        {produtores.map((p) => (
-                          <CommandItem
-                            key={p.id}
-                            value={`${p.numerocm} - ${p.nome}`}
-                            onSelect={() => {
-                              setProdutorFilter(p.numerocm === produtorFilter ? "" : p.numerocm);
-                              setOpenCombobox(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                produtorFilter === p.numerocm ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {p.numerocm} - {p.nome}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            <div>
-              {produtorFilter && !loadingDetailed && detailedReportData.length > 0 && (
-                <PDFDownloadLink
-                  document={
-                    <RelatorioDetalhadoPDF
-                      data={detailedReportData}
-                      produtorFilter={produtores.find(p => p.numerocm === produtorFilter)?.nome || produtorFilter}
-                      safraFilter={(safras || []).find((s: any) => String(s.id) === safraFilter)?.nome}
-                    />
-                  }
-                  fileName={`relatorio_detalhado_${produtorFilter}.pdf`}
-                >
-                  {({ loading }) => (
-                    <Button variant="default" disabled={loading || loadingDetailed}>
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {loading ? 'Gerando PDF...' : 'Baixar Relatório Detalhado'}
-                    </Button>
+        <div className="grid grid-cols-1 gap-6 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Relatório Detalhado por Produtor</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <div className="w-full md:w-1/3">
+                  <label className="text-sm block mb-1">Selecione o Produtor</label>
+                  <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openCombobox}
+                        className="w-full justify-between"
+                      >
+                        {produtorFilter
+                          ? produtores.find((p) => p.numerocm === produtorFilter)?.nome || produtorFilter
+                          : "Selecione..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[350px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar produtor..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum produtor encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {produtores.map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                value={`${p.numerocm} - ${p.nome}`}
+                                onSelect={() => {
+                                  setProdutorFilter(p.numerocm === produtorFilter ? "" : p.numerocm);
+                                  setOpenCombobox(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    produtorFilter === p.numerocm ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {p.numerocm} - {p.nome}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div>
+                  {produtorFilter && !loadingDetailed && detailedReportData.length > 0 && (
+                    <PDFDownloadLink
+                      document={
+                        <RelatorioDetalhadoPDF
+                          data={detailedReportData}
+                          produtorFilter={produtores.find(p => p.numerocm === produtorFilter)?.nome || produtorFilter}
+                          safraFilter={(safras || []).find((s: any) => String(s.id) === safraFilter)?.nome}
+                        />
+                      }
+                      fileName={`relatorio_detalhado_${produtorFilter}.pdf`}
+                    >
+                      {({ loading }) => (
+                        <Button variant="default" disabled={loading || loadingDetailed}>
+                          <FileDown className="mr-2 h-4 w-4" />
+                          {loading ? 'Gerando PDF...' : 'Baixar Relatório Detalhado'}
+                        </Button>
+                      )}
+                    </PDFDownloadLink>
                   )}
-                </PDFDownloadLink>
-              )}
-              {produtorFilter && (loadingDetailed || detailedReportData.length === 0) && (
-                 <Button variant="default" disabled>
-                   <FileDown className="mr-2 h-4 w-4" />
-                   {loadingDetailed ? 'Carregando dados...' : 'Sem dados para o filtro'}
-                 </Button>
-              )}
-            </div>
-          </div>
-        </div>
+                  {produtorFilter && (loadingDetailed || detailedReportData.length === 0) && (
+                     <Button variant="default" disabled>
+                       <FileDown className="mr-2 h-4 w-4" />
+                       {loadingDetailed ? 'Carregando dados...' : 'Sem dados para o filtro'}
+                     </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        {isAdmin && (
-        <div className="mb-6 p-4 border rounded-lg bg-card">
-          <h2 className="text-lg font-bold mb-4">Relatório Detalhado por Consultor</h2>
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="w-full md:w-1/3">
-              <label className="text-sm block mb-1">Selecione o Consultor</label>
-              <Popover open={openConsultorCombobox} onOpenChange={setOpenConsultorCombobox}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openConsultorCombobox}
-                    className="w-full justify-between"
-                  >
-                    {consultorFilter
-                      ? consultorFilter
-                      : "Selecione..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[350px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar consultor..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhum consultor encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        {consultores.map((c) => (
-                          <CommandItem
-                            key={c}
-                            value={c}
-                            onSelect={() => {
-                              setConsultorFilter(c === consultorFilter ? "" : c);
-                              setOpenConsultorCombobox(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                consultorFilter === c ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {c}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            <div>
-              {consultorFilter && !loadingConsultorDetailed && detailedReportConsultorData.length > 0 && (
-                <PDFDownloadLink
-                  document={
-                    <RelatorioDetalhadoConsultorPDF
-                      data={detailedReportConsultorData}
-                      consultorFilter={consultorFilter}
-                      safraFilter={(safras || []).find((s: any) => String(s.id) === safraFilter)?.nome}
-                    />
-                  }
-                  fileName={`relatorio_consultor_${consultorFilter}.pdf`}
-                >
-                  {({ loading }) => (
-                    <Button variant="default" disabled={loading || loadingConsultorDetailed}>
-                      <FileDown className="mr-2 h-4 w-4" />
-                      {loading ? 'Gerando PDF...' : 'Baixar Relatório por Consultor'}
-                    </Button>
+          {isAdmin && (
+          <Card>
+            <CardHeader>
+               <CardTitle>Relatório Detalhado por Consultor</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <div className="w-full md:w-1/3">
+                  <label className="text-sm block mb-1">Selecione o Consultor</label>
+                  <Popover open={openConsultorCombobox} onOpenChange={setOpenConsultorCombobox}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openConsultorCombobox}
+                        className="w-full justify-between"
+                      >
+                        {consultorFilter
+                          ? consultorFilter
+                          : "Selecione..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[350px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar consultor..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum consultor encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {consultores.map((c) => (
+                              <CommandItem
+                                key={c}
+                                value={c}
+                                onSelect={() => {
+                                  setConsultorFilter(c === consultorFilter ? "" : c);
+                                  setOpenConsultorCombobox(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    consultorFilter === c ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {c}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div>
+                  {consultorFilter && !loadingConsultorDetailed && detailedReportConsultorData.length > 0 && (
+                    <PDFDownloadLink
+                      document={
+                        <RelatorioDetalhadoConsultorPDF
+                          data={detailedReportConsultorData}
+                          consultorFilter={consultorFilter}
+                          safraFilter={(safras || []).find((s: any) => String(s.id) === safraFilter)?.nome}
+                        />
+                      }
+                      fileName={`relatorio_consultor_${consultorFilter}.pdf`}
+                    >
+                      {({ loading }) => (
+                        <Button variant="default" disabled={loading || loadingConsultorDetailed}>
+                          <FileDown className="mr-2 h-4 w-4" />
+                          {loading ? 'Gerando PDF...' : 'Baixar Relatório por Consultor'}
+                        </Button>
+                      )}
+                    </PDFDownloadLink>
                   )}
-                </PDFDownloadLink>
-              )}
-              {consultorFilter && (loadingConsultorDetailed || detailedReportConsultorData.length === 0) && (
-                 <Button variant="default" disabled>
-                   <FileDown className="mr-2 h-4 w-4" />
-                   {loadingConsultorDetailed ? 'Carregando dados...' : 'Sem dados para o filtro'}
-                 </Button>
-              )}
-            </div>
-          </div>
+                  {consultorFilter && (loadingConsultorDetailed || detailedReportConsultorData.length === 0) && (
+                     <Button variant="default" disabled>
+                       <FileDown className="mr-2 h-4 w-4" />
+                       {loadingConsultorDetailed ? 'Carregando dados...' : 'Sem dados para o filtro'}
+                     </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          )}
         </div>
-        )}
 
 
       </main>

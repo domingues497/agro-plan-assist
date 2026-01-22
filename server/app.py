@@ -5157,6 +5157,303 @@ def report_programacao_safra():
     finally:
         session.close()
 
+@app.route("/reports/consolidated", methods=["GET"])
+def report_consolidated():
+    """
+    Retorna totais consolidados:
+    - Sementes (kg/unidades) - (somatório de quantidade) -> melhor contar registros ou somar área?
+      O código antigo somava 'quantidade'.
+    - Área total (ha) - Soma das áreas dos cultivares filtrados.
+    - Adubação (kg) - Soma total calculada.
+    - Defensivos (doses) - Soma das doses.
+    Filtros: safra_id, cultura.
+    """
+    safra_id = request.args.get("safra_id")
+    cultura = request.args.get("cultura")
+    
+    # Se não tiver safra, o comportamento antigo filtrava no frontend se safraFilter fosse vazio?
+    # Vamos suportar sem filtro também.
+    
+    session = get_session()
+    try:
+        # 1. Totais de Cultivares (Quantidade, Área)
+        # Filtro de safra em programacoes ou programacao_cultivares?
+        # A safra está em programacao_talhoes (pt.safra_id) ou programacoes (p.safra_id)?
+        # No endpoint anterior usamos pt.safra_id e p.safra_id.
+        # Vamos usar p.safra_id para consistência com o filtro principal.
+        
+        where_safra = "AND p.safra_id = :safra_id" if safra_id else ""
+        where_cultura = "AND (cc.cultura = :cultura OR pc.cultura = :cultura)" if cultura else ""
+        
+        params = {}
+        if safra_id: params["safra_id"] = safra_id
+        if cultura: params["cultura"] = cultura
+
+        q_cult = text(f"""
+            SELECT
+                COUNT(*) as count_cultivares,
+                SUM(pc.quantidade) as total_sementes,
+                SUM(
+                    (SELECT SUM(t.area) 
+                     FROM programacao_talhoes pt 
+                     JOIN talhoes t ON pt.talhao_id = t.id 
+                     WHERE pt.programacao_id = pc.programacao_id) 
+                    * COALESCE(pc.percentual_cobertura, 100) / 100.0
+                ) as total_area_cultivada
+            FROM programacao_cultivares pc
+            JOIN programacoes p ON pc.programacao_id = p.id
+            LEFT JOIN cultivares_catalog cc ON pc.cultivar = cc.cultivar
+            WHERE 1=1
+            {where_safra}
+            {where_cultura}
+        """)
+        
+        res_cult = session.execute(q_cult, params).fetchone()
+        
+        # 2. Totais de Adubação
+        # Adubação não tem 'cultura' direta, mas está ligada a uma programação que pode ter cultivares de X cultura.
+        # Se filtrarmos por cultura, devemos incluir apenas adubações de programações que tenham essa cultura?
+        # Ou adubação é geral da programação?
+        # Normalmente adubação é por programação. Se a programação tem Soja e Milho, a adubação é para ambos?
+        # Simplificação: Se cultura for selecionada, filtrar programações que contenham pelo menos um cultivar dessa cultura.
+        
+        # Subquery para filtrar programacoes pela cultura
+        filter_prog_cultura = ""
+        if cultura:
+            filter_prog_cultura = """
+            AND pa.programacao_id IN (
+                SELECT pc2.programacao_id 
+                FROM programacao_cultivares pc2 
+                LEFT JOIN cultivares_catalog cc2 ON pc2.cultivar = cc2.cultivar
+                WHERE (cc2.cultura = :cultura OR pc2.cultura = :cultura)
+            )
+            """
+
+        q_adub = text(f"""
+            SELECT
+                COUNT(*) as count_adubacoes,
+                SUM(
+                    pa.dose * p.area_hectares * COALESCE(pa.percentual_cobertura, 100) / 100.0
+                ) as total_adubo_kg
+            FROM programacao_adubacao pa
+            JOIN programacoes p ON pa.programacao_id = p.id
+            WHERE 1=1
+            {where_safra}
+            {filter_prog_cultura}
+        """)
+        
+        res_adub = session.execute(q_adub, params).fetchone()
+        
+        # 3. Totais de Defensivos
+        # Similar à adubação.
+        
+        filter_prog_cultura_def = ""
+        if cultura:
+            filter_prog_cultura_def = """
+            AND pd.programacao_id IN (
+                SELECT pc2.programacao_id 
+                FROM programacao_cultivares pc2 
+                LEFT JOIN cultivares_catalog cc2 ON pc2.cultivar = cc2.cultivar
+                WHERE (cc2.cultura = :cultura OR pc2.cultura = :cultura)
+            )
+            """
+
+        q_def = text(f"""
+            SELECT
+                COUNT(*) as count_defensivos,
+                SUM(pd.dose) as total_dose_simples -- Apenas soma das doses cadastradas, não multiplicado por área (conforme lógica anterior do frontend?)
+                -- O frontend anterior fazia: sum + parseNumber(def.dose).
+                -- Se quisermos volume total, seria dose * area * cob. Mas vamos manter a lógica simples se for o que o usuário via, 
+                -- OU melhorar para volume total real? O usuário pediu "dados não estão batendo".
+                -- O frontend calculava "volumeDefensivo" somando apenas as doses. Isso é estranho (ml/ha + L/ha misturado?).
+                -- Vamos retornar a soma simples por enquanto para manter compatibilidade, mas o ideal seria Volume Total (L/Kg).
+                -- Vou retornar count por enquanto.
+            FROM programacao_defensivos pd
+            JOIN programacoes p ON pd.programacao_id = p.id
+            WHERE 1=1
+            {where_safra}
+            {filter_prog_cultura_def}
+        """)
+        
+        res_def = session.execute(q_def, params).fetchone()
+
+        return jsonify({
+            "cultivares_count": res_cult.count_cultivares or 0,
+            "sementes_total": float(res_cult.total_sementes or 0),
+            "area_total_ha": float(res_cult.total_area_cultivada or 0),
+            "adubacoes_count": res_adub.count_adubacoes or 0,
+            "adubo_total_kg": float(res_adub.total_adubo_kg or 0),
+            "defensivos_count": res_def.count_defensivos or 0,
+            # "defensivos_total": ... (deixar 0 se não for calcular volume real)
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        session.close()
+
+@app.route("/reports/consultor_produtor_summary", methods=["GET"])
+def report_consultor_produtor_summary():
+    """
+    Retorna resumo agrupado por Consultor e Produtor:
+    - Consultor
+    - Produtor
+    - Soma da Área (ha) - Área total das programações (glebas) desse produtor na safra.
+    - Soma da Área Programada (ha) - Soma das áreas dos cultivares (considerando cobertura).
+    Filtros: safra_id, cultura.
+    """
+    safra_id = request.args.get("safra_id")
+    cultura = request.args.get("cultura")
+    
+    if not safra_id:
+        return jsonify({"error": "Safra é obrigatória"}), 400
+
+    session = get_session()
+    try:
+        where_cultura = ""
+        params = {"safra_id": safra_id}
+        
+        if cultura:
+            where_cultura = "AND (cc.cultura = :cultura OR pc.cultura = :cultura)"
+            params["cultura"] = cultura
+
+        # Query complexa:
+        # Agrupar por Consultor, Produtor.
+        # Precisamos identificar o Consultor. Ele está em programacao_cultivares (numerocm_consultor).
+        # Um produtor pode ter vários consultores em programações diferentes? Sim.
+        # Então o agrupamento é (Consultor, Produtor).
+        
+        q = text(f"""
+            SELECT
+                c.consultor as nome_consultor,
+                pr.nome as nome_produtor,
+                -- Área Total (Glebas das programações envolvidas)
+                -- Precisamos contar a área da programação apenas uma vez por grupo.
+                -- Como estamos joinando com cultivares, a programação se repete.
+                -- COUNT(DISTINCT p.id) ajuda, mas a soma da área precisa ser feita com cuidado.
+                -- Vamos somar a área dos cultivares (Programada) e tentar estimar a Área Física.
+                -- Área Programada = SUM(Area Talhoes * Cobertura Cultivar)
+                
+                SUM(
+                    (SELECT SUM(t.area) 
+                     FROM programacao_talhoes pt 
+                     JOIN talhoes t ON pt.talhao_id = t.id 
+                     WHERE pt.programacao_id = p.id) 
+                    * COALESCE(pc.percentual_cobertura, 100) / 100.0
+                ) as area_programada,
+                
+                -- Área Física (Soma das áreas das programações únicas neste grupo)
+                -- Isso é difícil fazer numa query única com Group By simples se houver multiplos cultivares por programação.
+                -- Vamos fazer uma agregação array e somar no python ou usar subquery.
+                -- Subquery na select list para somar areas unicas de programacoes desse consultor/produtor?
+                -- Melhor: Retornar dados detalhados e agrupar no Python ou usar CTE.
+                -- CTE é melhor.
+                
+                COUNT(DISTINCT p.id) as num_programacoes
+                
+            FROM programacao_cultivares pc
+            JOIN programacoes p ON pc.programacao_id = p.id
+            JOIN produtores pr ON p.produtor_numerocm = pr.numerocm
+            LEFT JOIN consultores c ON pc.numerocm_consultor = c.numerocm_consultor
+            LEFT JOIN cultivares_catalog cc ON pc.cultivar = cc.cultivar
+            WHERE p.safra_id = :safra_id
+            {where_cultura}
+            GROUP BY c.consultor, pr.nome
+            ORDER BY c.consultor, pr.nome
+        """)
+        
+        # Para Área Física (Soma da área dos talhões das programações), se filtrar por cultura,
+        # queremos a área total da programação que TEM aquela cultura? Ou só a área ocupada pela cultura?
+        # O usuário pediu: "Soma da Area (há) e a soma da Area Programada (há)".
+        # Geralmente:
+        # Área (ha) = Área física da gleba/talhão.
+        # Área Programada (ha) = Área cultivada (pode ser menor que a física se cobertura < 100%).
+        
+        # Se eu tenho um talhão de 100ha.
+        # Planto Soja em 100% -> Área 100, Prog 100.
+        # Planto Milho em 50% -> Área 100, Prog 50.
+        # Se filtro Soja: Área 100, Prog 100.
+        # Se filtro Milho: Área 100, Prog 50.
+        
+        # O problema do GROUP BY acima é que p.area_hectares vai ser somado múltiplas vezes se tiver multiplos cultivares.
+        # Vamos buscar os dados brutos e agrupar no Python para garantir precisão nas somas.
+        
+        q_raw = text(f"""
+            SELECT DISTINCT
+                p.id as prog_id,
+                p.area_hectares as area_prog_fisica, -- Área cadastrada na programação (soma dos talhões)
+                c.consultor,
+                pr.nome as produtor,
+                pc.id as cult_id,
+                (
+                 (SELECT SUM(t.area) 
+                  FROM programacao_talhoes pt 
+                  JOIN talhoes t ON pt.talhao_id = t.id 
+                  WHERE pt.programacao_id = p.id) 
+                 * COALESCE(pc.percentual_cobertura, 100) / 100.0
+                ) as area_cultivar_calculada
+            FROM programacao_cultivares pc
+            JOIN programacoes p ON pc.programacao_id = p.id
+            JOIN produtores pr ON p.produtor_numerocm = pr.numerocm
+            LEFT JOIN consultores c ON pc.numerocm_consultor = c.numerocm_consultor
+            LEFT JOIN cultivares_catalog cc ON pc.cultivar = cc.cultivar
+            WHERE p.safra_id = :safra_id
+            {where_cultura}
+        """)
+        
+        rows = session.execute(q_raw, params).fetchall()
+        
+        # Agrupamento Python
+        # Chave: (consultor, produtor)
+        # Valor: { programacoes_ids: Set, area_programada_soma: float }
+        
+        summary = {}
+        
+        for r in rows:
+            cons = r.consultor or "Sem Consultor"
+            prod = r.produtor
+            key = (cons, prod)
+            
+            if key not in summary:
+                summary[key] = {
+                    "consultor": cons,
+                    "produtor": prod,
+                    "progs_fisicas": {}, # map id -> area
+                    "area_programada": 0.0
+                }
+            
+            # Adicionar área física apenas uma vez por programação
+            if r.prog_id not in summary[key]["progs_fisicas"]:
+                summary[key]["progs_fisicas"][r.prog_id] = float(r.area_prog_fisica or 0)
+            
+            # Somar área programada (cultivar)
+            summary[key]["area_programada"] += float(r.area_cultivar_calculada or 0)
+            
+        # Formatar resultado
+        result = []
+        for k, v in summary.items():
+            area_fisica_total = sum(v["progs_fisicas"].values())
+            result.append({
+                "consultor": v["consultor"],
+                "produtor": v["produtor"],
+                "area_fisica": area_fisica_total,
+                "area_programada": v["area_programada"]
+            })
+            
+        # Ordenar
+        result.sort(key=lambda x: (x["consultor"], x["produtor"]))
+        
+        return jsonify(result)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        session.close()
+
 if __name__ == "__main__":
     ensure_app_versions_schema()
     app.run(host="0.0.0.0", port=5000, debug=True)
