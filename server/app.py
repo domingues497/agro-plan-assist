@@ -4961,6 +4961,7 @@ def report_programacao_safra():
     produtor_numerocm = request.args.get("produtor_numerocm")
     fazenda_id = request.args.get("fazenda_id")
     epoca_id = request.args.get("epoca_id")
+    programacao_id = request.args.get("id")
 
     if not safra_id or not produtor_numerocm:
         return jsonify({"error": "Parâmetros safra_id e produtor_numerocm são obrigatórios"}), 400
@@ -4972,11 +4973,13 @@ def report_programacao_safra():
             "safra_id": safra_id,
             "produtor_numerocm": produtor_numerocm,
             "fazenda_id": fazenda_id,
-            "epoca_id": epoca_id
+            "epoca_id": epoca_id,
+            "id": programacao_id
         }
         
         where_fazenda = "AND p.fazenda_idfazenda = :fazenda_id" if fazenda_id else ""
         where_epoca = "AND pt.epoca_id = :epoca_id" if epoca_id else ""
+        where_id = "AND p.id = :id" if programacao_id else ""
 
         # 1. Buscar Programações (Agrupador Principal)
         # Ajuste para trazer Consultor, Época e Tipo conforme solicitado
@@ -5011,6 +5014,7 @@ def report_programacao_safra():
               AND p.produtor_numerocm = :produtor_numerocm
               {where_fazenda}
               {where_epoca}
+              {where_id}
             ORDER BY f.nomefazenda, p.id
         """)
         res_progs = session.execute(q_programacoes, params).fetchall()

@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSafras } from "@/hooks/useSafras";
@@ -115,11 +116,12 @@ export const RelatorioProgramacaoSafra = () => {
   const [produtorNumerocm, setProdutorNumerocm] = useState("");
   const [fazendaId, setFazendaId] = useState("");
   const [epocaId, setEpocaId] = useState("");
+  const [programacaoId, setProgramacaoId] = useState("");
 
   const filteredFazendas = allFazendas?.filter(f => f.numerocm === produtorNumerocm) || [];
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["report-programacao-safra", safraId, produtorNumerocm, fazendaId, epocaId],
+    queryKey: ["report-programacao-safra", safraId, produtorNumerocm, fazendaId, epocaId, programacaoId],
     queryFn: async () => {
       if (!safraId || !produtorNumerocm) return null;
       const baseUrl = getApiBaseUrl();
@@ -129,6 +131,7 @@ export const RelatorioProgramacaoSafra = () => {
       });
       if (fazendaId) params.append("fazenda_id", fazendaId);
       if (epocaId) params.append("epoca_id", epocaId);
+      if (programacaoId) params.append("id", programacaoId);
 
       const res = await fetch(`${baseUrl}/reports/programacao_safra?${params}`);
       if (!res.ok) throw new Error(await res.text());
@@ -212,6 +215,14 @@ export const RelatorioProgramacaoSafra = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">ID da Programação</label>
+              <Input 
+                value={programacaoId} 
+                onChange={(e) => setProgramacaoId(e.target.value)} 
+                placeholder="Filtrar por ID"
+              />
             </div>
             <div className="flex items-end">
               <Button onClick={handleGenerate} disabled={isLoading || !safraId || !produtorNumerocm} className="w-full">
