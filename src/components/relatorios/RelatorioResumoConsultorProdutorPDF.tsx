@@ -111,13 +111,13 @@ export const RelatorioResumoConsultorProdutorPDF = ({ data, safra, cultura }: Re
               <View style={[styles.tableCol, { width: "30%" }]}>
                 <Text style={styles.tableCell}>{item.consultor}</Text>
               </View>
-              <View style={[styles.tableCol, { width: "30%" }]}>
+              <View style={[styles.tableCol, { width: "31%" }]}>
                 <Text style={styles.tableCell}>{item.produtor}</Text>
               </View>
               <View style={[styles.tableCol, { width: "20%" }]}>
                 <Text style={styles.tableCell}>{item.area_fisica.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
               </View>
-              <View style={[styles.tableCol, { width: "20%" }]}>
+              <View style={[styles.tableCol, { width: "19%" }]}>
                 <Text style={styles.tableCell}>{item.area_programada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
               </View>
             </View>
