@@ -41,6 +41,14 @@ export const ArquivosPublicos = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Limite de 500MB
+    const MAX_SIZE = 500 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error("Arquivo muito grande. O limite é 500MB.");
+      e.target.value = "";
+      return;
+    }
+
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
