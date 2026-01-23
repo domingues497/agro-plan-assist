@@ -37,6 +37,7 @@ import { GerenciarGestores } from "@/components/admin/GerenciarGestores";
 import { GerenciarAcessoConsultores } from "@/components/admin/GerenciarAcessoConsultores";
 import { SystemConfig } from "@/components/admin/SystemConfig";
 import { EmbalagensConfig } from "@/components/admin/EmbalagensConfig";
+import { ArquivosPublicos } from "@/components/admin/ArquivosPublicos";
 import { GlobalLoading } from "@/components/ui/global-loading";
 
 export default function Admin() {
@@ -201,6 +202,14 @@ export default function Admin() {
               {openGroups.gerais && (
                 <div className="mt-1 ml-3 space-y-1">
                   <Button
+                    variant={selected === "arquivos-publicos" ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    size="sm"
+                    onClick={() => setSelected("arquivos-publicos")}
+                  >
+                    Arquivos Públicos
+                  </Button>
+                  <Button
                     variant={selected === "embalagens" ? "secondary" : "ghost"}
                     className="w-full justify-start"
                     size="sm"
@@ -355,6 +364,7 @@ export default function Admin() {
             </>
           )}
           {selected === "usuarios" && <ListUsuarios />}
+          {selected === "arquivos-publicos" && <ArquivosPublicos />}
           {selected === "embalagens" && <EmbalagensConfig />}
           {selected === "config" && <SystemConfig />}
           {selected === "gestores" && <GerenciarGestores />}

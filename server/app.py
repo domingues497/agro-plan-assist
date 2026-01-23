@@ -1,5 +1,6 @@
 import os
 from flask import Flask, jsonify, request
+from werkzeug.utils import secure_filename
 from alembic.config import Config as _AlembicConfig
 from alembic import command as _alembic_command
 from flask_cors import CORS
@@ -5670,6 +5671,50 @@ def report_mapa_fazendas():
         return jsonify({"error": str(e)}), 400
     finally:
         session.close()
+
+@app.route("/upload/public", methods=["POST"])
+def upload_public_file():
+    if "file" not in request.files:
+        return jsonify({"error": "arquivo obrigatório"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "arquivo sem nome"}), 400
+    
+    filename = secure_filename(f.filename)
+    upload_dir = os.path.join(os.path.dirname(__file__), "uploads")
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir)
+        
+    f.save(os.path.join(upload_dir, filename))
+    return jsonify({"ok": True, "filename": filename, "url": f"/{filename}"})
+
+@app.route("/upload/public", methods=["GET"])
+def list_public_files():
+    upload_dir = os.path.join(os.path.dirname(__file__), "uploads")
+    if not os.path.exists(upload_dir):
+        return jsonify({"items": []})
+    
+    files = []
+    for name in os.listdir(upload_dir):
+        path = os.path.join(upload_dir, name)
+        if os.path.isfile(path):
+            files.append({
+                "name": name,
+                "size": os.path.getsize(path),
+                "modified": os.path.getmtime(path),
+                "url": f"/{name}"
+            })
+    files.sort(key=lambda x: x["modified"], reverse=True)
+    return jsonify({"items": files})
+
+@app.route("/upload/public/<filename>", methods=["DELETE"])
+def delete_public_file(filename: str):
+    upload_dir = os.path.join(os.path.dirname(__file__), "uploads")
+    path = os.path.join(upload_dir, secure_filename(filename))
+    if os.path.exists(path):
+        os.remove(path)
+        return jsonify({"ok": True})
+    return jsonify({"error": "arquivo não encontrado"}), 404
 
 if __name__ == "__main__":
     ensure_app_versions_schema()
