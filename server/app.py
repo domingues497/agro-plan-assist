@@ -17,7 +17,7 @@ import hmac
 import hashlib
 import base64
 from urllib.request import Request, urlopen
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlencode
 from urllib.error import URLError, HTTPError
 import threading
 import json as _json
@@ -5459,6 +5459,139 @@ def report_consultor_produtor_summary():
     finally:
         session.close()
 
+import socket
+
+class NominatimGeocoder:
+    _instance = None
+    _lock = threading.Lock()
+    _last_request_time = 0
+    _cache = {}
+    _consecutive_failures = 0
+    _circuit_open_until = 0
+    
+    @classmethod
+    def get_instance(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = cls()
+        return cls._instance
+
+    def get_address(self, lat, lon):
+        if lat is None or lon is None:
+            return None
+            
+        r_lat = round(float(lat), 5)
+        r_lon = round(float(lon), 5)
+        key = (r_lat, r_lon)
+        
+        with self._lock:
+            if key in self._cache:
+                return self._cache[key]
+            
+            if self._consecutive_failures > 5:
+                if time.time() < self._circuit_open_until:
+                    return self._get_fallback(lat, lon, "Circuit Open")
+                else:
+                    self._consecutive_failures = 0
+        
+        max_retries = 3
+        base_delay = 1.0
+        
+        for attempt in range(max_retries):
+            with self._lock:
+                now = time.time()
+                elapsed = now - self._last_request_time
+                wait_time = base_delay - elapsed
+                if wait_time > 0:
+                    time.sleep(wait_time)
+                self._last_request_time = time.time()
+                
+            try:
+                # Switching to ArcGIS Public API as Nominatim is blocking requests
+                # ArcGIS REST API: reverseGeocode
+                url = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode"
+                params = {
+                    "f": "json",
+                    "location": f"{r_lon},{r_lat}", # ArcGIS uses lon,lat
+                    "distance": 1000,
+                    "outSR": ""
+                }
+                query_string = urlencode(params)
+                full_url = f"{url}?{query_string}"
+                
+                req = Request(full_url)
+                req.add_header("User-Agent", "AgroPlanAssist/1.0 (agroplanassist@example.com)")
+                
+                with urlopen(req, timeout=10) as response:
+                    if response.status == 200:
+                        data = json.loads(response.read().decode())
+                        
+                        # ArcGIS Error handling inside 200 OK
+                        if "error" in data:
+                            print(f"ArcGIS Error: {data['error']}")
+                            raise Exception(f"ArcGIS API Error: {data['error'].get('message')}")
+
+                        addr = data.get("address", {})
+                        
+                        result = {
+                            "lat": float(data.get("location", {}).get("y", lat)),
+                            "lon": float(data.get("location", {}).get("x", lon)),
+                            "endereco_formatado": addr.get("Match_addr") or addr.get("LongLabel"),
+                            "logradouro": addr.get("Address") or addr.get("Street"), # ArcGIS usually returns 'Address' or 'Street'
+                            "numero": addr.get("AddNum"),
+                            "bairro": addr.get("Neighborhood") or addr.get("District"),
+                            "cidade": addr.get("City") or addr.get("MetroArea") or addr.get("Subregion"),
+                            "estado": addr.get("Region") or addr.get("Territory"), # 'Region' is state code or name
+                            "cep": addr.get("Postal"),
+                            "pais": addr.get("CountryCode"),
+                            "fonte": "ArcGIS/Esri"
+                        }
+                        
+                        with self._lock:
+                            self._cache[key] = result
+                            self._consecutive_failures = 0
+                        return result
+                    
+            except (URLError, HTTPError, socket.timeout) as e:
+                is_timeout = isinstance(e, socket.timeout) or (hasattr(e, 'reason') and isinstance(e.reason, socket.timeout))
+                is_503 = hasattr(e, 'code') and e.code == 503
+                
+                if (is_timeout or is_503) and attempt < max_retries - 1:
+                    sleep_time = (attempt + 1) * 2
+                    print(f"ArcGIS retry {attempt+1}/{max_retries} after error: {e}. Sleeping {sleep_time}s")
+                    time.sleep(sleep_time)
+                    continue
+                
+                print(f"ArcGIS error: {e}")
+                if not (is_timeout or is_503):
+                    break
+            except Exception as e:
+                print(f"ArcGIS unexpected error: {e}")
+                break
+        
+        with self._lock:
+            self._consecutive_failures += 1
+            if self._consecutive_failures > 5:
+                print("ArcGIS circuit breaker opened for 60s due to excessive failures")
+                self._circuit_open_until = time.time() + 60
+            
+        return self._get_fallback(lat, lon, "ArcGIS (Error)")
+
+    def _get_fallback(self, lat, lon, source_msg):
+        return {
+            "lat": lat,
+            "lon": lon,
+            "endereco_formatado": None,
+            "logradouro": None,
+            "numero": None,
+            "bairro": None,
+            "cidade": None,
+            "estado": None,
+            "cep": None,
+            "pais": None,
+            "fonte": source_msg
+        }
+
 @app.route("/reports/mapa_fazendas", methods=["GET"])
 def report_mapa_fazendas():
     produtor_numerocm = request.args.get("produtor_numerocm")
@@ -5478,7 +5611,9 @@ def report_mapa_fazendas():
                 t.id as talhao_id,
                 t.nome as talhao_nome,
                 t.area as talhao_area,
-                t.geojson as talhao_geojson
+                t.geojson as talhao_geojson,
+                t.centroid_lat,
+                t.centroid_lng
             FROM fazendas f
             JOIN produtores p ON f.numerocm = p.numerocm
             JOIN talhoes t ON t.fazenda_id = f.id
@@ -5495,7 +5630,8 @@ def report_mapa_fazendas():
         
         rows = session.execute(q, params).fetchall()
         
-        # Group by Fazenda
+        geocoder = NominatimGeocoder.get_instance()
+        
         grouped = {}
         for row in rows:
             f_key = row.fazenda_uuid
@@ -5506,7 +5642,6 @@ def report_mapa_fazendas():
                     "talhoes": []
                 }
             
-            # Parse geojson if string
             geojson = row.talhao_geojson
             if isinstance(geojson, str):
                 try:
@@ -5514,12 +5649,18 @@ def report_mapa_fazendas():
                 except:
                     geojson = None
             
-            grouped[f_key]["talhoes"].append({
+            talhao_data = {
                 "id": row.talhao_id,
                 "nome": row.talhao_nome,
                 "area": float(row.talhao_area) if row.talhao_area else 0,
-                "geojson": geojson
-            })
+                "geojson": geojson,
+                "localizacao": None
+            }
+            
+            if row.centroid_lat and row.centroid_lng:
+                talhao_data["localizacao"] = geocoder.get_address(row.centroid_lat, row.centroid_lng)
+            
+            grouped[f_key]["talhoes"].append(talhao_data)
             
         return jsonify(list(grouped.values()))
         

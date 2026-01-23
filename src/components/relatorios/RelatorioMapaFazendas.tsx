@@ -6,8 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
 import { getApiBaseUrl } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 import { TalhaoThumbnail } from "@/components/TalhaoThumbnail";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { RelatorioMapaFazendasPDF } from "./RelatorioMapaFazendasPDF";
 
 export const RelatorioMapaFazendas = () => {
   const [produtorNumerocm, setProdutorNumerocm] = useState("");
@@ -73,11 +75,26 @@ export const RelatorioMapaFazendas = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end">
-              <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
+            <div className="flex items-end gap-2">
+              <Button onClick={handleGenerate} disabled={isLoading} className="flex-1">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Gerar Relatório
               </Button>
+              
+              {data && data.length > 0 && (
+                <PDFDownloadLink
+                  document={<RelatorioMapaFazendasPDF data={data} />}
+                  fileName={`mapa_fazendas_${new Date().toISOString().slice(0, 10)}.pdf`}
+                  className="flex-1"
+                >
+                  {({ blob, url, loading, error }) => (
+                    <Button variant="outline" disabled={loading} className="w-full">
+                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                      {loading ? "Gerando PDF..." : "Baixar PDF"}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              )}
             </div>
           </div>
         </CardContent>
@@ -89,14 +106,29 @@ export const RelatorioMapaFazendas = () => {
             <CardTitle>{farm.fazenda} - {farm.produtor}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {farm.talhoes.map((t: any) => (
-                <div key={t.id} className="flex flex-col items-center p-2 border rounded-md bg-muted/20">
-                    <div className="w-24 h-24 mb-2 flex items-center justify-center bg-white rounded border overflow-hidden">
+                <div key={t.id} className="flex flex-row items-start p-4 border rounded-md bg-muted/20" title={t.localizacao?.endereco_formatado || "Sem localização"}>
+                    <div className="w-40 h-40 flex-shrink-0 flex items-center justify-center bg-white rounded border overflow-hidden mr-4">
                         <TalhaoThumbnail geojson={t.geojson} className="w-full h-full" />
                     </div>
-                    <span className="font-semibold text-center text-sm truncate w-full" title={t.nome}>{t.nome}</span>
-                    <span className="text-xs text-muted-foreground">{t.area} ha</span>
+                    <div className="flex flex-col justify-center h-full pt-2">
+                        <span className="font-bold text-lg mb-1">{t.nome}</span>
+                        <span className="text-sm text-muted-foreground mb-1">Área: <span className="font-medium text-foreground">{t.area} ha</span></span>
+                        {t.localizacao?.cidade ? (
+                            <div className="flex flex-col gap-1 mt-1">
+                                <span className="text-xs text-muted-foreground">Localização:</span>
+                                <span className="text-sm font-medium">
+                                    {t.localizacao.cidade} - {t.localizacao.estado}
+                                </span>
+                                {t.localizacao.bairro && (
+                                  <span className="text-xs text-muted-foreground">{t.localizacao.bairro}</span>
+                                )}
+                            </div>
+                        ) : (
+                             <span className="text-xs text-muted-foreground italic mt-1">Localização não disponível</span>
+                        )}
+                    </div>
                 </div>
               ))}
               {farm.talhoes.length === 0 && (
