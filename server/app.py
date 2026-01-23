@@ -24,6 +24,7 @@ import threading
 import json as _json
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB limit
 # Abrir CORS para simplificar chamadas do front; sem credenciais
 CORS(app, origins="*", supports_credentials=False)
 

@@ -23,7 +23,7 @@ import { ImportJustificativas } from "@/components/admin/ImportJustificativas";
 import { ImportCalendarioAplicacoes } from "@/components/admin/ImportCalendarioAplicacoes";
 import { HistoricoImportacoes } from "@/components/admin/HistoricoImportacoes";
 import { ListUsuarios } from "@/components/admin/ListUsuarios";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { ListConsultores } from "@/components/admin/ListConsultores";
 import { ListProdutores } from "@/components/admin/ListProdutores";
 import { ListFazendas } from "@/components/admin/ListFazendas";
@@ -207,6 +207,7 @@ export default function Admin() {
                     size="sm"
                     onClick={() => setSelected("arquivos-publicos")}
                   >
+                    <FileText className="mr-2 h-4 w-4" />
                     Arquivos Públicos
                   </Button>
                   <Button
