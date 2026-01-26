@@ -19,6 +19,7 @@ app.use(
 );
 
 const uploadsDir = path.join(process.cwd(), "server", "uploads");
+console.log('Serving uploads from:', uploadsDir);
 app.use(express.static(uploadsDir));
 
 const distDir = path.join(process.cwd(), "dist");
