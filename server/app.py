@@ -5193,11 +5193,11 @@ def report_consolidated():
         # Vamos usar p.safra_id para consistência com o filtro principal.
         
         where_safra = "AND p.safra_id = :safra_id" if safra_id else ""
-        where_cultura = "AND (cc.cultura = :cultura OR pc.cultura = :cultura)" if cultura else ""
+        where_cultura = "AND (UPPER(cc.cultura) = :cultura OR UPPER(pc.cultura) = :cultura)" if cultura else ""
         
         params = {}
         if safra_id: params["safra_id"] = safra_id
-        if cultura: params["cultura"] = cultura
+        if cultura: params["cultura"] = cultura.upper()
 
         q_cult = text(f"""
             SELECT
@@ -5235,7 +5235,7 @@ def report_consolidated():
                 SELECT pc2.programacao_id 
                 FROM programacao_cultivares pc2 
                 LEFT JOIN cultivares_catalog cc2 ON pc2.cultivar = cc2.cultivar
-                WHERE (cc2.cultura = :cultura OR pc2.cultura = :cultura)
+                WHERE (UPPER(cc2.cultura) = :cultura OR UPPER(pc2.cultura) = :cultura)
             )
             """
 
@@ -5264,7 +5264,7 @@ def report_consolidated():
                 SELECT pc2.programacao_id 
                 FROM programacao_cultivares pc2 
                 LEFT JOIN cultivares_catalog cc2 ON pc2.cultivar = cc2.cultivar
-                WHERE (cc2.cultura = :cultura OR pc2.cultura = :cultura)
+                WHERE (UPPER(cc2.cultura) = :cultura OR UPPER(pc2.cultura) = :cultura)
             )
             """
 
@@ -5326,8 +5326,8 @@ def report_consultor_produtor_summary():
         params = {"safra_id": safra_id}
         
         if cultura:
-            where_cultura = "AND (cc.cultura = :cultura OR pc.cultura = :cultura)"
-            params["cultura"] = cultura
+            where_cultura = "AND (UPPER(cc.cultura) = :cultura OR UPPER(pc.cultura) = :cultura)"
+            params["cultura"] = cultura.upper()
 
         # Query complexa:
         # Agrupar por Consultor, Produtor.
