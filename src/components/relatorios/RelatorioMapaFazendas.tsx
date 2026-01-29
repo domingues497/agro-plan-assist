@@ -40,13 +40,13 @@ export const RelatorioMapaFazendas = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="space-y-6 print:space-y-2">
+      <Card className="print:hidden">
         <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+          <CardTitle>Filtros do Relatório</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="text-sm font-medium">Produtor</label>
               <Select value={produtorNumerocm} onValueChange={(val) => { setProdutorNumerocm(val); setFazendaId(""); }}>
@@ -75,8 +75,8 @@ export const RelatorioMapaFazendas = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end gap-2">
-              <Button onClick={handleGenerate} disabled={isLoading} className="flex-1">
+            <div className="flex items-end gap-2 lg:col-span-3">
+              <Button onClick={handleGenerate} disabled={isLoading} className="w-full md:w-auto">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Gerar Relatório
               </Button>
@@ -85,7 +85,7 @@ export const RelatorioMapaFazendas = () => {
                 <PDFDownloadLink
                   document={<RelatorioMapaFazendasPDF data={data} />}
                   fileName={`mapa_fazendas_${new Date().toISOString().slice(0, 10)}.pdf`}
-                  className="flex-1"
+                  className="w-full md:w-auto"
                 >
                   {({ blob, url, loading, error }) => (
                     <Button variant="outline" disabled={loading} className="w-full">

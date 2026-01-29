@@ -283,13 +283,13 @@ export const RelatorioDetalhadoWrapper = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="space-y-6 print:space-y-2">
+      <Card className="print:hidden">
         <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+          <CardTitle>Filtros do Relatório</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="text-sm font-medium">Safra</label>
               <Select value={safraFilter} onValueChange={setSafraFilter}>
@@ -344,8 +344,8 @@ export const RelatorioDetalhadoWrapper = () => {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="flex items-end gap-2">
-              <Button onClick={handleGenerate} disabled={isLoading || !produtorFilter} className="flex-1">
+            <div className="flex items-end gap-2 lg:col-span-3">
+              <Button onClick={handleGenerate} disabled={isLoading || !produtorFilter} className="w-full md:w-auto">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Gerar Relatório
               </Button>
@@ -354,7 +354,7 @@ export const RelatorioDetalhadoWrapper = () => {
                 <PDFDownloadLink
                   document={<RelatorioDetalhadoPDF data={detailedReportData} />}
                   fileName={`relatorio_detalhado_${produtorFilter}_${new Date().toISOString().slice(0, 10)}.pdf`}
-                  className="flex-1"
+                  className="w-full md:w-auto"
                 >
                   {({ blob, url, loading, error }) => (
                     <Button variant="outline" disabled={loading} className="w-full">

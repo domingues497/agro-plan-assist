@@ -99,13 +99,13 @@ export const RelatorioProdutoresWrapper = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="space-y-6 print:space-y-2">
+      <Card className="print:hidden">
         <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+          <CardTitle>Filtros do Relatório</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="text-sm font-medium">Consultor</label>
               <Popover open={openConsultorCombobox} onOpenChange={setOpenConsultorCombobox}>
@@ -151,8 +151,8 @@ export const RelatorioProdutoresWrapper = () => {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="flex items-end gap-2">
-              <Button onClick={handleGenerate} disabled={isLoadingProdutores} className="flex-1">
+            <div className="flex items-end gap-2 lg:col-span-4">
+              <Button onClick={handleGenerate} disabled={isLoadingProdutores} className="w-full md:w-auto">
                 {isLoadingProdutores ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Gerar Relatório
               </Button>

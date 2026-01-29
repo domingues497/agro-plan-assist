@@ -39,13 +39,13 @@ export const RelatorioResumoConsultorWrapper = () => {
   };
 
   return (
-    <div className="space-y-6">
-       <Card>
+    <div className="space-y-6 print:space-y-2">
+       <Card className="print:hidden">
         <CardHeader>
-          <CardTitle>Filtros - Resumo Consultor/Produtor</CardTitle>
+          <CardTitle>Filtros do Relatório</CardTitle>
         </CardHeader>
         <CardContent>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-1 block">Safra</label>
                   <Select value={safraFilter} onValueChange={setSafraFilter}>
@@ -73,10 +73,12 @@ export const RelatorioResumoConsultorWrapper = () => {
                       </SelectContent>
                    </Select>
                 </div>
-                <Button onClick={handleGenerate} disabled={isLoading || !safraFilter}>
-                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                   Gerar Relatório
-                </Button>
+                <div className="flex items-end lg:col-span-3">
+                    <Button onClick={handleGenerate} disabled={isLoading || !safraFilter} className="w-full md:w-auto">
+                       {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                       Gerar Relatório
+                    </Button>
+                </div>
              </div>
         </CardContent>
        </Card>

@@ -90,11 +90,11 @@ export interface DetailedReportItem {
 
 interface RelatorioDetalhadoConsultorPDFProps {
   data: DetailedReportItem[];
-  consultorFilter?: string;
-  safraFilter?: string;
+  consultor?: string;
+  safra?: string;
 }
 
-export const RelatorioDetalhadoConsultorPDF = ({ data, consultorFilter, safraFilter }: RelatorioDetalhadoConsultorPDFProps) => {
+export const RelatorioDetalhadoConsultorPDF = ({ data, consultor, safra }: RelatorioDetalhadoConsultorPDFProps) => {
   // Group data by Produtor
   const groupedData = data.reduce((acc, item) => {
     const produtor = item.produtor || "Sem Produtor";
@@ -113,8 +113,8 @@ export const RelatorioDetalhadoConsultorPDF = ({ data, consultorFilter, safraFil
         <View style={styles.header}>
           <Text style={styles.title}>AgroPlan - Relatório por Consultor</Text>
           <Text style={styles.subtitle}>
-            {consultorFilter ? `Consultor: ${consultorFilter}` : "Todos os Consultores"}
-            {safraFilter ? ` | Safra: ${safraFilter}` : ""}
+            {consultor ? `Consultor: ${consultor}` : "Todos os Consultores"}
+            {safra ? ` | Safra: ${safra}` : ""}
           </Text>
           <Text style={styles.subtitle}>
             Gerado em: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}
