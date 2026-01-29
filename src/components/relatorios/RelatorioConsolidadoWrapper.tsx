@@ -4,9 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSafras } from "@/hooks/useSafras";
 import { getApiBaseUrl } from "@/lib/utils";
-import { Loader2, FileDown } from "lucide-react";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import { RelatorioPDF } from "./RelatorioPDF";
+import { Loader2, Printer } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const RelatorioConsolidadoWrapper = () => {
@@ -51,6 +49,10 @@ export const RelatorioConsolidadoWrapper = () => {
     if (safraFilter) {
       refetch();
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -99,52 +101,45 @@ export const RelatorioConsolidadoWrapper = () => {
        </Card>
 
        {resumo && (
-        <Card>
+        <div className="space-y-8 print:p-0">
+          <div className="flex justify-between items-center print:hidden">
+            <h2 className="text-2xl font-bold">Resultados</h2>
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" /> Imprimir
+            </Button>
+          </div>
+
+          <div className="hidden print:block mb-8 text-center">
+            <h1 className="text-3xl font-bold mb-2">Relatório Consolidado</h1>
+            <p className="text-gray-600">Safra: {(safras || []).find((s: any) => String(s.id) === safraFilter)?.nome || safraFilter}</p>
+          </div>
+
+          <Card>
             <CardHeader>
-              <CardTitle>Resultados</CardTitle>
+              <CardTitle>Resumo Geral</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-secondary/20 p-3 rounded-md">
-                      <p className="text-xs text-muted-foreground">Área Total</p>
-                      <p className="text-lg font-bold">{resumo.hectares.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ha</p>
-                    </div>
-                    <div className="bg-secondary/20 p-3 rounded-md">
-                      <p className="text-xs text-muted-foreground">Sementes</p>
-                      <p className="text-lg font-bold">{resumo.quantidadeSementes.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
-                    </div>
-                    <div className="bg-secondary/20 p-3 rounded-md">
-                      <p className="text-xs text-muted-foreground">Adubo Total</p>
-                      <p className="text-lg font-bold">{resumo.volumeAdubacao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg</p>
-                    </div>
-                    <div className="bg-secondary/20 p-3 rounded-md">
-                      <p className="text-xs text-muted-foreground">Defensivos (Doses)</p>
-                      <p className="text-lg font-bold">{resumo.defensivos.toLocaleString('pt-BR')}</p>
-                    </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-secondary/20 p-3 rounded-md border">
+                    <p className="text-xs text-muted-foreground">Área Total</p>
+                    <p className="text-lg font-bold">{resumo.hectares.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ha</p>
                   </div>
-                  
-                  <PDFDownloadLink
-                    document={
-                      <RelatorioPDF
-                        data={{
-                          ...resumo,
-                          safra: (safras || []).find((s: any) => String(s.id) === safraFilter)?.nome || ""
-                        }}
-                      />
-                    }
-                    fileName={`relatorio_consolidado_${safraFilter || 'geral'}.pdf`}
-                  >
-                    {({ loading }) => (
-                      <Button className="w-full" disabled={loading}>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        {loading ? 'Gerando PDF...' : 'Baixar PDF Consolidado'}
-                      </Button>
-                    )}
-                  </PDFDownloadLink>
+                  <div className="bg-secondary/20 p-3 rounded-md border">
+                    <p className="text-xs text-muted-foreground">Sementes</p>
+                    <p className="text-lg font-bold">{resumo.quantidadeSementes.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                  </div>
+                  <div className="bg-secondary/20 p-3 rounded-md border">
+                    <p className="text-xs text-muted-foreground">Adubo Total</p>
+                    <p className="text-lg font-bold">{resumo.volumeAdubacao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg</p>
+                  </div>
+                  <div className="bg-secondary/20 p-3 rounded-md border">
+                    <p className="text-xs text-muted-foreground">Defensivos (Doses)</p>
+                    <p className="text-lg font-bold">{resumo.defensivos.toLocaleString('pt-BR')}</p>
+                  </div>
                 </div>
             </CardContent>
-        </Card>
+          </Card>
+        </div>
        )}
     </div>
   );

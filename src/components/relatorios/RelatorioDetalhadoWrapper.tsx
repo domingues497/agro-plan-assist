@@ -7,9 +7,7 @@ import { useSafras } from "@/hooks/useSafras";
 import { useEpocas } from "@/hooks/useEpocas";
 import { useFazendas } from "@/hooks/useFazendas";
 import { getApiBaseUrl } from "@/lib/utils";
-import { Loader2, Download, Check, ChevronsUpDown } from "lucide-react";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import { RelatorioDetalhadoPDF, DetailedReportItem, ProductItem, CultivarItem } from "./RelatorioDetalhadoPDF";
+import { Loader2, Printer, Check, ChevronsUpDown } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -24,6 +22,39 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+interface ProductItem {
+  data: string;
+  produto: string;
+  quant_ha: string;
+  total_kg: string;
+  area_aplicada: string;
+  proprio: string;
+  emb: string;
+}
+
+interface CultivarItem {
+  cultura: string;
+  cultivar: string;
+  data_plantio: string;
+  plantas_m2: string;
+  epoca: string;
+  area_ha: string;
+  propria: string;
+  emb: string;
+  tratamento: string;
+  tipo_especifico: string;
+  percent_plant: string;
+}
+
+interface DetailedReportItem {
+  produtor: string;
+  imovel: string;
+  gleba: string;
+  cultivares: CultivarItem[];
+  produtos: ProductItem[];
+}
 
 export const RelatorioDetalhadoWrapper = () => {
   const [safraFilter, setSafraFilter] = useState<string>("");
@@ -282,6 +313,10 @@ export const RelatorioDetalhadoWrapper = () => {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-6 print:space-y-2">
       <Card className="print:hidden">
@@ -349,25 +384,104 @@ export const RelatorioDetalhadoWrapper = () => {
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Gerar Relatório
               </Button>
-              
-              {detailedReportData && detailedReportData.length > 0 && (
-                <PDFDownloadLink
-                  document={<RelatorioDetalhadoPDF data={detailedReportData} />}
-                  fileName={`relatorio_detalhado_${produtorFilter}_${new Date().toISOString().slice(0, 10)}.pdf`}
-                  className="w-full md:w-auto"
-                >
-                  {({ blob, url, loading, error }) => (
-                    <Button variant="outline" disabled={loading} className="w-full">
-                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                      {loading ? "Gerando PDF..." : "Baixar PDF"}
-                    </Button>
-                  )}
-                </PDFDownloadLink>
-              )}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {detailedReportData && detailedReportData.length > 0 && (
+        <div className="space-y-8 print:p-0">
+           <div className="hidden print:block mb-8 text-center">
+             <h1 className="text-3xl font-bold mb-2">Relatório Detalhado</h1>
+             <p className="text-gray-600">
+               {produtorFilter ? `Produtor: ${produtores.find((p: any) => p.numerocm === produtorFilter)?.nome || produtorFilter}` : "Todos os Produtores"}
+               {safraFilter ? ` | Safra: ${safras.find((s: any) => String(s.id) === safraFilter)?.nome || safraFilter}` : ""}
+             </p>
+           </div>
+
+           <div className="flex justify-between items-center print:hidden">
+             <h2 className="text-2xl font-bold">Resultados ({detailedReportData.length})</h2>
+             <Button variant="outline" onClick={handlePrint}>
+               <Printer className="mr-2 h-4 w-4" /> Imprimir
+             </Button>
+           </div>
+           
+           <div className="space-y-6">
+             {detailedReportData.map((item, index) => (
+               <Card key={index} className="break-inside-avoid">
+                 <CardHeader className="pb-2 bg-muted/20">
+                   <div className="flex justify-between items-center flex-wrap gap-2">
+                     <CardTitle className="text-base md:text-lg">
+                       Imóvel: <span className="font-normal">{item.imovel}</span>
+                     </CardTitle>
+                     <CardTitle className="text-base md:text-lg">
+                       Talhão: <span className="font-normal">{item.gleba}</span>
+                     </CardTitle>
+                   </div>
+                 </CardHeader>
+                 <CardContent className="pt-4">
+                    {/* Cultivares */}
+                    {item.cultivares.map((cult, cIdx) => (
+                        <div key={cIdx} className="mb-6 last:mb-0 border-b last:border-0 pb-4 last:pb-0">
+                            <div className="bg-blue-50 text-blue-900 p-2 rounded mb-2 font-medium flex justify-between items-center">
+                                <span>{cult.cultura} - {cult.cultivar}</span>
+                                <span className="text-sm">Área: {cult.area_ha} ha ({cult.percent_plant})</span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-2 px-2">
+                                <div><span className="text-muted-foreground block text-xs">Data Plantio</span> {cult.data_plantio}</div>
+                                <div><span className="text-muted-foreground block text-xs">População</span> {cult.plantas_m2}</div>
+                                <div><span className="text-muted-foreground block text-xs">Época</span> {cult.epoca}</div>
+                                <div><span className="text-muted-foreground block text-xs">Semente Própria</span> {cult.propria}</div>
+                            </div>
+                            <div className="text-sm mb-2 px-2">
+                                <span className="text-muted-foreground">Tratamento:</span> {cult.tratamento}
+                                {cult.tipo_especifico !== '-' && (
+                                    <div className="mt-1 font-medium bg-yellow-50 p-1 rounded text-yellow-900 text-xs">{cult.tipo_especifico}</div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    
+                    {/* Produtos Table */}
+                    {item.produtos.length > 0 && (
+                        <div className="mt-4 pt-4 border-t">
+                            <h4 className="font-medium mb-2 text-sm uppercase text-muted-foreground">Insumos Aplicados</h4>
+                            <div className="border rounded-md overflow-hidden">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/50">
+                                            <TableHead className="h-8 text-xs">Data</TableHead>
+                                            <TableHead className="h-8 text-xs">Produto</TableHead>
+                                            <TableHead className="h-8 text-xs text-right">Dose/ha</TableHead>
+                                            <TableHead className="h-8 text-xs text-right">Total (Kg/L)</TableHead>
+                                            <TableHead className="h-8 text-xs text-right">Área Apl.</TableHead>
+                                            <TableHead className="h-8 text-xs">Emb.</TableHead>
+                                            <TableHead className="h-8 text-xs">Próprio</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {item.produtos.map((prod, pIdx) => (
+                                            <TableRow key={pIdx} className="hover:bg-muted/30">
+                                                <TableCell className="py-2 text-xs">{prod.data}</TableCell>
+                                                <TableCell className="py-2 text-xs font-medium">{prod.produto}</TableCell>
+                                                <TableCell className="py-2 text-xs text-right">{prod.quant_ha}</TableCell>
+                                                <TableCell className="py-2 text-xs text-right">{prod.total_kg}</TableCell>
+                                                <TableCell className="py-2 text-xs text-right">{prod.area_aplicada}</TableCell>
+                                                <TableCell className="py-2 text-xs">{prod.emb}</TableCell>
+                                                <TableCell className="py-2 text-xs">{prod.proprio}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    )}
+                 </CardContent>
+               </Card>
+             ))}
+           </div>
+        </div>
+      )}
     </div>
   );
 };

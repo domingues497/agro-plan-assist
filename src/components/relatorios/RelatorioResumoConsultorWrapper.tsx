@@ -4,10 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSafras } from "@/hooks/useSafras";
 import { getApiBaseUrl } from "@/lib/utils";
-import { Loader2, FileDown } from "lucide-react";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import { RelatorioResumoConsultorProdutorPDF } from "./RelatorioResumoConsultorProdutorPDF";
+import { Loader2, Printer } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const RelatorioResumoConsultorWrapper = () => {
   const [safraFilter, setSafraFilter] = useState<string>("");
@@ -36,6 +35,10 @@ export const RelatorioResumoConsultorWrapper = () => {
     if (safraFilter) {
       refetch();
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -84,51 +87,49 @@ export const RelatorioResumoConsultorWrapper = () => {
        </Card>
 
        {summaryConsultorData && summaryConsultorData.length > 0 && (
-        <Card>
-            <CardHeader>
-              <CardTitle>Resultados</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
-                  <div className="border rounded-md">
-                     <div className="grid grid-cols-4 bg-muted p-2 font-medium text-sm">
-                        <div>Consultor</div>
-                        <div>Produtor</div>
-                        <div className="text-right">Área Física (ha)</div>
-                        <div className="text-right">Área Programada (ha)</div>
-                     </div>
-                     <div className="divide-y max-h-[400px] overflow-y-auto">
-                        {summaryConsultorData.map((item: any, idx: number) => (
-                           <div key={idx} className="grid grid-cols-4 p-2 text-sm hover:bg-muted/50">
-                              <div>{item.consultor}</div>
-                              <div>{item.produtor}</div>
-                              <div className="text-right">{item.area_fisica?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                              <div className="text-right">{item.area_programada?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                           </div>
-                        ))}
-                     </div>
-                  </div>
+        <div className="space-y-8 print:p-0">
+            <div className="hidden print:block mb-8 text-center">
+                 <h1 className="text-3xl font-bold mb-2">Relatório Resumo Consultor/Produtor</h1>
+                 <p className="text-gray-600">
+                     Safra: {(safras || []).find((s: any) => String(s.id) === safraFilter)?.nome || safraFilter} | 
+                     Cultura: {culturaFilter === "all" || !culturaFilter ? "Todas" : culturaFilter}
+                 </p>
+            </div>
 
-                  <PDFDownloadLink
-                    document={
-                      <RelatorioResumoConsultorProdutorPDF
-                        data={summaryConsultorData}
-                        safra={(safras || []).find((s: any) => String(s.id) === safraFilter)?.nome || ""}
-                        cultura={culturaFilter === "all" ? "Todas" : culturaFilter}
-                      />
-                    }
-                    fileName={`resumo_consultor_${safraFilter || 'geral'}.pdf`}
-                  >
-                    {({ loading }) => (
-                      <Button className="w-full" disabled={loading}>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        {loading ? 'Gerando PDF...' : 'Baixar PDF Resumo'}
-                      </Button>
-                    )}
-                  </PDFDownloadLink>
-                </div>
-            </CardContent>
-        </Card>
+            <div className="flex justify-between items-center print:hidden">
+                 <h2 className="text-2xl font-bold">Resultados ({summaryConsultorData.length})</h2>
+                 <Button variant="outline" onClick={handlePrint}>
+                     <Printer className="mr-2 h-4 w-4" /> Imprimir
+                 </Button>
+            </div>
+
+            <Card>
+                <CardContent className="p-0">
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Consultor</TableHead>
+                                    <TableHead>Produtor</TableHead>
+                                    <TableHead className="text-right">Área Física (ha)</TableHead>
+                                    <TableHead className="text-right">Área Programada (ha)</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {summaryConsultorData.map((item: any, idx: number) => (
+                                    <TableRow key={idx}>
+                                        <TableCell>{item.consultor}</TableCell>
+                                        <TableCell>{item.produtor}</TableCell>
+                                        <TableCell className="text-right">{item.area_fisica?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right">{item.area_programada?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
        )}
     </div>
   );

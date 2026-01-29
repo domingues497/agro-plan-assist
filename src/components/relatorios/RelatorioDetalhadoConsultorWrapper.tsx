@@ -7,9 +7,7 @@ import { useSafras } from "@/hooks/useSafras";
 import { useEpocas } from "@/hooks/useEpocas";
 import { useFazendas } from "@/hooks/useFazendas";
 import { getApiBaseUrl } from "@/lib/utils";
-import { Loader2, Download, Check, ChevronsUpDown } from "lucide-react";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import { RelatorioDetalhadoConsultorPDF } from "./RelatorioDetalhadoConsultorPDF";
+import { Loader2, Download, Check, ChevronsUpDown, Printer } from "lucide-react";
 import { DetailedReportItem, ProductItem, CultivarItem } from "./RelatorioDetalhadoPDF";
 import {
   Command,
@@ -292,6 +290,10 @@ export const RelatorioDetalhadoConsultorWrapper = () => {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-6 print:space-y-2">
       <Card className="print:hidden">
@@ -359,25 +361,86 @@ export const RelatorioDetalhadoConsultorWrapper = () => {
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Gerar Relatório
               </Button>
-              
-              {detailedReportData && detailedReportData.length > 0 && (
-                <PDFDownloadLink
-                  document={<RelatorioDetalhadoConsultorPDF data={detailedReportData} consultor={consultorFilter} safra={safras.find((s:any) => s.id === safraFilter)?.nome || ""} />}
-                  fileName={`relatorio_detalhado_consultor_${consultorFilter}_${new Date().toISOString().slice(0, 10)}.pdf`}
-                  className="w-full md:w-auto"
-                >
-                  {({ blob, url, loading, error }) => (
-                    <Button variant="outline" disabled={loading} className="w-full">
-                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                      {loading ? "Gerando PDF..." : "Baixar PDF"}
-                    </Button>
-                  )}
-                </PDFDownloadLink>
-              )}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {detailedReportData && detailedReportData.length > 0 && (
+        <div className="space-y-8 print:p-0">
+          <div className="flex justify-between items-center print:hidden">
+            <h2 className="text-2xl font-bold">Resultados</h2>
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" /> Imprimir
+            </Button>
+          </div>
+
+          <div className="hidden print:block mb-8 text-center">
+            <h1 className="text-3xl font-bold mb-2">Relatório Detalhado por Consultor</h1>
+            <p className="text-gray-600">Consultor: {consultorFilter} | Safra: {safras.find((s:any) => s.id === safraFilter)?.nome}</p>
+          </div>
+
+          <div className="space-y-6">
+            {detailedReportData.map((item, idx) => (
+              <div key={idx} className="border rounded-lg p-4 bg-white shadow-sm break-inside-avoid">
+                <div className="mb-4 pb-2 border-b">
+                  <div className="flex justify-between items-start">
+                    <h2 className="text-xl font-bold">{item.produtor}</h2>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm text-gray-600 mt-2">
+                    <span><strong>Fazenda:</strong> {item.imovel}</span>
+                    <span><strong>Talhão:</strong> {item.gleba}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Cultivares */}
+                  <div className="bg-green-50/50 p-3 rounded">
+                    <h3 className="text-sm font-semibold text-green-800 mb-3">Cultivares</h3>
+                    <div className="space-y-3">
+                      {item.cultivares.map((c, i) => (
+                        <div key={i} className="text-sm border-b border-green-100 pb-2 last:border-0">
+                          <div className="font-medium">{c.cultivar} ({c.cultura})</div>
+                          <div className="grid grid-cols-2 gap-1 mt-1 text-xs text-gray-700">
+                            <span><strong>Área:</strong> {c.area_ha} ha</span>
+                            <span><strong>Plantio:</strong> {c.data_plantio}</span>
+                            <span><strong>Pop:</strong> {c.plantas_m2}</span>
+                            <span><strong>Tratamento:</strong> {c.tratamento}</span>
+                          </div>
+                          {c.tipo_especifico !== "-" && (
+                            <div className="text-xs text-gray-500 mt-1 italic">{c.tipo_especifico}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Produtos */}
+                  <div className="bg-yellow-50/50 p-3 rounded">
+                    <h3 className="text-sm font-semibold text-yellow-800 mb-3">Insumos (Adubos/Defensivos)</h3>
+                    <div className="space-y-3">
+                      {item.produtos.map((p, i) => (
+                        <div key={i} className="text-sm border-b border-yellow-100 pb-2 last:border-0">
+                          <div className="font-medium">{p.produto}</div>
+                          <div className="grid grid-cols-2 gap-1 mt-1 text-xs text-gray-700">
+                            <span><strong>Data:</strong> {p.data}</span>
+                            <span><strong>Dose:</strong> {p.quant_ha}</span>
+                            <span><strong>Total:</strong> {p.total_kg}</span>
+                            <span><strong>Área:</strong> {p.area_aplicada} ha</span>
+                          </div>
+                        </div>
+                      ))}
+                      {item.produtos.length === 0 && (
+                        <p className="text-xs text-gray-500 italic">Nenhum insumo registrado.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
