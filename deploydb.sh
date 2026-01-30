@@ -22,8 +22,9 @@ echo
 # ===========================
 # 1. ATUALIZAR CÓDIGO
 # ===========================
-echo ">>> git pull origin main..."
-git pull origin main
+echo ">>> Atualizando código (git fetch + reset --hard)..."
+git fetch origin main
+git reset --hard origin/main
 echo
 
 # ===========================
