@@ -285,6 +285,7 @@ def ensure_consultores_schema():
                       role TEXT NOT NULL DEFAULT 'consultor',
                       ativo BOOLEAN NOT NULL DEFAULT true,
                       pode_editar_programacao BOOLEAN NOT NULL DEFAULT false,
+                      permite_edicao_apos_corte BOOLEAN NOT NULL DEFAULT false,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
@@ -300,7 +301,11 @@ def ensure_consultores_schema():
                 except Exception:
                     pass
                 try:
-                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS password_digest TEXT")
+                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS pode_editar_programacao BOOLEAN NOT NULL DEFAULT false")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS permite_edicao_apos_corte BOOLEAN NOT NULL DEFAULT false")
                 except Exception:
                     pass
                 try:
@@ -685,11 +690,16 @@ def ensure_safras_schema():
                       ativa BOOLEAN NOT NULL DEFAULT true,
                       ano_inicio INT,
                       ano_fim INT,
+                      data_corte_programacao TIMESTAMPTZ,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
                     """
                 )
+                try:
+                    cur.execute("ALTER TABLE public.safras ADD COLUMN IF NOT EXISTS data_corte_programacao TIMESTAMPTZ")
+                except Exception:
+                    pass
     finally:
         pool.putconn(conn)
 

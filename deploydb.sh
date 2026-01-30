@@ -66,6 +66,10 @@ fi
 
 python db.py
 echo ">>> Schema do banco validado com sucesso."
+
+echo ">>> Executando migrações Alembic (python migrate.py)..."
+python migrate.py
+echo ">>> Migrações finalizadas."
 echo
 
 deactivate

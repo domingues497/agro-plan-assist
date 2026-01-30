@@ -9,6 +9,7 @@ export type Consultor = {
   created_at: string | null;
   updated_at: string | null;
   pode_editar_programacao?: boolean;
+  permite_edicao_apos_corte?: boolean;
 };
 
 export const useConsultores = () => {

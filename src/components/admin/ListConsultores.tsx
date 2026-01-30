@@ -41,6 +41,7 @@ export const ListConsultores = () => {
   const [editConsultor, setEditConsultor] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPodeEditar, setEditPodeEditar] = useState<boolean>(false);
+  const [editPermiteCorte, setEditPermiteCorte] = useState<boolean>(false);
   const qc = useQueryClient();
 
   const filtered = useMemo(() => {
@@ -98,6 +99,7 @@ export const ListConsultores = () => {
     setEditConsultor(row.consultor ?? "");
     setEditEmail(row.email ?? "");
     setEditPodeEditar(!!row.pode_editar_programacao);
+    setEditPermiteCorte(!!row.permite_edicao_apos_corte);
   };
 
   const onSaveEdit = async () => {
@@ -107,7 +109,12 @@ export const ListConsultores = () => {
       const res = await fetch(`${baseUrl}/consultores/${editRow.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ consultor: editConsultor, email: editEmail, pode_editar_programacao: !!editPodeEditar })
+        body: JSON.stringify({ 
+          consultor: editConsultor, 
+          email: editEmail, 
+          pode_editar_programacao: !!editPodeEditar,
+          permite_edicao_apos_corte: !!editPermiteCorte 
+        })
       });
       if (!res.ok) throw new Error(`Erro ao atualizar consultor: ${res.status}`);
       toast.success("Consultor atualizado");
@@ -165,6 +172,7 @@ export const ListConsultores = () => {
                   </button>
                 </TableHead>
                 <TableHead className="w-[160px]">Edição liberada</TableHead>
+                <TableHead className="w-[160px]">Ignora Corte</TableHead>
                 <TableHead className="w-[120px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -178,6 +186,12 @@ export const ListConsultores = () => {
                     <div className="flex items-center gap-2">
                       <Checkbox checked={!!c.pode_editar_programacao} disabled id={`flag-${c.id}`} />
                       <Label htmlFor={`flag-${c.id}`} className="text-xs text-muted-foreground">{c.pode_editar_programacao ? "Sim" : "Não"}</Label>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={!!c.permite_edicao_apos_corte} disabled id={`flag-corte-${c.id}`} />
+                      <Label htmlFor={`flag-corte-${c.id}`} className="text-xs text-muted-foreground">{c.permite_edicao_apos_corte ? "Sim" : "Não"}</Label>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -242,6 +256,10 @@ export const ListConsultores = () => {
             <div className="flex items-center gap-2">
               <Checkbox id="pode-editar" checked={editPodeEditar} onCheckedChange={(c) => setEditPodeEditar(!!c)} />
               <Label htmlFor="pode-editar" className="cursor-pointer">Liberar edição de programações</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="permite-corte" checked={editPermiteCorte} onCheckedChange={(c) => setEditPermiteCorte(!!c)} />
+              <Label htmlFor="permite-corte" className="cursor-pointer">Ignorar data de corte (pode editar após o prazo)</Label>
             </div>
             </div>
             <DialogFooter>

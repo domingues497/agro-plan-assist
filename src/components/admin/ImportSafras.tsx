@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSafras } from "@/hooks/useSafras";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Pencil } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,14 +17,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const ImportSafras = () => {
-  const { safras, create, update, remove, isCreating, isDeleting } = useSafras();
+  const { safras, create, update, remove, isCreating, isDeleting, isUpdating } = useSafras();
   const [nome, setNome] = useState("");
   const [anoInicio, setAnoInicio] = useState("");
   const [anoFim, setAnoFim] = useState("");
+  const [dataCorte, setDataCorte] = useState("");
   const [isDefault, setIsDefault] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Edit state
+  const [editSafra, setEditSafra] = useState<any | null>(null);
+  const [editNome, setEditNome] = useState("");
+  const [editAnoInicio, setEditAnoInicio] = useState("");
+  const [editAnoFim, setEditAnoFim] = useState("");
+  const [editDataCorte, setEditDataCorte] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,11 +52,13 @@ export const ImportSafras = () => {
       ativa: true,
       ano_inicio: anoInicio ? parseInt(anoInicio) : null,
       ano_fim: anoFim ? parseInt(anoFim) : null,
+      data_corte_programacao: dataCorte || null,
     });
 
     setNome("");
     setAnoInicio("");
     setAnoFim("");
+    setDataCorte("");
     setIsDefault(false);
   };
 
@@ -60,6 +77,35 @@ export const ImportSafras = () => {
     }
   };
 
+  const openEdit = (safra: any) => {
+    setEditSafra(safra);
+    setEditNome(safra.nome);
+    setEditAnoInicio(safra.ano_inicio?.toString() || "");
+    setEditAnoFim(safra.ano_fim?.toString() || "");
+    // Format date for datetime-local input (YYYY-MM-DDTHH:mm)
+    let d = "";
+    if (safra.data_corte_programacao) {
+      const date = new Date(safra.data_corte_programacao);
+      // Adjust to local ISO string
+      const offset = date.getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
+      d = localISOTime;
+    }
+    setEditDataCorte(d);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editSafra) return;
+    update({
+      id: editSafra.id,
+      nome: editNome,
+      ano_inicio: editAnoInicio ? parseInt(editAnoInicio) : null,
+      ano_fim: editAnoFim ? parseInt(editAnoFim) : null,
+      data_corte_programacao: editDataCorte ? new Date(editDataCorte).toISOString() : null,
+    });
+    setEditSafra(null);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -68,7 +114,7 @@ export const ImportSafras = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="nome">Nome da Safra *</Label>
                 <Input
@@ -97,6 +143,15 @@ export const ImportSafras = () => {
                   value={anoFim}
                   onChange={(e) => setAnoFim(e.target.value)}
                   placeholder="2025"
+                />
+              </div>
+              <div>
+                <Label htmlFor="dataCorte">Data Corte Programação</Label>
+                <Input
+                  id="dataCorte"
+                  type="datetime-local"
+                  value={dataCorte}
+                  onChange={(e) => setDataCorte(e.target.value)}
                 />
               </div>
             </div>
@@ -128,6 +183,7 @@ export const ImportSafras = () => {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Período</TableHead>
+                <TableHead>Data Corte</TableHead>
                 <TableHead className="text-center">Padrão</TableHead>
                 <TableHead className="text-center">Ativa</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -140,6 +196,11 @@ export const ImportSafras = () => {
                   <TableCell>
                     {safra.ano_inicio && safra.ano_fim
                       ? `${safra.ano_inicio} - ${safra.ano_fim}`
+                      : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {safra.data_corte_programacao 
+                      ? new Date(safra.data_corte_programacao).toLocaleString() 
                       : "-"}
                   </TableCell>
                   <TableCell className="text-center">
@@ -155,20 +216,29 @@ export const ImportSafras = () => {
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDeleteId(safra.id)}
-                      disabled={isDeleting}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(safra)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteId(safra.id)}
+                        disabled={isDeleting}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
               {safras.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Nenhuma safra cadastrada
                   </TableCell>
                 </TableRow>
@@ -192,6 +262,43 @@ export const ImportSafras = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!editSafra} onOpenChange={(o) => !o && setEditSafra(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Safra</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-nome">Nome</Label>
+              <Input id="edit-nome" value={editNome} onChange={(e) => setEditNome(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-inicio">Ano Início</Label>
+                <Input id="edit-inicio" type="number" value={editAnoInicio} onChange={(e) => setEditAnoInicio(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-fim">Ano Fim</Label>
+                <Input id="edit-fim" type="number" value={editAnoFim} onChange={(e) => setEditAnoFim(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-corte">Data Corte Programação</Label>
+              <Input 
+                id="edit-corte" 
+                type="datetime-local" 
+                value={editDataCorte} 
+                onChange={(e) => setEditDataCorte(e.target.value)} 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditSafra(null)}>Cancelar</Button>
+            <Button onClick={handleSaveEdit} disabled={isUpdating}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

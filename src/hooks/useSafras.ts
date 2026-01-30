@@ -8,6 +8,7 @@ export type Safra = {
   ativa: boolean;
   ano_inicio: number | null;
   ano_fim: number | null;
+  data_corte_programacao: string | null;
   created_at: string;
   updated_at: string;
 };

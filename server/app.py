@@ -884,6 +884,7 @@ def list_consultores():
                 "consultor": it.consultor,
                 "email": it.email,
                 "pode_editar_programacao": bool(it.pode_editar_programacao),
+                "permite_edicao_apos_corte": getattr(it, "permite_edicao_apos_corte", False),
                 "created_at": it.created_at.isoformat() if it.created_at else None,
                 "updated_at": it.updated_at.isoformat() if it.updated_at else None,
             } for it in items
@@ -899,9 +900,10 @@ def create_consultor():
     numerocm_consultor = payload.get("numerocm_consultor")
     consultor = payload.get("consultor")
     email = (payload.get("email") or "").lower()
+    permite_edicao_apos_corte = bool(payload.get("permite_edicao_apos_corte"))
     session = get_session()
     try:
-        session.add(Consultor(id=id_val, numerocm_consultor=numerocm_consultor, consultor=consultor, email=email))
+        session.add(Consultor(id=id_val, numerocm_consultor=numerocm_consultor, consultor=consultor, email=email, permite_edicao_apos_corte=permite_edicao_apos_corte))
         session.commit()
         return jsonify({"id": id_val})
     except Exception as e:
@@ -926,6 +928,8 @@ def update_consultor(id: str):
             row.numerocm_consultor = payload.get("numerocm_consultor")
         if "pode_editar_programacao" in payload:
             row.pode_editar_programacao = bool(payload.get("pode_editar_programacao"))
+        if "permite_edicao_apos_corte" in payload:
+            row.permite_edicao_apos_corte = bool(payload.get("permite_edicao_apos_corte"))
         session.commit()
         return jsonify({"ok": True})
     except Exception as e:
@@ -1665,6 +1669,26 @@ def list_programacao_cultivares():
     finally:
         pool.putconn(conn)
 
+def check_cutoff_permission(cursor, safra_id, cm_token):
+    if not safra_id:
+        return
+    cursor.execute("SELECT data_corte_programacao FROM public.safras WHERE id = %s", [safra_id])
+    row = cursor.fetchone()
+    if not row or not row[0]:
+        return
+    cutoff = row[0]
+    cursor.execute("SELECT now() > %s", [cutoff])
+    passed = cursor.fetchone()[0]
+    if passed:
+        allowed = False
+        if cm_token:
+            cursor.execute("SELECT permite_edicao_apos_corte FROM public.consultores WHERE numerocm_consultor = %s", [cm_token])
+            crow = cursor.fetchone()
+            if crow and crow[0]:
+                allowed = True
+        if not allowed:
+             raise Exception("Edição bloqueada: Data de corte de programação excedida para esta safra")
+
 @app.route("/programacao_cultivares", methods=["POST"])
 def create_programacao_cultivar():
     payload = request.get_json(silent=True) or {}
@@ -1703,6 +1727,7 @@ def create_programacao_cultivar():
     try:
         with conn:
             with conn.cursor() as cur:
+                check_cutoff_permission(cur, safra, cm_token)
                 cur.execute(
                     """
                     INSERT INTO public.programacao_cultivares (
@@ -1767,6 +1792,15 @@ def update_programacao_cultivar(id: str):
     try:
         with conn:
             with conn.cursor() as cur:
+                # Verificar data de corte
+                safra_check = payload.get("safra")
+                if not safra_check:
+                    cur.execute("SELECT safra FROM public.programacao_cultivares WHERE id = %s", [id])
+                    row = cur.fetchone()
+                    if row:
+                        safra_check = row[0]
+                check_cutoff_permission(cur, safra_check, cm_token)
+
                 set_parts = []
                 values = []
                 for col, val in fields.items():
@@ -1813,11 +1847,25 @@ def update_programacao_cultivar(id: str):
 
 @app.route("/programacao_cultivares/<id>", methods=["DELETE"])
 def delete_programacao_cultivar(id: str):
+    auth = request.headers.get("Authorization") or ""
+    cm_token = None
+    if auth.lower().startswith("bearer "):
+        try:
+            payload_jwt = verify_jwt(auth.split(" ", 1)[1])
+            cm_token = payload_jwt.get("numerocm_consultor")
+        except Exception:
+            pass
     pool = get_pool()
     conn = pool.getconn()
     try:
         with conn:
             with conn.cursor() as cur:
+                # Verificar data de corte
+                cur.execute("SELECT safra FROM public.programacao_cultivares WHERE id = %s", [id])
+                row = cur.fetchone()
+                if row:
+                    check_cutoff_permission(cur, row[0], cm_token)
+                
                 cur.execute("DELETE FROM public.programacao_cultivares WHERE id = %s", [id])
         return jsonify({"ok": True})
     except Exception as e:
@@ -2049,9 +2097,10 @@ def update_safra(id: str):
     ativa = payload.get("ativa")
     ano_inicio = payload.get("ano_inicio")
     ano_fim = payload.get("ano_fim")
+    data_corte_programacao = payload.get("data_corte_programacao")
     set_parts = []
     values = []
-    for col, val in [("nome", nome), ("is_default", is_default), ("ativa", ativa), ("ano_inicio", ano_inicio), ("ano_fim", ano_fim)]:
+    for col, val in [("nome", nome), ("is_default", is_default), ("ativa", ativa), ("ano_inicio", ano_inicio), ("ano_fim", ano_fim), ("data_corte_programacao", data_corte_programacao)]:
         if val is not None:
             set_parts.append(f"{col} = %s")
             values.append(val)

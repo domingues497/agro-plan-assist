@@ -15,6 +15,7 @@ class Consultor(Base):
     role = Column(String, nullable=False, server_default=text("'consultor'"))
     ativo = Column(Boolean, nullable=False, server_default=text("true"))
     pode_editar_programacao = Column(Boolean, nullable=False, server_default=text("false"))
+    permite_edicao_apos_corte = Column(Boolean, nullable=False, server_default=text("false"))
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 
