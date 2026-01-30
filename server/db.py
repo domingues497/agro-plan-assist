@@ -704,6 +704,8 @@ def ensure_safras_schema():
         pool.putconn(conn)
 
 def ensure_programacao_schema():
+    if 'programacoes' in _ensured:
+        return
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -834,6 +836,7 @@ def ensure_programacao_schema():
                       WHERE safra_id IS NOT NULL AND fazenda_idfazenda IS NOT NULL;
                     """
                 )
+                _ensured.add('programacoes')
                 # Garantir colunas em bases existentes
                 try:
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS numerocm_consultor TEXT")
