@@ -67,5 +67,7 @@ sleep 2
 echo
 sudo systemctl status "$SERVICE_NAME" --no-pager -l || true
 
+sudo chmod +x deploydb.sh
+sudo chmod +x deploy.sh
 echo
 echo ">>> Deploy finalizado."
