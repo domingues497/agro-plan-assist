@@ -50,8 +50,38 @@ export default function Programacao() {
   const isAdmin = !!adminRole?.isAdmin;
   const isConsultor = !!profile?.numerocm_consultor && !isAdmin;
   const consultorRow = consultores.find((c: any) => String(c.numerocm_consultor) === String(profile?.numerocm_consultor || ""));
-  const canEditProgramacao = isAdmin || (!!consultorRow && !!consultorRow.pode_editar_programacao);
   const { defaultSafra, safras, isLoading: safrasLoading } = useSafras();
+
+  const checkPermission = (action: 'create' | 'edit' | 'duplicate' | 'delete', safraId?: string) => {
+    if (isAdmin) return true;
+    if (!consultorRow) return false;
+
+    // Check specific permission
+    let hasBasePermission = false;
+    switch (action) {
+      case 'create': hasBasePermission = !!consultorRow.pode_criar_programacao; break;
+      case 'edit': hasBasePermission = !!consultorRow.pode_editar_programacao; break;
+      case 'duplicate': hasBasePermission = !!consultorRow.pode_duplicar_programacao; break;
+      case 'delete': hasBasePermission = !!consultorRow.pode_excluir_programacao; break;
+    }
+
+    if (!hasBasePermission) return false;
+
+    // If safra is involved, check active status or override
+    if (safraId) {
+      const safra = safras.find(s => String(s.id) === String(safraId));
+      if (safra) {
+        // If safra is NOT active, need override permission
+        if (!safra.ativa && !consultorRow.permite_edicao_apos_corte) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  };
+
+  const canCreateProgramacao = checkPermission('create');
   
   const { data: embalagensCultivar = [], isLoading: embalagensCultivarLoading } = useQuery({
     queryKey: ["embalagens-cultivar"],
@@ -284,7 +314,7 @@ export default function Programacao() {
           <div className="flex items-center gap-2">
             <Button 
               onClick={() => setShowForm(true)}
-              disabled={!temAreasCadastradas}
+              disabled={!temAreasCadastradas || !canCreateProgramacao}
             >
               Nova Programação
             </Button>
@@ -439,7 +469,7 @@ export default function Programacao() {
               <FormProgramacao
                 key={editing.id}
                 submitLabel={isUpdating ? "Salvando..." : "Salvar alterações"}
-                readOnly={isConsultor && !canEditProgramacao}
+                readOnly={isConsultor && !checkPermission('edit', editing.safra_id)}
                 initialData={lockedInitialData}
                 embalagensCultivarOptions={embalagensCultivar}
                 embalagensFertilizantesOptions={embalagensFertilizantesAll}
@@ -491,7 +521,9 @@ export default function Programacao() {
                       fazenda={fazenda}
                       isAdmin={isAdmin}
                       isConsultor={isConsultor}
-                      canEditProgramacao={canEditProgramacao}
+                      canEdit={checkPermission('edit', prog.safra_id)}
+                      canDuplicate={checkPermission('duplicate', prog.safra_id)}
+                      canDelete={checkPermission('delete', prog.safra_id)}
                       isLoadingEdit={isLoadingEdit}
                       talhoesCount={talhoesCount[prog.id] ?? 0}
                       areaProgramada={calculatedAreaCult}

@@ -884,6 +884,9 @@ def list_consultores():
                 "consultor": it.consultor,
                 "email": it.email,
                 "pode_editar_programacao": bool(it.pode_editar_programacao),
+                "pode_criar_programacao": bool(getattr(it, "pode_criar_programacao", True)),
+                "pode_duplicar_programacao": bool(getattr(it, "pode_duplicar_programacao", True)),
+                "pode_excluir_programacao": bool(getattr(it, "pode_excluir_programacao", True)),
                 "permite_edicao_apos_corte": getattr(it, "permite_edicao_apos_corte", False),
                 "created_at": it.created_at.isoformat() if it.created_at else None,
                 "updated_at": it.updated_at.isoformat() if it.updated_at else None,
@@ -901,9 +904,21 @@ def create_consultor():
     consultor = payload.get("consultor")
     email = (payload.get("email") or "").lower()
     permite_edicao_apos_corte = bool(payload.get("permite_edicao_apos_corte"))
+    pode_criar_programacao = bool(payload.get("pode_criar_programacao", True))
+    pode_duplicar_programacao = bool(payload.get("pode_duplicar_programacao", True))
+    pode_excluir_programacao = bool(payload.get("pode_excluir_programacao", True))
     session = get_session()
     try:
-        session.add(Consultor(id=id_val, numerocm_consultor=numerocm_consultor, consultor=consultor, email=email, permite_edicao_apos_corte=permite_edicao_apos_corte))
+        session.add(Consultor(
+            id=id_val, 
+            numerocm_consultor=numerocm_consultor, 
+            consultor=consultor, 
+            email=email, 
+            permite_edicao_apos_corte=permite_edicao_apos_corte,
+            pode_criar_programacao=pode_criar_programacao,
+            pode_duplicar_programacao=pode_duplicar_programacao,
+            pode_excluir_programacao=pode_excluir_programacao
+        ))
         session.commit()
         return jsonify({"id": id_val})
     except Exception as e:
@@ -928,6 +943,12 @@ def update_consultor(id: str):
             row.numerocm_consultor = payload.get("numerocm_consultor")
         if "pode_editar_programacao" in payload:
             row.pode_editar_programacao = bool(payload.get("pode_editar_programacao"))
+        if "pode_criar_programacao" in payload:
+            row.pode_criar_programacao = bool(payload.get("pode_criar_programacao"))
+        if "pode_duplicar_programacao" in payload:
+            row.pode_duplicar_programacao = bool(payload.get("pode_duplicar_programacao"))
+        if "pode_excluir_programacao" in payload:
+            row.pode_excluir_programacao = bool(payload.get("pode_excluir_programacao"))
         if "permite_edicao_apos_corte" in payload:
             row.permite_edicao_apos_corte = bool(payload.get("permite_edicao_apos_corte"))
         session.commit()
@@ -962,6 +983,11 @@ def get_consultor_by_email():
             "numerocm_consultor": row.numerocm_consultor,
             "consultor": row.consultor,
             "email": row.email,
+            "pode_editar_programacao": bool(row.pode_editar_programacao),
+            "pode_criar_programacao": bool(getattr(row, "pode_criar_programacao", True)),
+            "pode_duplicar_programacao": bool(getattr(row, "pode_duplicar_programacao", True)),
+            "pode_excluir_programacao": bool(getattr(row, "pode_excluir_programacao", True)),
+            "permite_edicao_apos_corte": bool(getattr(row, "permite_edicao_apos_corte", False)),
         }
     })
 

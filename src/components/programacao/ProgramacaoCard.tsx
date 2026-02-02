@@ -21,7 +21,9 @@ interface ProgramacaoCardProps {
   fazenda: any;
   isAdmin: boolean;
   isConsultor: boolean;
-  canEditProgramacao: boolean;
+  canEdit: boolean;
+  canDuplicate: boolean;
+  canDelete: boolean;
   isLoadingEdit: string | null;
   talhoesCount: number;
   areaProgramada: number;
@@ -39,7 +41,9 @@ export function ProgramacaoCard({
   fazenda,
   isAdmin,
   isConsultor,
-  canEditProgramacao,
+  canEdit,
+  canDuplicate,
+  canDelete,
   isLoadingEdit,
   talhoesCount,
   areaProgramada,
@@ -148,7 +152,7 @@ export function ProgramacaoCard({
           <Button
             variant="outline"
             size="icon"
-            disabled={isLoadingEdit === prog.id}
+            disabled={isLoadingEdit === prog.id || !canEdit}
             onClick={onEdit}
             title="Editar"
           >
@@ -162,6 +166,7 @@ export function ProgramacaoCard({
           <Button
             variant="outline"
             size="icon"
+            disabled={!canDuplicate}
             onClick={onReplicate}
             title="Replicar"
           >
@@ -171,6 +176,7 @@ export function ProgramacaoCard({
           <Button
             variant="outline"
             size="icon"
+            disabled={!canDelete}
             onClick={onDelete}
             title="Excluir"
           >

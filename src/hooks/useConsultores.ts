@@ -9,6 +9,9 @@ export type Consultor = {
   created_at: string | null;
   updated_at: string | null;
   pode_editar_programacao?: boolean;
+  pode_criar_programacao?: boolean;
+  pode_duplicar_programacao?: boolean;
+  pode_excluir_programacao?: boolean;
   permite_edicao_apos_corte?: boolean;
 };
 

@@ -285,6 +285,9 @@ def ensure_consultores_schema():
                       role TEXT NOT NULL DEFAULT 'consultor',
                       ativo BOOLEAN NOT NULL DEFAULT true,
                       pode_editar_programacao BOOLEAN NOT NULL DEFAULT false,
+                      pode_criar_programacao BOOLEAN NOT NULL DEFAULT true,
+                      pode_duplicar_programacao BOOLEAN NOT NULL DEFAULT true,
+                      pode_excluir_programacao BOOLEAN NOT NULL DEFAULT true,
                       permite_edicao_apos_corte BOOLEAN NOT NULL DEFAULT false,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
@@ -302,6 +305,18 @@ def ensure_consultores_schema():
                     pass
                 try:
                     cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS pode_editar_programacao BOOLEAN NOT NULL DEFAULT false")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS pode_criar_programacao BOOLEAN NOT NULL DEFAULT true")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS pode_duplicar_programacao BOOLEAN NOT NULL DEFAULT true")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.consultores ADD COLUMN IF NOT EXISTS pode_excluir_programacao BOOLEAN NOT NULL DEFAULT true")
                 except Exception:
                     pass
                 try:

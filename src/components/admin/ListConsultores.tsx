@@ -41,6 +41,9 @@ export const ListConsultores = () => {
   const [editConsultor, setEditConsultor] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPodeEditar, setEditPodeEditar] = useState<boolean>(false);
+  const [editPodeCriar, setEditPodeCriar] = useState<boolean>(true);
+  const [editPodeDuplicar, setEditPodeDuplicar] = useState<boolean>(true);
+  const [editPodeExcluir, setEditPodeExcluir] = useState<boolean>(true);
   const [editPermiteCorte, setEditPermiteCorte] = useState<boolean>(false);
   const qc = useQueryClient();
 
@@ -99,6 +102,9 @@ export const ListConsultores = () => {
     setEditConsultor(row.consultor ?? "");
     setEditEmail(row.email ?? "");
     setEditPodeEditar(!!row.pode_editar_programacao);
+    setEditPodeCriar(row.pode_criar_programacao !== false);
+    setEditPodeDuplicar(row.pode_duplicar_programacao !== false);
+    setEditPodeExcluir(row.pode_excluir_programacao !== false);
     setEditPermiteCorte(!!row.permite_edicao_apos_corte);
   };
 
@@ -113,6 +119,9 @@ export const ListConsultores = () => {
           consultor: editConsultor, 
           email: editEmail, 
           pode_editar_programacao: !!editPodeEditar,
+          pode_criar_programacao: !!editPodeCriar,
+          pode_duplicar_programacao: !!editPodeDuplicar,
+          pode_excluir_programacao: !!editPodeExcluir,
           permite_edicao_apos_corte: !!editPermiteCorte 
         })
       });
@@ -171,8 +180,11 @@ export const ListConsultores = () => {
                   <button className="flex items-center gap-1" onClick={() => toggleSort("email")}>Email {sortKey === "email" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}
                   </button>
                 </TableHead>
-                <TableHead className="w-[160px]">Edição liberada</TableHead>
-                <TableHead className="w-[160px]">Ignora Corte</TableHead>
+                <TableHead className="w-[80px]">Criar</TableHead>
+                <TableHead className="w-[80px]">Editar</TableHead>
+                <TableHead className="w-[80px]">Duplicar</TableHead>
+                <TableHead className="w-[80px]">Excluir</TableHead>
+                <TableHead className="w-[120px]">Ignora Corte</TableHead>
                 <TableHead className="w-[120px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -183,10 +195,16 @@ export const ListConsultores = () => {
                   <TableCell>{c.consultor}</TableCell>
                   <TableCell>{c.email}</TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Checkbox checked={!!c.pode_editar_programacao} disabled id={`flag-${c.id}`} />
-                      <Label htmlFor={`flag-${c.id}`} className="text-xs text-muted-foreground">{c.pode_editar_programacao ? "Sim" : "Não"}</Label>
-                    </div>
+                    <Checkbox checked={c.pode_criar_programacao !== false} disabled />
+                  </TableCell>
+                  <TableCell>
+                    <Checkbox checked={!!c.pode_editar_programacao} disabled />
+                  </TableCell>
+                  <TableCell>
+                    <Checkbox checked={c.pode_duplicar_programacao !== false} disabled />
+                  </TableCell>
+                  <TableCell>
+                    <Checkbox checked={c.pode_excluir_programacao !== false} disabled />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -254,8 +272,20 @@ export const ListConsultores = () => {
               <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
             </div>
             <div className="flex items-center gap-2">
+              <Checkbox id="pode-criar" checked={editPodeCriar} onCheckedChange={(c) => setEditPodeCriar(!!c)} />
+              <Label htmlFor="pode-criar" className="cursor-pointer">Permitir Criar Programação</Label>
+            </div>
+            <div className="flex items-center gap-2">
               <Checkbox id="pode-editar" checked={editPodeEditar} onCheckedChange={(c) => setEditPodeEditar(!!c)} />
-              <Label htmlFor="pode-editar" className="cursor-pointer">Liberar edição de programações</Label>
+              <Label htmlFor="pode-editar" className="cursor-pointer">Permitir Editar Programação</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="pode-duplicar" checked={editPodeDuplicar} onCheckedChange={(c) => setEditPodeDuplicar(!!c)} />
+              <Label htmlFor="pode-duplicar" className="cursor-pointer">Permitir Duplicar Programação</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="pode-excluir" checked={editPodeExcluir} onCheckedChange={(c) => setEditPodeExcluir(!!c)} />
+              <Label htmlFor="pode-excluir" className="cursor-pointer">Permitir Excluir Programação</Label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="permite-corte" checked={editPermiteCorte} onCheckedChange={(c) => setEditPermiteCorte(!!c)} />
