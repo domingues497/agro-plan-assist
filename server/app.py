@@ -162,7 +162,7 @@ def list_fazendas():
     try:
         with conn.cursor() as cur:
             base = (
-                "SELECT f.id, f.numerocm, f.idfazenda, f.nomefazenda, f.numerocm_consultor, f.created_at, f.updated_at, "
+                "SELECT f.id, f.numerocm, f.idfazenda, f.nomefazenda, f.numerocm_consultor, f.cadpro, f.created_at, f.updated_at, "
                 "COALESCE(SUM(t.area), 0) AS area_cultivavel "
                 "FROM public.fazendas f "
                 "LEFT JOIN public.talhoes t ON t.fazenda_id = f.id "
@@ -284,22 +284,24 @@ def import_fazendas():
                     idfazenda = (it.get("idfazenda") or "").strip()
                     nomefazenda = (it.get("nomefazenda") or "").strip()
                     cm_cons = (it.get("numerocm_consultor") or "").strip()
+                    cadpro = (it.get("cadpro") or "").strip()
                     if not numerocm or not idfazenda or not nomefazenda or not cm_cons:
                         continue
                     key = numerocm + "|" + idfazenda
                     if key in seen:
                         continue
                     seen.add(key)
-                    values.append([str(uuid.uuid4()), numerocm, idfazenda, nomefazenda, cm_cons])
+                    values.append([str(uuid.uuid4()), numerocm, idfazenda, nomefazenda, cm_cons, cadpro])
                 if values:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO public.fazendas (id, numerocm, idfazenda, nomefazenda, numerocm_consultor)
+                        INSERT INTO public.fazendas (id, numerocm, idfazenda, nomefazenda, numerocm_consultor, cadpro)
                         VALUES %s
                         ON CONFLICT (numerocm, idfazenda) DO UPDATE SET
                           nomefazenda = EXCLUDED.nomefazenda,
                           numerocm_consultor = EXCLUDED.numerocm_consultor,
+                          cadpro = EXCLUDED.cadpro,
                           updated_at = now()
                         """,
                         values,
@@ -326,11 +328,12 @@ def update_fazenda_by_key():
     idfazenda = (payload.get("idfazenda") or "").strip()
     nomefazenda = payload.get("nomefazenda")
     numerocm_consultor = payload.get("numerocm_consultor")
+    cadpro = payload.get("cadpro")
     if not numerocm or not idfazenda:
         return jsonify({"error": "chave ausente"}), 400
     set_parts = []
     values = []
-    for col, val in [("nomefazenda", nomefazenda), ("numerocm_consultor", numerocm_consultor)]:
+    for col, val in [("nomefazenda", nomefazenda), ("numerocm_consultor", numerocm_consultor), ("cadpro", cadpro)]:
         if val is not None:
             set_parts.append(f"{col} = %s")
             values.append(val)

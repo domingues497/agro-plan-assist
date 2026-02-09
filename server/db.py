@@ -494,12 +494,17 @@ def ensure_fazendas_schema():
                       idfazenda TEXT NOT NULL,
                       nomefazenda TEXT NOT NULL,
                       numerocm_consultor TEXT NOT NULL,
+                      cadpro TEXT,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now(),
                       CONSTRAINT fazendas_unique UNIQUE (numerocm, idfazenda)
                     );
                     """
                 )
+                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fazendas'")
+                cols = {r[0] for r in cur.fetchall()}
+                if "cadpro" not in cols:
+                    cur.execute("ALTER TABLE public.fazendas ADD COLUMN cadpro TEXT")
     finally:
         pool.putconn(conn)
 

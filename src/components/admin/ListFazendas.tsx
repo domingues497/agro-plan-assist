@@ -43,6 +43,7 @@ export const ListFazendas = () => {
   const [editRow, setEditRow] = useState<any | null>(null);
   const [editNome, setEditNome] = useState("");
   const [editNumerocmConsultor, setEditNumerocmConsultor] = useState<string>("");
+  const [editCadpro, setEditCadpro] = useState("");
   const qc = useQueryClient();
   const { data: consultores = [] } = useConsultores();
   const { data: produtores = [] } = useProdutores();
@@ -127,9 +128,9 @@ export const ListFazendas = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (vars: { row: any; nome: string; consultor: string | null }) => {
-      const { row, nome, consultor } = vars;
-      const payload: any = { nomefazenda: nome };
+    mutationFn: async (vars: { row: any; nome: string; consultor: string | null; cadpro: string }) => {
+      const { row, nome, consultor, cadpro } = vars;
+      const payload: any = { nomefazenda: nome, cadpro };
       payload.numerocm_consultor = consultor;
       const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/fazendas/by_key`, {
@@ -165,6 +166,7 @@ export const ListFazendas = () => {
     setEditRow(row);
     setEditNome(row.nomefazenda ?? "");
     setEditNumerocmConsultor(row.numerocm_consultor != null ? String(row.numerocm_consultor) : "");
+    setEditCadpro(row.cadpro ?? "");
   };
 
   const onSaveEdit = () => {
@@ -173,6 +175,7 @@ export const ListFazendas = () => {
       row: editRow,
       nome: editNome,
       consultor: editNumerocmConsultor ? String(editNumerocmConsultor) : null,
+      cadpro: editCadpro,
     });
   };
 
@@ -219,6 +222,7 @@ export const ListFazendas = () => {
                 <TableHead>
                   <button className="flex items-center gap-1" onClick={() => toggleSort("consultor_nome")}>Consultor {sortKey === "consultor_nome" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>)}</button>
                 </TableHead>
+                <TableHead>CadPro</TableHead>
                 {/* coluna de área removida: área agora é gerenciada pelos talhões */}
                 <TableHead className="w-[120px]">Ações</TableHead>
               </TableRow>
@@ -252,6 +256,9 @@ export const ListFazendas = () => {
                       const txt = `${cm}${cm && nome ? " - " : ""}${nome}`.trim();
                       return txt || "—";
                     })()}
+                  </TableCell>
+                  <TableCell>
+                    {f.cadpro || "—"}
                   </TableCell>
                   {/* área cultivável removida da listagem */}
                   <TableCell>
@@ -308,6 +315,10 @@ export const ListFazendas = () => {
               <div className="space-y-1">
                 <Label>Nome</Label>
                 <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>CadPro</Label>
+                <Input value={editCadpro} onChange={(e) => setEditCadpro(e.target.value)} />
               </div>
               {/* campo de área cultivável removido: gerencie via talhões */}
               <div className="grid grid-cols-1 md:grid-cols-1 gap-3">

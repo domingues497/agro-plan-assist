@@ -6,6 +6,7 @@ export type Fazenda = {
   idfazenda: string;
   nomefazenda: string;
   numerocm_consultor: string;
+  cadpro?: string;
   area_cultivavel: number | null;
   created_at: string | null;
   updated_at: string | null;
