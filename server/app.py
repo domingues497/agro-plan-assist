@@ -1195,13 +1195,13 @@ def create_programacao():
                         INSERT INTO public.programacao_cultivares (
                           id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                           percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
-                          semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                          semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura, cod_unidade_fabril
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         [cult_id, prog_id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                          item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                          item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
-                         item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, cultura_val]
+                         item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, cultura_val, item.get("cod_unidade_fabril")]
                     )
                     for tid in (tr_ids or []):
                         if not tid: continue
@@ -1494,13 +1494,13 @@ def update_programacao(id: str):
                             INSERT INTO public.programacao_cultivares (
                               id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                               percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
-                              semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva
-                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                              semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cod_unidade_fabril
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             """,
                             [cult_id, id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                              item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                              item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
-                             item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0]
+                             item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, item.get("cod_unidade_fabril")]
                         )
                         for tid in (tr_ids or []):
                             if not tid: continue
@@ -2199,6 +2199,7 @@ def get_cultivares_catalog():
                 "cultivar": it.cultivar,
                 "cultura": it.cultura,
                 "nome_cientifico": it.nome_cientifico,
+                "rnc": it.rnc,
                 "created_at": it.created_at.isoformat() if it.created_at else None,
                 "updated_at": it.updated_at.isoformat() if it.updated_at else None,
             } for it in items
@@ -2227,18 +2228,19 @@ def import_cultivares_catalog():
         cultivar = (it.get("cultivar") or "").strip().upper()
         cultura = (it.get("cultura") or "").strip().upper() or None
         nome_cientifico = it.get("nome_cientifico")
+        rnc = it.get("rnc")
         if not cultivar:
             continue
         key = f"{cultivar}|{cultura or ''}"
         if key in seen:
             continue
         seen.add(key)
-        to_insert.append({"cultivar": cultivar, "cultura": cultura, "nome_cientifico": nome_cientifico})
+        to_insert.append({"cultivar": cultivar, "cultura": cultura, "nome_cientifico": nome_cientifico, "rnc": rnc})
     if to_insert:
         stmt = _pg_insert(CultivarCatalog.__table__).values(to_insert)
         upsert_stmt = stmt.on_conflict_do_update(
             index_elements=[CultivarCatalog.cultivar, CultivarCatalog.cultura],
-            set_={"nome_cientifico": stmt.excluded.nome_cientifico, "updated_at": text("now()")},
+            set_={"nome_cientifico": stmt.excluded.nome_cientifico, "rnc": stmt.excluded.rnc, "updated_at": text("now()")},
         )
         session.execute(upsert_stmt)
         imported = len(to_insert)
@@ -2257,6 +2259,7 @@ def update_cultivares_by_key():
     
     set_cultura = payload.get("set_cultura")
     set_nome_cientifico = payload.get("set_nome_cientifico")
+    set_rnc = payload.get("set_rnc")
     if not cultivar:
         return jsonify({"error": "cultivar obrigatório"}), 400
     session = get_session()
@@ -2278,6 +2281,8 @@ def update_cultivares_by_key():
             values["cultura"] = val or None
         if set_nome_cientifico is not None:
             values["nome_cientifico"] = set_nome_cientifico
+        if set_rnc is not None:
+            values["rnc"] = set_rnc
 
         if values:
             values["updated_at"] = text("now()")

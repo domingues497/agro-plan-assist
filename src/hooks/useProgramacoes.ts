@@ -28,6 +28,7 @@ export interface ItemCultivar {
   semente_propria?: boolean;
   referencia_rnc_mapa?: string;
   sementes_por_saca?: number;
+  cod_unidade_fabril?: string;
   defensivos_fazenda?: DefensivoFazenda[];
 }
 

@@ -591,12 +591,17 @@ def ensure_cultivares_catalog_schema():
                       cultivar TEXT NOT NULL,
                       cultura TEXT,
                       nome_cientifico TEXT,
+                      rnc TEXT,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now(),
                       CONSTRAINT cultivares_catalog_unique UNIQUE (cultivar, cultura)
                     );
                     """
                 )
+                try:
+                    cur.execute("ALTER TABLE public.cultivares_catalog ADD COLUMN IF NOT EXISTS rnc TEXT")
+                except Exception:
+                    pass
     finally:
         pool.putconn(conn)
 
@@ -774,6 +779,7 @@ def ensure_programacao_schema():
                       safra TEXT,
                       epoca_id TEXT,
                       porcentagem_salva NUMERIC,
+                      cod_unidade_fabril TEXT,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
@@ -864,6 +870,10 @@ def ensure_programacao_schema():
                     pass
                 try:
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS cultura TEXT")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS cod_unidade_fabril TEXT")
                 except Exception:
                     pass
                 try:

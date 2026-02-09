@@ -55,6 +55,16 @@ type DefensivoNaFazenda = {
   porcentagem_salva: number;
 };
 
+const UNIDADES_FABRIL = [
+  { code: "64", label: "PONTA GROSSA" },
+  { code: "65", label: "IVAÍ" },
+  { code: "66", label: "PALMEIRA" },
+  { code: "67", label: "IPIRANGA" },
+  { code: "68", label: "CAMPO LARGO" },
+  { code: "69", label: "IRATI" },
+  { code: "70", label: "SÃO MATHEUS DO SUL" },
+];
+
 // Linha separada: subcomponente para uma linha de cultivar
 type CultivarRowProps = {
   item: ItemCultivar & { uiId?: string; defensivos_fazenda?: DefensivoNaFazenda[] };
@@ -328,6 +338,23 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
             </Select>
 
           </div>
+        </div>
+
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>Unidade Fabril</Label>
+          <Select 
+            value={item.cod_unidade_fabril || ""} 
+            onValueChange={(value) => onChange(index, "cod_unidade_fabril", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {UNIDADES_FABRIL.map((u) => (
+                <SelectItem key={u.code} value={u.code}>{u.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2 xl:col-span-1 lg:col-span-1">

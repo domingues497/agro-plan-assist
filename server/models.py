@@ -159,6 +159,7 @@ class CultivarCatalog(Base):
     cultivar = Column(String, primary_key=True)
     cultura = Column(String)
     nome_cientifico = Column(String)
+    rnc = Column(String)
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 

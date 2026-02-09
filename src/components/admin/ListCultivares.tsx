@@ -23,13 +23,14 @@ export const ListCultivares = () => {
   const [editCultivar, setEditCultivar] = useState<string>("");
   const [editCultura, setEditCultura] = useState<string>("");
   const [editNomeCientifico, setEditNomeCientifico] = useState<string>("");
+  const [editRnc, setEditRnc] = useState<string>("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const base = data || [];
     if (!q) return base;
     const result = base.filter((c: any) => {
-      const hay = `${c.cultivar ?? ""} ${c.cultura ?? ""} ${c.nome_cientifico ?? ""}`.toLowerCase();
+      const hay = `${c.cultivar ?? ""} ${c.cultura ?? ""} ${c.nome_cientifico ?? ""} ${c.rnc ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
     return result;
@@ -56,6 +57,7 @@ export const ListCultivares = () => {
           cultura: originalCultura,
           set_cultura: editCultura || null,
           set_nome_cientifico: editNomeCientifico || null,
+          set_rnc: editRnc || null,
         }),
       });
       if (!res.ok) {
@@ -115,6 +117,7 @@ export const ListCultivares = () => {
                 <TableHead>Cultivar</TableHead>
                 <TableHead>Cultura</TableHead>
                 <TableHead>Nome científico</TableHead>
+                <TableHead>RNC</TableHead>
                 <TableHead className="w-[140px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -124,6 +127,7 @@ export const ListCultivares = () => {
                   <TableCell>{c.cultivar}</TableCell>
                   <TableCell>{c.cultura}</TableCell>
                   <TableCell>{c.nome_cientifico}</TableCell>
+                  <TableCell>{c.rnc}</TableCell>
                   <TableCell>
                     <Button
                       variant="outline"
@@ -133,6 +137,7 @@ export const ListCultivares = () => {
                         setEditCultivar(String(c.cultivar || ""));
                         setEditCultura(String(c.cultura || ""));
                         setEditNomeCientifico(String(c.nome_cientifico || ""));
+                        setEditRnc(String(c.rnc || ""));
                         setEditOpen(true);
                       }}
                     >
@@ -165,9 +170,11 @@ export const ListCultivares = () => {
       cultivar={editCultivar}
       cultura={editCultura}
       nomeCientifico={editNomeCientifico}
+      rnc={editRnc}
       setCultivar={setEditCultivar}
       setCultura={setEditCultura}
       setNomeCientifico={setEditNomeCientifico}
+      setRnc={setEditRnc}
       onSave={handleSave}
     />
     </>
@@ -181,9 +188,11 @@ function EditDialog({
   cultivar,
   cultura,
   nomeCientifico,
+  rnc,
   setCultivar,
   setCultura,
   setNomeCientifico,
+  setRnc,
   onSave,
 }: {
   open: boolean;
@@ -192,9 +201,11 @@ function EditDialog({
   cultivar: string;
   cultura: string;
   nomeCientifico: string;
+  rnc: string;
   setCultivar: (v: string) => void;
   setCultura: (v: string) => void;
   setNomeCientifico: (v: string) => void;
+  setRnc: (v: string) => void;
   onSave: () => void;
 }) {
   return (
@@ -215,6 +226,10 @@ function EditDialog({
           <div className="space-y-1">
             <Label>Nome científico</Label>
             <Input value={nomeCientifico} onChange={(e) => setNomeCientifico(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label>RNC</Label>
+            <Input value={rnc} onChange={(e) => setRnc(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
