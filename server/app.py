@@ -3371,6 +3371,9 @@ def run_sync_fazendas(limpar: bool = False):
                     
                     cm_cons_val = pick(d, ["numerocm_consultor", "NUMEROCM_CONSULTOR", "CONSULTOR_CM", "NUMEROCMCONSULTOR", "CONSULTORCM", "CM_CONSULTOR", "CONSULTOR_NUMEROCM"])
                     cm_cons = str(cm_cons_val).strip() if cm_cons_val is not None else None
+
+                    cadpro_val = pick(d, ["cadpro", "CADPRO", "CAD_PRO", "codigo_cadpro"])
+                    cadpro = str(cadpro_val).strip() if cadpro_val is not None else None
                     
                     if not cm_cons and numerocm and numerocm in produtor_cm_map:
                         cm_cons = produtor_cm_map[numerocm]
@@ -3382,16 +3385,17 @@ def run_sync_fazendas(limpar: bool = False):
                     if key in seen:
                         continue
                     seen.add(key)
-                    values.append([str(uuid.uuid4()), numerocm, idfazenda, nomefazenda, cm_cons])
+                    values.append([str(uuid.uuid4()), numerocm, idfazenda, nomefazenda, cm_cons, cadpro])
                 if values:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO public.fazendas (id, numerocm, idfazenda, nomefazenda, numerocm_consultor)
+                        INSERT INTO public.fazendas (id, numerocm, idfazenda, nomefazenda, numerocm_consultor, cadpro)
                         VALUES %s
                         ON CONFLICT (numerocm, idfazenda) DO UPDATE SET
                           nomefazenda = EXCLUDED.nomefazenda,
                           numerocm_consultor = EXCLUDED.numerocm_consultor,
+                          cadpro = EXCLUDED.cadpro,
                           updated_at = now()
                         """,
                         values,
