@@ -23,7 +23,25 @@ echo
 # 1. ATUALIZAR CÓDIGO
 # ===========================
 echo ">>> Atualizando código (git fetch + reset --hard)..."
-git fetch origin main
+MAX_RETRIES=5
+COUNT=0
+SUCCESS=0
+
+while [ $COUNT -lt $MAX_RETRIES ]; do
+  if git fetch origin main; then
+    SUCCESS=1
+    break
+  fi
+  echo ">>> Falha no git fetch. Tentativa $((COUNT+1)) de $MAX_RETRIES. Aguardando 5s..."
+  sleep 5
+  COUNT=$((COUNT+1))
+done
+
+if [ $SUCCESS -eq 0 ]; then
+  echo ">>> Erro critico: Nao foi possivel conectar ao GitHub apos $MAX_RETRIES tentativas."
+  exit 1
+fi
+
 git reset --hard origin/main
 echo
 
