@@ -1149,6 +1149,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
       area_hectares: areaHectaresFinal,
       safra_id: safraId || undefined,
       tipo: tipoProgramacao,
+      cod_unidade_fabril: codUnidadeFabril || undefined,
+      campo_semente: campoSemente || undefined,
+      categoria: categoria || undefined,
+      renasem: renasem || undefined,
+      proposito_semente: propositoSemente,
       epoca_id: epocaId || undefined,
       talhao_ids: talhaoIds,
       // Remove uiId antes de enviar
@@ -1414,6 +1419,72 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <Label>Unidade Fabril</Label>
+             <Select value={codUnidadeFabril} onValueChange={setCodUnidadeFabril}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {UNIDADES_FABRIL.map((u) => (
+                  <SelectItem key={u.code} value={u.code}>
+                    {u.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2 flex items-end pb-2">
+             <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="prop-semente-header"
+                  checked={propositoSemente}
+                  onCheckedChange={(checked) => setPropositoSemente(!!checked)}
+                />
+                <Label htmlFor="prop-semente-header">Propósito Semente</Label>
+             </div>
+          </div>
+
+          {propositoSemente && (
+            <>
+              <div className="space-y-2">
+                <Label>Campo Semente</Label>
+                <Input
+                  value={campoSemente}
+                  onChange={(e) => setCampoSemente(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select 
+                  value={categoria} 
+                  onValueChange={setCategoria}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Genética">Genética</SelectItem>
+                    <SelectItem value="Básica">Básica</SelectItem>
+                    <SelectItem value="C1">C1</SelectItem>
+                    <SelectItem value="C2">C2</SelectItem>
+                    <SelectItem value="S1">S1</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Renasem</Label>
+                <Input
+                  value={renasem}
+                  onChange={(e) => setRenasem(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
           {fazendaIdfazenda && safraId && epocaId && talhoesDisponiveis.length > 0 && (
             <div className="space-y-2 lg:col-span-2">

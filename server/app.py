@@ -1044,6 +1044,7 @@ def list_programacoes():
         with conn.cursor() as cur:
             base = (
                 "SELECT p.id, p.user_id, p.produtor_numerocm, p.fazenda_idfazenda, p.area, p.area_hectares, p.safra_id, p.tipo, p.revisada, p.created_at, p.updated_at, "
+                "p.cod_unidade_fabril, p.campo_semente, p.categoria, p.renasem, p.proposito_semente, "
                 "(SELECT s.ano_inicio || '/' || s.ano_fim FROM public.safras s WHERE s.id = p.safra_id LIMIT 1) as safra_nome, "
                 "(SELECT pt.epoca_id FROM public.programacao_talhoes pt WHERE pt.programacao_id = p.id LIMIT 1) as epoca_id, "
                 "(SELECT f.id FROM public.fazendas f WHERE f.idfazenda = p.fazenda_idfazenda AND f.numerocm = p.produtor_numerocm LIMIT 1) as fazenda_uuid "
