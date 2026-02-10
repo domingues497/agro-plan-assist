@@ -36,6 +36,7 @@ export interface ItemCultivar {
   espacamento?: number;
   quant_est_prod?: number;
   perc_planta?: number;
+  fl_consorcio?: string;
 }
 
 export interface ItemAdubacao {

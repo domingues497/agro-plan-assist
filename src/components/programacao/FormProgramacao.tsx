@@ -452,6 +452,23 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
             }}
           />
         </div>
+
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>Consórcio</Label>
+          <Select 
+            value={item.fl_consorcio || "N"} 
+            onValueChange={(value) => onChange(index, "fl_consorcio" as any, value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="N">Não</SelectItem>
+              <SelectItem value="S">Sim</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-2 sm:col-span-2 lg:col-span-1 xl:col-span-1">
           <Label>% Cobertura</Label>
           <div className="flex gap-2">

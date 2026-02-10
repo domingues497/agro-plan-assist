@@ -898,6 +898,7 @@ def ensure_programacao_schema():
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS campo_semente TEXT")
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS categoria TEXT")
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS renasem TEXT")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS fl_consorcio TEXT")
                 except Exception:
                     pass
                 try:

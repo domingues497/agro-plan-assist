@@ -1204,15 +1204,15 @@ def create_programacao():
                           id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                           percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
                           semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura,
-                          tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                          tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, fl_consorcio
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         [cult_id, prog_id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                          item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                          item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
                          item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, cultura_val,
                          item.get("tipo_lancamento"), item.get("quant_densidade"), item.get("espacamento"), item.get("quant_est_prod"),
-                         item.get("perc_planta")]
+                         item.get("perc_planta"), item.get("fl_consorcio")]
                     )
                     for tid in (tr_ids or []):
                         if not tid: continue
@@ -1523,15 +1523,15 @@ def update_programacao(id: str):
                               id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                               percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
                               semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura,
-                              tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta
-                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                              tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, fl_consorcio
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             """,
                             [cult_id, id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                              item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                              item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
                              item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, item.get("cultura") or "SOJA",
                              item.get("tipo_lancamento"), item.get("quant_densidade"), item.get("espacamento"), item.get("quant_est_prod"),
-                             item.get("perc_planta")]
+                             item.get("perc_planta"), item.get("fl_consorcio")]
                         )
                         for tid in (tr_ids or []):
                             if not tid: continue
