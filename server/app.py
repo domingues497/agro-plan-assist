@@ -1125,6 +1125,11 @@ def create_programacao():
     cultivares = payload.get("cultivares") or []
     adubacao = payload.get("adubacao") or []
     tipo = (payload.get("tipo") or "PROGRAMACAO").strip().upper()
+    cod_unidade_fabril = payload.get("cod_unidade_fabril")
+    campo_semente = payload.get("campo_semente")
+    categoria = payload.get("categoria")
+    renasem = payload.get("renasem")
+    proposito_semente = bool(payload.get("proposito_semente"))
     auth = request.headers.get("Authorization") or ""
     cm_token = None
     if auth.lower().startswith("bearer "):
@@ -1173,10 +1178,10 @@ def create_programacao():
                         }), 400
                 cur.execute(
                     """
-                    INSERT INTO public.programacoes (id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO public.programacoes (id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo, cod_unidade_fabril, campo_semente, categoria, renasem, proposito_semente)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [prog_id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo]
+                    [prog_id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo, cod_unidade_fabril, campo_semente, categoria, renasem, proposito_semente]
                 )
                 for item in cultivares:
                     if item.get("tipo_lancamento") and int(item.get("tipo_lancamento")) not in (1, 2):
@@ -1197,16 +1202,16 @@ def create_programacao():
                         INSERT INTO public.programacao_cultivares (
                           id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                           percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
-                          semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura, cod_unidade_fabril,
-                          tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, campo_semente, categoria, renasem
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                          semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura,
+                          tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         [cult_id, prog_id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                          item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                          item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
-                         item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, cultura_val, item.get("cod_unidade_fabril"),
+                         item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, cultura_val,
                          item.get("tipo_lancamento"), item.get("quant_densidade"), item.get("espacamento"), item.get("quant_est_prod"),
-                         item.get("perc_planta"), item.get("campo_semente"), item.get("categoria"), item.get("renasem")]
+                         item.get("perc_planta")]
                     )
                     for tid in (tr_ids or []):
                         if not tid: continue
@@ -1393,6 +1398,13 @@ def update_programacao(id: str):
     cultivares = payload.get("cultivares") or []
     adubacao = payload.get("adubacao") or []
 
+    # Header fields moved from cultivars
+    cod_unidade_fabril = payload.get("cod_unidade_fabril")
+    campo_semente = payload.get("campo_semente")
+    categoria = payload.get("categoria")
+    renasem = payload.get("renasem")
+    proposito_semente = bool(payload.get("proposito_semente"))
+
     auth = request.headers.get("Authorization") or ""
     cm_token = None
     if auth.lower().startswith("bearer "):
@@ -1448,7 +1460,7 @@ def update_programacao(id: str):
                         # Let's assume if it reached here with missing fields, it is invalid unless we merge.
                         
                         # Better approach: If missing required fields, fetch current state
-                        cur.execute("SELECT user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo, revisada FROM public.programacoes WHERE id = %s", [id])
+                        cur.execute("SELECT user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo, revisada, cod_unidade_fabril, campo_semente, categoria, renasem, proposito_semente FROM public.programacoes WHERE id = %s", [id])
                         current = cur.fetchone()
                         if current:
                             user_id = user_id or current[0]
@@ -1460,6 +1472,12 @@ def update_programacao(id: str):
                             if tipo is None: tipo = current[6]
                             if revisada is None: revisada = current[7]
                             
+                            cod_unidade_fabril = cod_unidade_fabril or current[8]
+                            campo_semente = campo_semente or current[9]
+                            categoria = categoria or current[10]
+                            renasem = renasem or current[11]
+                            if proposito_semente is None: proposito_semente = current[12]
+
                             if epoca_id is None:
                                 try:
                                     cur.execute("SELECT epoca_id FROM public.programacao_talhoes WHERE programacao_id = %s LIMIT 1", [id])
@@ -1481,10 +1499,12 @@ def update_programacao(id: str):
                     cur.execute(
                         """
                         UPDATE public.programacoes
-                        SET user_id = %s, produtor_numerocm = %s, fazenda_idfazenda = %s, area = %s, area_hectares = %s, safra_id = %s, tipo = %s, revisada = %s, updated_at = now()
+                        SET user_id = %s, produtor_numerocm = %s, fazenda_idfazenda = %s, area = %s, area_hectares = %s, safra_id = %s, tipo = %s, revisada = %s,
+                            cod_unidade_fabril = %s, campo_semente = %s, categoria = %s, renasem = %s, proposito_semente = %s, updated_at = now()
                         WHERE id = %s
                         """,
-                        [user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, (str(tipo).strip().upper() if tipo is not None else None), bool(revisada) if revisada is not None else False, id]
+                        [user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, (str(tipo).strip().upper() if tipo is not None else None), bool(revisada) if revisada is not None else False,
+                         cod_unidade_fabril, campo_semente, categoria, renasem, proposito_semente, id]
                     )
                     cur.execute("DELETE FROM public.programacao_cultivares WHERE programacao_id = %s", [id])
                     cur.execute("DELETE FROM public.programacao_talhoes WHERE programacao_id = %s", [id])
@@ -1501,16 +1521,16 @@ def update_programacao(id: str):
                             INSERT INTO public.programacao_cultivares (
                               id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                               percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
-                              semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cod_unidade_fabril,
-                              tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, campo_semente, categoria, renasem
-                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                              semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura,
+                              tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             """,
                             [cult_id, id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                              item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                              item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
-                             item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, item.get("cod_unidade_fabril"),
+                             item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, item.get("cultura") or "SOJA",
                              item.get("tipo_lancamento"), item.get("quant_densidade"), item.get("espacamento"), item.get("quant_est_prod"),
-                             item.get("perc_planta"), item.get("campo_semente"), item.get("categoria"), item.get("renasem")]
+                             item.get("perc_planta")]
                         )
                         for tid in (tr_ids or []):
                             if not tid: continue

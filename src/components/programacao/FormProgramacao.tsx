@@ -341,23 +341,6 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
         </div>
 
         <div className="space-y-2 xl:col-span-1 lg:col-span-1">
-          <Label>Unidade Fabril</Label>
-          <Select 
-            value={item.cod_unidade_fabril || ""} 
-            onValueChange={(value) => onChange(index, "cod_unidade_fabril", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {UNIDADES_FABRIL.map((u) => (
-                <SelectItem key={u.code} value={u.code}>{u.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
           <Label>Tratamento</Label>
           <Select
             value={item.tipo_tratamento}
@@ -469,57 +452,6 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
             }}
           />
         </div>
-        
-        <div className="space-y-2 xl:col-span-1 lg:col-span-1 flex items-end pb-2">
-           <div className="flex items-center space-x-2">
-              <Checkbox 
-                id={`prop-semente-${index}`}
-                checked={item.proposito_semente}
-                onCheckedChange={(checked) => onChange(index, "proposito_semente", !!checked)}
-              />
-              <Label htmlFor={`prop-semente-${index}`}>Propósito Semente</Label>
-           </div>
-        </div>
-
-        {item.proposito_semente && (
-          <>
-            <div className="space-y-2 xl:col-span-1 lg:col-span-1">
-              <Label>Campo Semente</Label>
-              <Input
-                value={item.campo_semente || ""}
-                onChange={(e) => onChange(index, "campo_semente", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2 xl:col-span-1 lg:col-span-1">
-              <Label>Categoria</Label>
-              <Select 
-                value={item.categoria || ""} 
-                onValueChange={(value) => onChange(index, "categoria", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Genética">Genética</SelectItem>
-                  <SelectItem value="Básica">Básica</SelectItem>
-                  <SelectItem value="C1">C1</SelectItem>
-                  <SelectItem value="C2">C2</SelectItem>
-                  <SelectItem value="S1">S1</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2 xl:col-span-1 lg:col-span-1">
-              <Label>Renasem</Label>
-              <Input
-                value={item.renasem || ""}
-                onChange={(e) => onChange(index, "renasem", e.target.value)}
-              />
-            </div>
-          </>
-        )}
-
         <div className="space-y-2 sm:col-span-2 lg:col-span-1 xl:col-span-1">
           <Label>% Cobertura</Label>
           <div className="flex gap-2">
@@ -825,6 +757,13 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
   const [tipoProgramacao, setTipoProgramacao] = useState<"PREVIA" | "PROGRAMACAO">(
     ((initialData as any)?.tipo === "PREVIA") ? "PREVIA" : "PROGRAMACAO"
   );
+
+  // Header fields moved from cultivars
+  const [codUnidadeFabril, setCodUnidadeFabril] = useState((initialData as any)?.cod_unidade_fabril || "");
+  const [campoSemente, setCampoSemente] = useState((initialData as any)?.campo_semente || "");
+  const [categoria, setCategoria] = useState((initialData as any)?.categoria || "");
+  const [renasem, setRenasem] = useState((initialData as any)?.renasem || "");
+  const [propositoSemente, setPropositoSemente] = useState(!!(initialData as any)?.proposito_semente);
 
   // Itens de cultivares com id estável para chaves de lista
   const makeUiId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;

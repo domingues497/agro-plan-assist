@@ -754,6 +754,11 @@ def ensure_programacao_schema():
                     
                     ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS revisada BOOLEAN DEFAULT FALSE;
                     ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'PROGRAMACAO';
+                    ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS cod_unidade_fabril TEXT;
+                    ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS campo_semente TEXT;
+                    ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS categoria TEXT;
+                    ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS renasem TEXT;
+                    ALTER TABLE public.programacoes ADD COLUMN IF NOT EXISTS proposito_semente BOOLEAN DEFAULT FALSE;
 
                     CREATE TABLE IF     NOT EXISTS public.programacao_cultivares (
                       id TEXT PRIMARY KEY,

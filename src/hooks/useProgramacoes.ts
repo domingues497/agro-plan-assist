@@ -28,20 +28,14 @@ export interface ItemCultivar {
   semente_propria?: boolean;
   referencia_rnc_mapa?: string;
   sementes_por_saca?: number;
-  cod_unidade_fabril?: string;
   defensivos_fazenda?: DefensivoFazenda[];
   
-  // Novos campos adicionados
+  // Novos campos adicionados (Específicos da cultivar)
   tipo_lancamento?: number; // 1=Planta/m2, 2=KG/ha
   quant_densidade?: number;
   espacamento?: number;
   quant_est_prod?: number;
   perc_planta?: number;
-  // Campos condicionais (propósito semente)
-  proposito_semente?: boolean; // Campo de controle UI
-  campo_semente?: string;
-  categoria?: string;
-  renasem?: string;
 }
 
 export interface ItemAdubacao {
@@ -70,6 +64,13 @@ export interface Programacao {
   revisada?: boolean;
   created_at: string;
   updated_at: string;
+
+  // Header fields
+  cod_unidade_fabril?: string;
+  campo_semente?: string;
+  categoria?: string;
+  renasem?: string;
+  proposito_semente?: boolean;
 }
 
 export interface CreateProgramacao {
@@ -84,6 +85,13 @@ export interface CreateProgramacao {
   talhao_ids?: string[];
   cultivares: ItemCultivar[];
   adubacao: ItemAdubacao[];
+
+  // Header fields
+  cod_unidade_fabril?: string;
+  campo_semente?: string;
+  categoria?: string;
+  renasem?: string;
+  proposito_semente?: boolean;
 }
 
 export const useProgramacoes = () => {
