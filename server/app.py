@@ -5224,6 +5224,7 @@ def report_programacao_safra():
                 pc.data_plantio,
                 pc.tipo_tratamento,
                 pc.percentual_cobertura,
+                pc.semente_propria,
                 ts.nome as tratamento_nome,
                 (
                     SELECT SUM(t2.area)
@@ -5258,7 +5259,8 @@ def report_programacao_safra():
                     "data_plantio": r.data_plantio.isoformat() if r.data_plantio else None,
                     "tratamento": r.tipo_tratamento,
                     "tratamento_display": tratamento_display,
-                    "cobertura": cobertura
+                    "cobertura": cobertura,
+                    "semente_propria": bool(r.semente_propria)
                 })
 
         # 4. Buscar Adubação das Programações
@@ -5270,6 +5272,7 @@ def report_programacao_safra():
                 pa.dose,
                 pa.percentual_cobertura,
                 pa.embalagem,
+                pa.fertilizante_salvo,
                 (pa.dose * p.area_hectares * COALESCE(pa.percentual_cobertura, 100) / 100.0) as total,
                 pa.data_aplicacao
             FROM programacao_adubacao pa
@@ -5289,6 +5292,7 @@ def report_programacao_safra():
                     "cobertura": float(r.percentual_cobertura) if r.percentual_cobertura else 0,
                     "total": float(r.total) if r.total else 0,
                     "embalagem": r.embalagem,
+                    "fertilizante_salvo": bool(r.fertilizante_salvo),
                     "data_aplicacao": r.data_aplicacao.isoformat() if r.data_aplicacao else None
                 })
 

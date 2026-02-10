@@ -213,7 +213,12 @@ export const RelatorioProgramacaoSafra = () => {
                         <div key={idx} className="text-sm border-b border-green-100 pb-2 last:border-0">
                           <div className="font-medium flex justify-between items-start">
                             <span>{c.cultivar}</span>
-                            <span className="text-xs text-gray-500 bg-white px-1 rounded border border-green-100">{c.cultura}</span>
+                            <div className="flex gap-1">
+                              {c.semente_propria && (
+                                <span className="text-xs text-green-700 bg-green-50 px-1 rounded border border-green-200" title="Semente Própria">Própria</span>
+                              )}
+                              <span className="text-xs text-gray-500 bg-white px-1 rounded border border-green-100">{c.cultura}</span>
+                            </div>
                           </div>
                           <div className="text-xs text-gray-600 mt-1">
                              {c.tratamento_display} {c.tipo_embalagem ? `(${c.tipo_embalagem})` : ""}
@@ -238,7 +243,12 @@ export const RelatorioProgramacaoSafra = () => {
                     <div className="space-y-3">
                       {prog.adubacao.map((a: any, idx: number) => (
                         <div key={idx} className="text-sm border-b border-yellow-100 pb-2 last:border-0">
-                          <div className="font-medium">{a.formulacao}</div>
+                          <div className="font-medium flex justify-between items-start">
+                              <span>{a.formulacao}</span>
+                              {a.fertilizante_salvo && (
+                                <span className="text-xs text-yellow-700 bg-yellow-100 px-1 rounded border border-yellow-200" title="Fertilizante Próprio">Próprio</span>
+                              )}
+                          </div>
                           <div className="text-xs text-gray-500">{a.embalagem || "Big Bag"}</div>
                           <div className="grid grid-cols-2 gap-1 mt-2 text-xs text-gray-700">
                             <span><strong>Dose:</strong> {a.dose?.toFixed(0)} Kg/ha</span>
