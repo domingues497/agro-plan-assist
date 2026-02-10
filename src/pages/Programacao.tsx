@@ -390,18 +390,16 @@ export default function Programacao() {
         </div>
 
         <div className="flex justify-end items-center gap-2 mb-6">
-          {isAdmin && (
-            <Select value={filterRevisada} onValueChange={setFilterRevisada}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Status Revisão" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="true">Revisadas</SelectItem>
-                <SelectItem value="false">Não Revisadas</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={filterRevisada} onValueChange={setFilterRevisada}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Status Revisão" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="true">Revisadas</SelectItem>
+              <SelectItem value="false">Não Revisadas</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Select value={selectedSafra} onValueChange={setSelectedSafra}>
             <SelectTrigger className="w-[180px]">

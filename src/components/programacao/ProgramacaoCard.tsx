@@ -133,7 +133,6 @@ export function ProgramacaoCard({
         </div>
 
         <div className="flex items-center gap-2 ml-4">
-          {isAdmin && (
             <div className="flex items-center gap-2 mr-2" onClick={(e) => e.stopPropagation()}>
               <Checkbox
                 id={`revisada-${prog.id}`}
@@ -147,7 +146,6 @@ export function ProgramacaoCard({
                 Revisada
               </label>
             </div>
-          )}
           
           <Button
             variant="outline"
