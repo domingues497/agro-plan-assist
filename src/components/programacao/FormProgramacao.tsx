@@ -402,10 +402,123 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
             type="number"
             step="0.01"
             value={item.populacao_recomendada ?? ""}
-            onChange={(e) => onChange(index, "populacao_recomendada", parseFloat(e.target.value) || 0)}
+            onChange={(e) => onChange(index, "populacao_recomendada", Math.max(0, parseFloat(e.target.value) || 0))}
             placeholder="Ex: 28.5"
           />
         </div>
+
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>Tipo Lançamento</Label>
+          <Select 
+            value={String(item.tipo_lancamento || "1")} 
+            onValueChange={(value) => onChange(index, "tipo_lancamento", parseInt(value))}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Planta/m2</SelectItem>
+              <SelectItem value="2">KG/ha</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>
+            {item.tipo_lancamento === 2 ? "Qtd (KG/ha)" : "Qtd (Planta/m2)"}
+          </Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={item.quant_densidade ?? ""}
+            onChange={(e) => onChange(index, "quant_densidade", Math.max(0, parseFloat(e.target.value) || 0))}
+          />
+        </div>
+
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>Espaçamento (m)</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={item.espacamento ?? ""}
+            onChange={(e) => onChange(index, "espacamento", Math.max(0, parseFloat(e.target.value) || 0))}
+          />
+        </div>
+
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>Est. Prod (KG/ha)</Label>
+          <Input
+            type="number"
+            step="0.1"
+            value={item.quant_est_prod ?? ""}
+            onChange={(e) => onChange(index, "quant_est_prod", Math.max(0, parseFloat(e.target.value) || 0))}
+          />
+        </div>
+
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>% Plantabilidade</Label>
+          <Input
+            type="number"
+            step="1"
+            min="1"
+            max="100"
+            value={item.perc_planta ?? ""}
+            onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                onChange(index, "perc_planta", isNaN(val) ? 0 : Math.min(100, Math.max(1, val)));
+            }}
+          />
+        </div>
+        
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1 flex items-end pb-2">
+           <div className="flex items-center space-x-2">
+              <Checkbox 
+                id={`prop-semente-${index}`}
+                checked={item.proposito_semente}
+                onCheckedChange={(checked) => onChange(index, "proposito_semente", !!checked)}
+              />
+              <Label htmlFor={`prop-semente-${index}`}>Propósito Semente</Label>
+           </div>
+        </div>
+
+        {item.proposito_semente && (
+          <>
+            <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+              <Label>Campo Semente</Label>
+              <Input
+                value={item.campo_semente || ""}
+                onChange={(e) => onChange(index, "campo_semente", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+              <Label>Categoria</Label>
+              <Select 
+                value={item.categoria || ""} 
+                onValueChange={(value) => onChange(index, "categoria", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Genética">Genética</SelectItem>
+                  <SelectItem value="Básica">Básica</SelectItem>
+                  <SelectItem value="C1">C1</SelectItem>
+                  <SelectItem value="C2">C2</SelectItem>
+                  <SelectItem value="S1">S1</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+              <Label>Renasem</Label>
+              <Input
+                value={item.renasem || ""}
+                onChange={(e) => onChange(index, "renasem", e.target.value)}
+              />
+            </div>
+          </>
+        )}
 
         <div className="space-y-2 sm:col-span-2 lg:col-span-1 xl:col-span-1">
           <Label>% Cobertura</Label>

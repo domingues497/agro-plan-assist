@@ -780,6 +780,14 @@ def ensure_programacao_schema():
                       epoca_id TEXT,
                       porcentagem_salva NUMERIC,
                       cod_unidade_fabril TEXT,
+                      tipo_lancamento INTEGER,
+                      quant_densidade NUMERIC,
+                      espacamento NUMERIC,
+                      quant_est_prod NUMERIC,
+                      perc_planta NUMERIC,
+                      campo_semente TEXT,
+                      categoria TEXT,
+                      renasem TEXT,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
@@ -874,6 +882,17 @@ def ensure_programacao_schema():
                     pass
                 try:
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS cod_unidade_fabril TEXT")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS tipo_lancamento INTEGER")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS quant_densidade NUMERIC")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS espacamento NUMERIC")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS quant_est_prod NUMERIC")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS perc_planta NUMERIC")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS campo_semente TEXT")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS categoria TEXT")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS renasem TEXT")
                 except Exception:
                     pass
                 try:

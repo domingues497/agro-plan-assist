@@ -30,6 +30,18 @@ export interface ItemCultivar {
   sementes_por_saca?: number;
   cod_unidade_fabril?: string;
   defensivos_fazenda?: DefensivoFazenda[];
+  
+  // Novos campos adicionados
+  tipo_lancamento?: number; // 1=Planta/m2, 2=KG/ha
+  quant_densidade?: number;
+  espacamento?: number;
+  quant_est_prod?: number;
+  perc_planta?: number;
+  // Campos condicionais (propósito semente)
+  proposito_semente?: boolean; // Campo de controle UI
+  campo_semente?: string;
+  categoria?: string;
+  renasem?: string;
 }
 
 export interface ItemAdubacao {

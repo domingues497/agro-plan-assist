@@ -1179,6 +1179,8 @@ def create_programacao():
                     [prog_id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo]
                 )
                 for item in cultivares:
+                    if item.get("tipo_lancamento") and int(item.get("tipo_lancamento")) not in (1, 2):
+                        return jsonify({"error": "tipo_lancamento deve ser 1 ou 2"}), 400
                     cult_id = item.get("id") or str(uuid.uuid4())
                     cultura_val = item.get("cultura")
                     if not cultura_val and item.get("cultivar"):
@@ -1195,13 +1197,16 @@ def create_programacao():
                         INSERT INTO public.programacao_cultivares (
                           id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                           percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
-                          semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura, cod_unidade_fabril
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                          semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura, cod_unidade_fabril,
+                          tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, campo_semente, categoria, renasem
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         [cult_id, prog_id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                          item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                          item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
-                         item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, cultura_val, item.get("cod_unidade_fabril")]
+                         item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, cultura_val, item.get("cod_unidade_fabril"),
+                         item.get("tipo_lancamento"), item.get("quant_densidade"), item.get("espacamento"), item.get("quant_est_prod"),
+                         item.get("perc_planta"), item.get("campo_semente"), item.get("categoria"), item.get("renasem")]
                     )
                     for tid in (tr_ids or []):
                         if not tid: continue
@@ -1486,6 +1491,8 @@ def update_programacao(id: str):
                     cur.execute("DELETE FROM public.programacao_adubacao WHERE programacao_id = %s", [id])
                     
                     for item in cultivares:
+                        if item.get("tipo_lancamento") and int(item.get("tipo_lancamento")) not in (1, 2):
+                            return jsonify({"error": "tipo_lancamento deve ser 1 ou 2"}), 400
                         cult_id = item.get("id") or str(uuid.uuid4())
                         tr_ids = item.get("tratamento_ids") or ([item.get("tratamento_id")] if item.get("tratamento_id") else [])
                         first_tr = None if str(item.get("tipo_tratamento") or "").upper() == "NÃO" else (tr_ids[0] if tr_ids else None)
@@ -1494,13 +1501,16 @@ def update_programacao(id: str):
                             INSERT INTO public.programacao_cultivares (
                               id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                               percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
-                              semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cod_unidade_fabril
-                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                              semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cod_unidade_fabril,
+                              tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, campo_semente, categoria, renasem
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             """,
                             [cult_id, id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                              item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                              item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
-                             item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, item.get("cod_unidade_fabril")]
+                             item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, item.get("cod_unidade_fabril"),
+                             item.get("tipo_lancamento"), item.get("quant_densidade"), item.get("espacamento"), item.get("quant_est_prod"),
+                             item.get("perc_planta"), item.get("campo_semente"), item.get("categoria"), item.get("renasem")]
                         )
                         for tid in (tr_ids or []):
                             if not tid: continue
@@ -1741,7 +1751,18 @@ def create_programacao_cultivar():
     safra = payload.get("safra")
     epoca_id = payload.get("epoca_id")
     porcentagem_salva = payload.get("porcentagem_salva")
+    cod_unidade_fabril = payload.get("cod_unidade_fabril")
+    tipo_lancamento = payload.get("tipo_lancamento")
+    quant_densidade = payload.get("quant_densidade")
+    espacamento = payload.get("espacamento")
+    quant_est_prod = payload.get("quant_est_prod")
+    perc_planta = payload.get("perc_planta")
+    campo_semente = payload.get("campo_semente")
+    categoria = payload.get("categoria")
+    renasem = payload.get("renasem")
     defensivos_fazenda = payload.get("defensivos_fazenda") or []
+    if tipo_lancamento and int(tipo_lancamento) not in (1, 2):
+        return jsonify({"error": "tipo_lancamento deve ser 1 ou 2"}), 400
     first_tr = None if str(tipo_tratamento or "").upper() == "NÃO" else (tratamento_id or (tratamento_ids[0] if tratamento_ids else None))
     auth = request.headers.get("Authorization") or ""
     cm_token = None
@@ -1762,12 +1783,14 @@ def create_programacao_cultivar():
                     INSERT INTO public.programacao_cultivares (
                       id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                       percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
-                      semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva
-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                      semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cod_unidade_fabril,
+                      tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, campo_semente, categoria, renasem
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     """,
                     [id_val, programacao_id, user_id, produtor_numerocm, area, area_hectares, cm_token, cultivar, 0, "kg",
                      percentual_cobertura, tipo_embalagem, tipo_tratamento, first_tr, data_plantio, populacao_recomendada or 0,
-                     semente_propria, referencia_rnc_mapa, sementes_por_saca or 0, safra, epoca_id, porcentagem_salva or 0]
+                     semente_propria, referencia_rnc_mapa, sementes_por_saca or 0, safra, epoca_id, porcentagem_salva or 0, cod_unidade_fabril,
+                     tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, campo_semente, categoria, renasem]
                 )
                 if str(tipo_tratamento or "").upper() != "NÃO":
                     for tid in (tratamento_ids or []):
@@ -1802,8 +1825,13 @@ def update_programacao_cultivar(id: str):
     fields = {k: payload.get(k) for k in [
         "programacao_id","user_id","produtor_numerocm","area","area_hectares","cultivar","quantidade","unidade",
         "percentual_cobertura","tipo_embalagem","tipo_tratamento","tratamento_id","data_plantio","populacao_recomendada",
-        "semente_propria","referencia_rnc_mapa","sementes_por_saca","safra","epoca_id","porcentagem_salva","numerocm_consultor"
+        "semente_propria","referencia_rnc_mapa","sementes_por_saca","safra","epoca_id","porcentagem_salva","numerocm_consultor",
+        "cod_unidade_fabril","tipo_lancamento","quant_densidade","espacamento","quant_est_prod","perc_planta",
+        "campo_semente","categoria","renasem"
     ]}
+    tipo_lancamento = payload.get("tipo_lancamento")
+    if tipo_lancamento and int(tipo_lancamento) not in (1, 2):
+        return jsonify({"error": "tipo_lancamento deve ser 1 ou 2"}), 400
     auth = request.headers.get("Authorization") or ""
     cm_token = None
     if auth.lower().startswith("bearer "):
