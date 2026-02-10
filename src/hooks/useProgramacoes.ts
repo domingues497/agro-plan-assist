@@ -37,6 +37,8 @@ export interface ItemCultivar {
   quant_est_prod?: number;
   perc_planta?: number;
   fl_consorcio?: string;
+  cod_sistema_plantio?: number;
+  cod_proposito?: number;
 }
 
 export interface ItemAdubacao {
@@ -49,6 +51,8 @@ export interface ItemAdubacao {
   // Flags RN012/RN013 na programação
   fertilizante_salvo?: boolean;
   porcentagem_salva?: number;
+  epoca_aplicacao?: number;
+  forma_aplicacao?: number;
 }
 
 export interface Programacao {

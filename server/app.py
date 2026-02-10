@@ -1204,15 +1204,15 @@ def create_programacao():
                           id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                           percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
                           semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura,
-                          tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, fl_consorcio
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                          tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, fl_consorcio, cod_sistema_plantio, cod_proposito
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         [cult_id, prog_id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                          item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                          item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
                          item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, cultura_val,
                          item.get("tipo_lancamento"), item.get("quant_densidade"), item.get("espacamento"), item.get("quant_est_prod"),
-                         item.get("perc_planta"), item.get("fl_consorcio")]
+                         item.get("perc_planta"), item.get("fl_consorcio"), item.get("cod_sistema_plantio"), item.get("cod_proposito")]
                     )
                     for tid in (tr_ids or []):
                         if not tid: continue
@@ -1262,12 +1262,12 @@ def create_programacao():
                         INSERT INTO public.programacao_adubacao (
                           id, programacao_id, user_id, produtor_numerocm, area, numerocm_consultor, formulacao, cod_item, dose, percentual_cobertura,
                           data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo,
-                          porcentagem_salva, total, safra_id
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                          porcentagem_salva, total, safra_id, epoca_aplicacao, forma_aplicacao
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         [str(uuid.uuid4()), prog_id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
                          a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
-                         float(a.get("porcentagem_salva") or 0), None, safra_id]
+                         float(a.get("porcentagem_salva") or 0), None, safra_id, a.get("epoca_aplicacao"), a.get("forma_aplicacao")]
                     )
                 for tid in talhao_ids:
                     cur.execute(
@@ -1523,15 +1523,15 @@ def update_programacao(id: str):
                               id, programacao_id, user_id, produtor_numerocm, area, area_hectares, numerocm_consultor, cultivar, quantidade, unidade,
                               percentual_cobertura, tipo_embalagem, tipo_tratamento, tratamento_id, data_plantio, populacao_recomendada,
                               semente_propria, referencia_rnc_mapa, sementes_por_saca, safra, epoca_id, porcentagem_salva, cultura,
-                              tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, fl_consorcio
-                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                              tipo_lancamento, quant_densidade, espacamento, quant_est_prod, perc_planta, fl_consorcio, cod_sistema_plantio, cod_proposito
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             """,
                             [cult_id, id, user_id, produtor_numerocm, area, area_hectares, cm_cons, item.get("cultivar"), 0, "kg",
                              item.get("percentual_cobertura"), item.get("tipo_embalagem"), item.get("tipo_tratamento"), first_tr,
                              item.get("data_plantio"), item.get("populacao_recomendada") or 0, bool(item.get("semente_propria")),
                              item.get("referencia_rnc_mapa"), item.get("sementes_por_saca") or 0, safra_id, epoca_id, 0, item.get("cultura") or "SOJA",
                              item.get("tipo_lancamento"), item.get("quant_densidade"), item.get("espacamento"), item.get("quant_est_prod"),
-                             item.get("perc_planta"), item.get("fl_consorcio")]
+                             item.get("perc_planta"), item.get("fl_consorcio"), item.get("cod_sistema_plantio"), item.get("cod_proposito")]
                         )
                         for tid in (tr_ids or []):
                             if not tid: continue
@@ -1581,12 +1581,12 @@ def update_programacao(id: str):
                             INSERT INTO public.programacao_adubacao (
                               id, programacao_id, user_id, produtor_numerocm, area, numerocm_consultor, formulacao, cod_item, dose, percentual_cobertura,
                               data_aplicacao, embalagem, justificativa_nao_adubacao_id, fertilizante_salvo,
-                              porcentagem_salva, total, safra_id
-                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                              porcentagem_salva, total, safra_id, epoca_aplicacao, forma_aplicacao
+                            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             """,
                             [str(uuid.uuid4()), id, user_id, produtor_numerocm, area, cm_cons, a.get("formulacao"), cod_val, a.get("dose"), a.get("percentual_cobertura"),
                              a.get("data_aplicacao"), a.get("embalagem"), a.get("justificativa_nao_adubacao_id"), bool(a.get("fertilizante_salvo")),
-                             float(a.get("porcentagem_salva") or 0), None, safra_id]
+                             float(a.get("porcentagem_salva") or 0), None, safra_id, a.get("epoca_aplicacao"), a.get("forma_aplicacao")]
                         )
                 for tid in talhao_ids:
                     cur.execute(

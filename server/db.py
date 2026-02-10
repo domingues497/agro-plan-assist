@@ -899,10 +899,14 @@ def ensure_programacao_schema():
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS categoria TEXT")
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS renasem TEXT")
                     cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS fl_consorcio TEXT")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS cod_sistema_plantio INTEGER")
+                    cur.execute("ALTER TABLE public.programacao_cultivares ADD COLUMN IF NOT EXISTS cod_proposito INTEGER")
                 except Exception:
                     pass
                 try:
                     cur.execute("ALTER TABLE public.programacao_adubacao ADD COLUMN IF NOT EXISTS numerocm_consultor TEXT")
+                    cur.execute("ALTER TABLE public.programacao_adubacao ADD COLUMN IF NOT EXISTS epoca_aplicacao INTEGER")
+                    cur.execute("ALTER TABLE public.programacao_adubacao ADD COLUMN IF NOT EXISTS forma_aplicacao INTEGER")
                 except Exception:
                     pass
     finally:

@@ -41,6 +41,45 @@ interface FormProgramacaoProps {
   embalagensFertilizantesOptions?: Array<{ id: string; nome: string }>;
 }
 
+const PROPOSITOS_OPTIONS = [
+  { code: 1, label: "Sil-planta inteira" },
+  { code: 2, label: "Grao umido" },
+  { code: 5, label: "Consumo" },
+  { code: 6, label: "Semente" },
+  { code: 7, label: "Pre-secado" },
+  { code: 9, label: "Pastagem anual" },
+  { code: 10, label: "Feno" },
+  { code: 11, label: "Cobertura" },
+  { code: 14, label: "Pastagem perene" },
+  { code: 16, label: "Semente TERCEIROS" },
+  { code: 17, label: "Ração" },
+  { code: 21, label: "Semente FRISIA" },
+  { code: 22, label: "Semente CASTROLANDA" },
+  { code: 23, label: "Semente Suplementar" },
+  { code: 24, label: "Consumo PBPA" },
+  { code: 25, label: "Semente TERCEIROS PBPA" },
+  { code: 26, label: "Semente PBPA" },
+  { code: 27, label: "Semente suplementar PBPA" },
+  { code: 28, label: "Ste PROPRIA" },
+  { code: 30, label: "Consumo (EPA-RFS)" },
+];
+
+const EPOCA_APLICACAO_OPTIONS = [
+  { code: 1, label: "Pré-plantio" },
+  { code: 2, label: "Plantio" },
+  { code: 3, label: "Pós-plantio" },
+];
+
+const FORMA_APLICACAO_OPTIONS = [
+  { code: 1, label: "Incorporada facão" },
+  { code: 2, label: "Incorporada disco" },
+  { code: 3, label: "Superfície faixa" },
+  { code: 4, label: "Superfície lanço" },
+  { code: 5, label: "Pulverização" },
+  { code: 6, label: "Pulverização sulco" },
+  { code: 7, label: "Incorporada grade" },
+];
+
 // Tipo para defensivo dentro da cultivar
 type DefensivoNaFazenda = {
   tempId: string;
@@ -465,6 +504,42 @@ function CultivarRow({ item, index, cultivaresDistinct, cultivaresCatalog, embal
             <SelectContent>
               <SelectItem value="N">Não</SelectItem>
               <SelectItem value="S">Sim</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2 xl:col-span-1 lg:col-span-1">
+          <Label>Sistema de Plantio</Label>
+          <Select
+            value={item.cod_sistema_plantio ? String(item.cod_sistema_plantio) : ""}
+            onValueChange={(value) => onChange(index, "cod_sistema_plantio" as any, value ? parseInt(value) : undefined)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="2">Plantio convencional</SelectItem>
+              <SelectItem value="3">Plantio direto</SelectItem>
+              <SelectItem value="1">Cultivo mínimo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2 xl:col-span-2 lg:col-span-2">
+          <Label>Propósito</Label>
+          <Select
+            value={item.cod_proposito ? String(item.cod_proposito) : ""}
+            onValueChange={(value) => onChange(index, "cod_proposito" as any, value ? parseInt(value) : undefined)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o propósito" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[200px]">
+              {PROPOSITOS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.code} value={String(opt.code)}>
+                  {opt.code} - {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -1725,6 +1800,40 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
                       <SelectContent>
                         {Array.from(new Map((embalagensFertilizantesAll || []).map((e: any) => [String(e.id), e])).values()).map((e: any, idx: number) => (
                           <SelectItem key={e.id || `fert-${idx}`} value={e.nome}>{e.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Época Aplicação</Label>
+                    <Select
+                      value={item.epoca_aplicacao ? String(item.epoca_aplicacao) : ""}
+                      onValueChange={(value) => handleAdubacaoChange(index, "epoca_aplicacao", value ? parseInt(value) : undefined)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EPOCA_APLICACAO_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.code} value={String(opt.code)}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Forma Aplicação</Label>
+                    <Select
+                      value={item.forma_aplicacao ? String(item.forma_aplicacao) : ""}
+                      onValueChange={(value) => handleAdubacaoChange(index, "forma_aplicacao", value ? parseInt(value) : undefined)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FORMA_APLICACAO_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.code} value={String(opt.code)}>{opt.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
