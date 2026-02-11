@@ -5102,6 +5102,7 @@ def report_programacao_safra():
     produtor_numerocm = request.args.get("produtor_numerocm")
     fazenda_id = request.args.get("fazenda_id")
     epoca_id = request.args.get("epoca_id")
+    cultura = request.args.get("cultura")
     programacao_id = request.args.get("id")
 
     if not safra_id:
@@ -5115,6 +5116,7 @@ def report_programacao_safra():
             "produtor_numerocm": produtor_numerocm,
             "fazenda_id": fazenda_id,
             "epoca_id": epoca_id,
+            "cultura": cultura,
             "id": programacao_id
         }
         
@@ -5122,6 +5124,18 @@ def report_programacao_safra():
         where_fazenda = "AND p.fazenda_idfazenda = :fazenda_id" if fazenda_id else ""
         where_epoca = "AND pt.epoca_id = :epoca_id" if epoca_id else ""
         where_id = "AND p.id = :id" if programacao_id else ""
+        
+        where_cultura = ""
+        if cultura and cultura != 'all':
+            where_cultura = """
+            AND EXISTS (
+                SELECT 1 
+                FROM programacao_cultivares pc 
+                LEFT JOIN cultivares_catalog cc ON pc.cultivar = cc.cultivar 
+                WHERE pc.programacao_id = p.id 
+                AND COALESCE(cc.cultura, pc.cultura) = :cultura
+            )
+            """
 
         # 1. Buscar Programações (Agrupador Principal)
         # Ajuste para trazer Consultor, Época e Tipo conforme solicitado
@@ -5156,6 +5170,7 @@ def report_programacao_safra():
               {where_produtor}
               {where_fazenda}
               {where_epoca}
+              {where_cultura}
               {where_id}
             ORDER BY f.nomefazenda, p.id
         """)

@@ -9,6 +9,7 @@ import { useSafras } from "@/hooks/useSafras";
 import { useProdutores } from "@/hooks/useProdutores";
 import { useFazendas } from "@/hooks/useFazendas";
 import { useEpocas } from "@/hooks/useEpocas";
+import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 import { getApiBaseUrl } from "@/lib/utils";
 import { Loader2, Printer } from "lucide-react";
 import { TalhaoThumbnail } from "@/components/TalhaoThumbnail";
@@ -18,17 +19,26 @@ export const RelatorioProgramacaoSafra = () => {
   const { data: produtores } = useProdutores();
   const { data: allFazendas } = useFazendas();
   const { data: epocas } = useEpocas();
+  const { data: catalog } = useCultivaresCatalog();
 
   const [safraId, setSafraId] = useState("");
   const [produtorNumerocm, setProdutorNumerocm] = useState("");
   const [fazendaId, setFazendaId] = useState("");
   const [epocaId, setEpocaId] = useState("");
+  const [cultura, setCultura] = useState("");
   const [programacaoId, setProgramacaoId] = useState("");
 
   const filteredFazendas = allFazendas?.filter(f => f.numerocm === produtorNumerocm) || [];
 
+  const culturas = useMemo(() => {
+    if (!catalog) return [];
+    // @ts-ignore
+    const unique = new Set(catalog.map((c: any) => c.cultura).filter(Boolean));
+    return Array.from(unique).sort();
+  }, [catalog]);
+
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["report-programacao-safra", safraId, produtorNumerocm, fazendaId, epocaId, programacaoId],
+    queryKey: ["report-programacao-safra", safraId, produtorNumerocm, fazendaId, epocaId, cultura, programacaoId],
     queryFn: async () => {
       if (!safraId) return null;
       const baseUrl = getApiBaseUrl();
@@ -38,6 +48,7 @@ export const RelatorioProgramacaoSafra = () => {
       if (produtorNumerocm && produtorNumerocm !== "all") params.append("produtor_numerocm", produtorNumerocm);
       if (fazendaId) params.append("fazenda_id", fazendaId);
       if (epocaId) params.append("epoca_id", epocaId);
+      if (cultura && cultura !== "all") params.append("cultura", cultura);
       if (programacaoId) params.append("id", programacaoId);
 
       const res = await fetch(`${baseUrl}/reports/programacao_safra?${params}`);
@@ -120,6 +131,20 @@ export const RelatorioProgramacaoSafra = () => {
                   <SelectItem value="all">Todas</SelectItem>
                   {epocas?.map((e: any) => (
                     <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Cultura</label>
+              <Select value={cultura || "all"} onValueChange={(val) => setCultura(val === "all" ? "" : val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {culturas.map((c: any) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
