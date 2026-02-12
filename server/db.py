@@ -177,6 +177,11 @@ def ensure_aplicacoes_defensivos_schema():
                     cur.execute("ALTER TABLE public.aplicacoes_defensivos ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'PROGRAMACAO'")
                 except Exception:
                     pass
+                # Garantir coluna epoca_id em aplicacoes_defensivos
+                try:
+                    cur.execute("ALTER TABLE public.aplicacoes_defensivos ADD COLUMN IF NOT EXISTS epoca_id TEXT DEFAULT '2e667834-eac8-415e-98d0-ec63ba150e2c'")
+                except Exception:
+                    pass
                 # Garantir colunas em tabela de vínculo
                 try:
                     cur.execute("ALTER TABLE public.aplicacao_defensivos_talhoes ADD COLUMN IF NOT EXISTS safra_id TEXT")
@@ -397,6 +402,9 @@ def ensure_epocas_schema():
                     );
                     """
                 )
+                
+                # Inserir época "Normal" padrão se não existir
+                cur.execute("INSERT INTO public.epocas (id, nome, descricao, ativa) VALUES ('2e667834-eac8-415e-98d0-ec63ba150e2c', 'Normal', 'Época Normal', true) ON CONFLICT (id) DO NOTHING")
     finally:
         pool.putconn(conn)
 

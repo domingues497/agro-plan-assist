@@ -30,6 +30,7 @@ export type AplicacaoDefensivo = {
   safra_nome?: string;
   safra_id?: string;
   tipo?: "PROGRAMACAO" | "PREVIA";
+  epoca_id?: string;
   created_at: string;
   updated_at: string;
   defensivos: DefensivoItem[];
@@ -41,6 +42,7 @@ export type CreateAplicacaoDefensivo = {
   area: string;
   safra_id?: string;
   tipo?: "PROGRAMACAO" | "PREVIA";
+  epoca_id?: string;
   talhao_ids?: string[];
   defensivos: Omit<DefensivoItem, "id">[];
 };

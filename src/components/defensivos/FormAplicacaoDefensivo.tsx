@@ -20,9 +20,10 @@ import { useSafras } from "@/hooks/useSafras";
 import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useTalhoesForApp } from "@/hooks/useTalhoesForApp";
+import { useEpocas } from "@/hooks/useEpocas";
 
 type FormAplicacaoDefensivoProps = {
-  onSubmit: (data: { produtor_numerocm: string; area: string; safra_id?: string; tipo?: "PROGRAMACAO" | "PREVIA"; talhao_ids?: string[]; defensivos: Omit<DefensivoItem, "id">[] }) => void;
+  onSubmit: (data: { produtor_numerocm: string; area: string; safra_id?: string; tipo?: "PROGRAMACAO" | "PREVIA"; epoca_id?: string; talhao_ids?: string[]; defensivos: Omit<DefensivoItem, "id">[] }) => void;
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: {
@@ -30,6 +31,7 @@ type FormAplicacaoDefensivoProps = {
     produtor_numerocm?: string;
     area?: string;
     tipo?: "PROGRAMACAO" | "PREVIA";
+    epoca_id?: string;
     defensivos?: DefensivoItem[];
     talhao_ids?: string[];
   };
@@ -60,8 +62,10 @@ export const FormAplicacaoDefensivo = ({
   const [tipo, setTipo] = useState<"PROGRAMACAO" | "PREVIA">("PROGRAMACAO");
   const [talhoesOptions, setTalhoesOptions] = useState<Array<{ id: string; nome: string; area: number }>>([]);
   const { safras, defaultSafra } = useSafras();
+  const { data: epocas = [] } = useEpocas();
   const { aplicacoes = [] } = useAplicacoesDefensivos();
   const [safraId, setSafraId] = useState<string>("");
+  const [epocaId, setEpocaId] = useState<string>("2e667834-eac8-415e-98d0-ec63ba150e2c");
   const [openSafra, setOpenSafra] = useState(false);
   const isUuidLocal = (s?: string | null) => !!s && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(s));
   const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
@@ -102,6 +106,11 @@ export const FormAplicacaoDefensivo = ({
         if (t === "Programação" || t === "PROGRAMACAO") setTipo("PROGRAMACAO");
         else if (t === "Prévia" || t === "PREVIA") setTipo("PREVIA");
         else setTipo("PROGRAMACAO");
+      }
+      if (initialData.epoca_id) {
+        setEpocaId(String(initialData.epoca_id));
+      } else {
+        setEpocaId("2e667834-eac8-415e-98d0-ec63ba150e2c");
       }
       const candidates = (initialData.defensivos || []).map((d) => String((d as any).safra_id || "").trim());
       const picked = candidates.find((s) => isUuidLocal(s)) || candidates.find((s) => !!s) || "";
@@ -305,7 +314,7 @@ export const FormAplicacaoDefensivo = ({
       area_hectares: selectedAreaHa,
       alvo: aplicacoes && aplicacoes.length > 0 ? aplicacoes.join(", ") : def.alvo,
     }));
-    onSubmit({ produtor_numerocm: produtorNumerocm, area, tipo, safra_id: safraId, talhao_ids: selectedTalhaoIds, defensivos: defensivosToSubmit });
+    onSubmit({ produtor_numerocm: produtorNumerocm, area, tipo, epoca_id: epocaId, safra_id: safraId, talhao_ids: selectedTalhaoIds, defensivos: defensivosToSubmit });
   };
 
   const selectedProdutor = produtores?.find((p) => p.numerocm === produtorNumerocm);
@@ -697,7 +706,7 @@ export const FormAplicacaoDefensivo = ({
           />
           </div>
 
-          <div className="space-y-2 lg:col-span-4">
+          <div className="space-y-2 lg:col-span-2">
             <Label>Tipo *</Label>
             <Select value={tipo} onValueChange={(v) => setTipo(v as any)}>
               <SelectTrigger>
@@ -706,6 +715,22 @@ export const FormAplicacaoDefensivo = ({
               <SelectContent>
                 <SelectItem value="PROGRAMACAO">Programação</SelectItem>
                 <SelectItem value="PREVIA">Prévia</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2 lg:col-span-2">
+            <Label>Época *</Label>
+            <Select value={epocaId} onValueChange={setEpocaId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a época" />
+              </SelectTrigger>
+              <SelectContent>
+                {epocas.map((ep: any) => (
+                  <SelectItem key={ep.id} value={ep.id}>
+                    {ep.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

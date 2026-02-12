@@ -281,6 +281,7 @@ const Defensivos = () => {
                   produtor_numerocm: editing.produtor_numerocm || "",
                   area: editing.area,
                   tipo: editing.tipo,
+                  epoca_id: editing.epoca_id,
                   defensivos: editing.defensivos,
                 }}
                 readOnly={isConsultor && !canEditDefensivos}
