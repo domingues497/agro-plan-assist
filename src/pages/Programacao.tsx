@@ -240,7 +240,6 @@ export default function Programacao() {
       cultivares: (() => {
         const cults = editingCultivares;
         return cults.map((c: any) => {
-          // Buscar a cultura do catálogo baseado no cultivar
           const cultivarInfo = cultivaresCatalog.find((cat: any) => cat.cultivar === c.cultivar);
           return {
             cultivar: c.cultivar,
@@ -248,14 +247,36 @@ export default function Programacao() {
             percentual_cobertura: Number(c.percentual_cobertura) || 0,
             tipo_embalagem: c.tipo_embalagem,
             tipo_tratamento: c.tipo_tratamento,
-            tratamento_ids: (editingTratamentos as Record<string, string[]>)[c.id]
-              ?? (Array.isArray(c.tratamento_ids) ? c.tratamento_ids : (c.tratamento_id ? [c.tratamento_id] : [])),
+            tratamento_ids:
+              (editingTratamentos as Record<string, string[]>)[c.id] ??
+              (Array.isArray(c.tratamento_ids)
+                ? c.tratamento_ids
+                : c.tratamento_id
+                ? [c.tratamento_id]
+                : []),
             tratamento_id: c.tratamento_id || undefined,
             data_plantio: c.data_plantio || undefined,
-            populacao_recomendada: Number(c.populacao_recomendada) || 0,
+            populacao_recomendada:
+              c.populacao_recomendada != null ? Number(c.populacao_recomendada) : 0,
             semente_propria: Boolean(c.semente_propria),
             referencia_rnc_mapa: c.referencia_rnc_mapa || undefined,
-            sementes_por_saca: Number(c.sementes_por_saca) || 0,
+            sementes_por_saca:
+              c.sementes_por_saca != null ? Number(c.sementes_por_saca) : 0,
+            // Campos novos específicos da cultivar
+            tipo_lancamento:
+              c.tipo_lancamento != null ? Number(c.tipo_lancamento) : undefined,
+            quant_densidade:
+              c.quant_densidade != null ? Number(c.quant_densidade) : undefined,
+            espacamento: c.espacamento != null ? Number(c.espacamento) : undefined,
+            quant_est_prod:
+              c.quant_est_prod != null ? Number(c.quant_est_prod) : undefined,
+            perc_planta:
+              c.perc_planta != null ? Number(c.perc_planta) : undefined,
+            fl_consorcio: c.fl_consorcio || undefined,
+            cod_sistema_plantio:
+              c.cod_sistema_plantio != null ? Number(c.cod_sistema_plantio) : undefined,
+            cod_proposito:
+              c.cod_proposito != null ? Number(c.cod_proposito) : undefined,
             defensivos_fazenda: editingDefensivos[c.id] || []
           };
         });
@@ -270,7 +291,12 @@ export default function Programacao() {
           embalagem: a.embalagem || undefined,
           justificativa_nao_adubacao_id: a.justificativa_nao_adubacao_id || undefined,
           fertilizante_salvo: Boolean(a.fertilizante_salvo),
-          porcentagem_salva: Number(a.porcentagem_salva) || 0
+          porcentagem_salva:
+            a.porcentagem_salva != null ? Number(a.porcentagem_salva) : 0,
+          epoca_aplicacao:
+            a.epoca_aplicacao != null ? Number(a.epoca_aplicacao) : undefined,
+          forma_aplicacao:
+            a.forma_aplicacao != null ? Number(a.forma_aplicacao) : undefined
         }));
       })()
     };
