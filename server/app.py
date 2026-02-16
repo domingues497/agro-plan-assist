@@ -1379,7 +1379,24 @@ def get_programacao_children(id: str):
             ad_cols = [d[0] for d in cur.description]
             ad_rows = cur.fetchall()
             adubacao = [dict(zip(ad_cols, r)) for r in ad_rows] if ad_rows else []
-            return jsonify({"talhoes": talhoes, "talhoes_nomes": talhoes_map, "cultivares": cults, "tratamentos": tratamentos, "defensivos": defensivos, "adubacao": adubacao})
+            cur.execute("""
+                SELECT id, user_id, produtor_numerocm, fazenda_idfazenda, area, area_hectares, safra_id, tipo,
+                       cod_unidade_fabril, campo_semente, categoria, renasem, proposito_semente
+                FROM public.programacoes
+                WHERE id = %s
+            """, [id])
+            prog_cols = [d[0] for d in cur.description]
+            prog_row = cur.fetchone()
+            programacao = dict(zip(prog_cols, prog_row)) if prog_row else {}
+            return jsonify({
+                "programacao": programacao,
+                "talhoes": talhoes,
+                "talhoes_nomes": talhoes_map,
+                "cultivares": cults,
+                "tratamentos": tratamentos,
+                "defensivos": defensivos,
+                "adubacao": adubacao
+            })
     finally:
         pool.putconn(conn)
 

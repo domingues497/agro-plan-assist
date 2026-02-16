@@ -598,6 +598,7 @@ export default function Programacao() {
                           const cults = (json?.cultivares || []) as any[];
                           const tratamentosMap: Record<string, string[]> = json?.tratamentos || {};
                           const defensivosRows: any[] = json?.defensivos || [];
+                          const progHeader = json?.programacao || {};
                           const defensivosMap: Record<string, any[]> = {};
                           const epocaId = cults.length > 0 ? cults[0].epoca_id : undefined;
                           for (const cult of cults) {
@@ -624,6 +625,7 @@ export default function Programacao() {
                           setEditingAdubacao(json.adubacao || []);
                           setEditing({
                             ...prog,
+                            ...progHeader,
                             epoca_id: epocaId,
                             talhao_ids: (talhoesData || []).map((t: any) => t.talhao_id)
                           });
