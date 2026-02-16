@@ -958,6 +958,11 @@ export const FormProgramacao = ({ onSubmit, onCancel, title, submitLabel, initia
     if (typeof initialData.area_hectares !== "undefined") setAreaHectares(String(initialData.area_hectares || ""));
     if (typeof initialData.safra_id === "string") setSafraId(initialData.safra_id);
     if (typeof (initialData as any).epoca_id === "string") setEpocaId((initialData as any).epoca_id);
+    if (typeof (initialData as any).cod_unidade_fabril !== "undefined") setCodUnidadeFabril((initialData as any).cod_unidade_fabril || "");
+    if (typeof (initialData as any).proposito_semente !== "undefined") setPropositoSemente(!!(initialData as any).proposito_semente);
+    if (typeof (initialData as any).campo_semente !== "undefined") setCampoSemente((initialData as any).campo_semente || "");
+    if (typeof (initialData as any).categoria !== "undefined") setCategoria((initialData as any).categoria || "");
+    if (typeof (initialData as any).renasem !== "undefined") setRenasem((initialData as any).renasem || "");
     
     // Carregar talhões selecionados (normaliza para string)
     if (Array.isArray((initialData as any).talhao_ids)) {
