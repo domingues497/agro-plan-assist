@@ -237,6 +237,11 @@ export default function Programacao() {
       tipo: editing.tipo || "PROGRAMACAO",
       epoca_id: editing.epoca_id || undefined,
       talhao_ids: editing.talhao_ids || [],
+      cod_unidade_fabril: editing.cod_unidade_fabril || undefined,
+      campo_semente: editing.campo_semente || undefined,
+      categoria: editing.categoria || undefined,
+      renasem: editing.renasem || undefined,
+      proposito_semente: editing.proposito_semente,
       cultivares: (() => {
         const cults = editingCultivares;
         return cults.map((c: any) => {
