@@ -460,6 +460,7 @@ def ensure_produtores_schema():
                     cur.execute("ALTER TABLE public.produtores ADD COLUMN IF NOT EXISTS entrega_producao_destino TEXT")
                     cur.execute("ALTER TABLE public.produtores ADD COLUMN IF NOT EXISTS paga_assistencia BOOLEAN DEFAULT true")
                     cur.execute("ALTER TABLE public.produtores ADD COLUMN IF NOT EXISTS observacao_flags TEXT")
+                    cur.execute("ALTER TABLE public.produtores ADD COLUMN IF NOT EXISTS cod_empresa TEXT")
                 except Exception:
                     pass
     finally:
@@ -513,6 +514,8 @@ def ensure_fazendas_schema():
                 cols = {r[0] for r in cur.fetchall()}
                 if "cadpro" not in cols:
                     cur.execute("ALTER TABLE public.fazendas ADD COLUMN cadpro TEXT")
+                if "cod_imovel" not in cols:
+                    cur.execute("ALTER TABLE public.fazendas ADD COLUMN cod_imovel TEXT")
     finally:
         pool.putconn(conn)
 

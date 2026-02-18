@@ -48,6 +48,7 @@ class Produtor(Base):
     entrega_producao_destino = Column(String)
     paga_assistencia = Column(Boolean, default=True)
     observacao_flags = Column(String)
+    cod_empresa = Column(String)
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 
@@ -59,6 +60,7 @@ class Fazenda(Base):
     idfazenda = Column(String, nullable=False)
     nomefazenda = Column(String, nullable=False)
     numerocm_consultor = Column(String, nullable=False)
+    cod_imovel = Column(String)
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 

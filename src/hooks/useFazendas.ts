@@ -7,6 +7,7 @@ export type Fazenda = {
   nomefazenda: string;
   numerocm_consultor: string;
   cadpro?: string;
+  cod_imovel?: string;
   area_cultivavel: number | null;
   created_at: string | null;
   updated_at: string | null;

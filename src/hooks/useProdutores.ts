@@ -13,6 +13,7 @@ export type Produtor = {
   entrega_producao_destino?: string;
   paga_assistencia?: boolean;
   observacao_flags?: string;
+  cod_empresa?: string;
   created_at: string | null;
   updated_at: string | null;
 };

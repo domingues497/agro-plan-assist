@@ -162,7 +162,7 @@ def list_fazendas():
     try:
         with conn.cursor() as cur:
             base = (
-                "SELECT f.id, f.numerocm, f.idfazenda, f.nomefazenda, f.numerocm_consultor, f.cadpro, f.created_at, f.updated_at, "
+                "SELECT f.id, f.numerocm, f.idfazenda, f.nomefazenda, f.numerocm_consultor, f.cadpro, f.cod_imovel, f.created_at, f.updated_at, "
                 "COALESCE(SUM(t.area), 0) AS area_cultivavel "
                 "FROM public.fazendas f "
                 "LEFT JOIN public.talhoes t ON t.fazenda_id = f.id "
@@ -285,23 +285,25 @@ def import_fazendas():
                     nomefazenda = (it.get("nomefazenda") or "").strip()
                     cm_cons = (it.get("numerocm_consultor") or "").strip()
                     cadpro = (it.get("cadpro") or "").strip()
+                    cod_imovel = (it.get("cod_imovel") or it.get("CodImovel") or it.get("codImovel") or "").strip()
                     if not numerocm or not idfazenda or not nomefazenda or not cm_cons:
                         continue
                     key = numerocm + "|" + idfazenda
                     if key in seen:
                         continue
                     seen.add(key)
-                    values.append([str(uuid.uuid4()), numerocm, idfazenda, nomefazenda, cm_cons, cadpro])
+                    values.append([str(uuid.uuid4()), numerocm, idfazenda, nomefazenda, cm_cons, cadpro, (cod_imovel or None)])
                 if values:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO public.fazendas (id, numerocm, idfazenda, nomefazenda, numerocm_consultor, cadpro)
+                        INSERT INTO public.fazendas (id, numerocm, idfazenda, nomefazenda, numerocm_consultor, cadpro, cod_imovel)
                         VALUES %s
                         ON CONFLICT (numerocm, idfazenda) DO UPDATE SET
                           nomefazenda = EXCLUDED.nomefazenda,
                           numerocm_consultor = EXCLUDED.numerocm_consultor,
                           cadpro = EXCLUDED.cadpro,
+                          cod_imovel = EXCLUDED.cod_imovel,
                           updated_at = now()
                         """,
                         values,
@@ -329,11 +331,12 @@ def update_fazenda_by_key():
     nomefazenda = payload.get("nomefazenda")
     numerocm_consultor = payload.get("numerocm_consultor")
     cadpro = payload.get("cadpro")
+    cod_imovel = payload.get("cod_imovel")
     if not numerocm or not idfazenda:
         return jsonify({"error": "chave ausente"}), 400
     set_parts = []
     values = []
-    for col, val in [("nomefazenda", nomefazenda), ("numerocm_consultor", numerocm_consultor), ("cadpro", cadpro)]:
+    for col, val in [("nomefazenda", nomefazenda), ("numerocm_consultor", numerocm_consultor), ("cadpro", cadpro), ("cod_imovel", cod_imovel)]:
         if val is not None:
             set_parts.append(f"{col} = %s")
             values.append(val)
@@ -443,7 +446,7 @@ def list_produtores():
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            base = "SELECT id, numerocm, nome, numerocm_consultor, consultor, assistencia, compra_insumos, entrega_producao, paga_assistencia, observacao_flags, created_at, updated_at FROM public.produtores"
+            base = "SELECT id, numerocm, nome, numerocm_consultor, consultor, assistencia, compra_insumos, entrega_producao, paga_assistencia, observacao_flags, cod_empresa, created_at, updated_at FROM public.produtores"
             params = []
             where = []
             role = None
@@ -556,22 +559,24 @@ def import_produtores():
                     nome = (it.get("nome") or "").strip()
                     cm_cons = (it.get("numerocm_consultor") or "").strip()
                     consultor = it.get("consultor")
+                    cod_empresa = (it.get("cod_empresa") or it.get("CodEmpresa") or it.get("codEmpresa") or "").strip()
                     if not numerocm or not nome or not cm_cons:
                         continue
                     if numerocm in seen:
                         continue
                     seen.add(numerocm)
-                    values.append([str(uuid.uuid4()), numerocm, nome, cm_cons, consultor])
+                    values.append([str(uuid.uuid4()), numerocm, nome, cm_cons, consultor, (cod_empresa or None)])
                 if values:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO public.produtores (id, numerocm, nome, numerocm_consultor, consultor)
+                        INSERT INTO public.produtores (id, numerocm, nome, numerocm_consultor, consultor, cod_empresa)
                         VALUES %s
                         ON CONFLICT (numerocm) DO UPDATE SET
                           nome = EXCLUDED.nome,
                           numerocm_consultor = EXCLUDED.numerocm_consultor,
                           consultor = EXCLUDED.consultor,
+                          cod_empresa = EXCLUDED.cod_empresa,
                           updated_at = now()
                         """,
                         values,
@@ -3318,6 +3323,7 @@ def run_sync_produtores(limpar: bool = False):
                     consultor = pick(d, ["consultor", "CONSULTOR"]) or None
                     tipocooperado = pick(d, ["tipocooperado", "TIPOCOOPERADO", "TIPO_COOPERADO"]) or None
                     assistencia = pick(d, ["assistencia", "ASSISTENCIA", "TIPO_ASSISTENCIA"]) or None
+                    cod_empresa = pick(d, ["cod_empresa", "COD_EMPRESA", "CodEmpresa", "codEmpresa", "codigo_empresa", "CODIGO_EMPRESA"]) or None
                     if (not cm_cons) and consultor:
                         key_nome = str(consultor).strip().lower()
                         cm_lookup = consultores_map.get(key_nome)
@@ -3337,12 +3343,12 @@ def run_sync_produtores(limpar: bool = False):
                     if key in seen:
                         continue
                     seen.add(key)
-                    values.append([str(uuid.uuid4()), numerocm, nome, cm_cons, consultor, tipocooperado, assistencia])
+                    values.append([str(uuid.uuid4()), numerocm, nome, cm_cons, consultor, tipocooperado, assistencia, cod_empresa])
                 if values:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO public.produtores (id, numerocm, nome, numerocm_consultor, consultor, tipocooperado, assistencia)
+                        INSERT INTO public.produtores (id, numerocm, nome, numerocm_consultor, consultor, tipocooperado, assistencia, cod_empresa)
                         VALUES %s
                         ON CONFLICT (numerocm) DO UPDATE SET
                           nome = EXCLUDED.nome,
@@ -3350,6 +3356,7 @@ def run_sync_produtores(limpar: bool = False):
                           consultor = EXCLUDED.consultor,
                           tipocooperado = EXCLUDED.tipocooperado,
                           assistencia = EXCLUDED.assistencia,
+                          cod_empresa = EXCLUDED.cod_empresa,
                           updated_at = now()
                         """,
                         values,
@@ -3446,6 +3453,9 @@ def run_sync_fazendas(limpar: bool = False):
                     cadpro_val = pick(d, ["cadpro", "CADPRO", "CAD_PRO", "codigo_cadpro"])
                     cadpro = str(cadpro_val).strip() if cadpro_val is not None else None
                     
+                    cod_imovel_val = pick(d, ["cod_imovel", "COD_IMOVEL", "CodImovel", "codImovel", "codigo_imovel", "CODIGO_IMOVEL"])
+                    cod_imovel = str(cod_imovel_val).strip() if cod_imovel_val is not None else None
+                    
                     if not cm_cons and numerocm and numerocm in produtor_cm_map:
                         cm_cons = produtor_cm_map[numerocm]
 
@@ -3456,17 +3466,18 @@ def run_sync_fazendas(limpar: bool = False):
                     if key in seen:
                         continue
                     seen.add(key)
-                    values.append([str(uuid.uuid4()), numerocm, idfazenda, nomefazenda, cm_cons, cadpro])
+                    values.append([str(uuid.uuid4()), numerocm, idfazenda, nomefazenda, cm_cons, cadpro, cod_imovel])
                 if values:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO public.fazendas (id, numerocm, idfazenda, nomefazenda, numerocm_consultor, cadpro)
+                        INSERT INTO public.fazendas (id, numerocm, idfazenda, nomefazenda, numerocm_consultor, cadpro, cod_imovel)
                         VALUES %s
                         ON CONFLICT (numerocm, idfazenda) DO UPDATE SET
                           nomefazenda = EXCLUDED.nomefazenda,
                           numerocm_consultor = EXCLUDED.numerocm_consultor,
                           cadpro = EXCLUDED.cadpro,
+                          cod_imovel = EXCLUDED.cod_imovel,
                           updated_at = now()
                         """,
                         values,
