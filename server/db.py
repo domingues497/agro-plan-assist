@@ -601,6 +601,7 @@ def ensure_cultivares_catalog_schema():
                     CREATE TABLE IF NOT EXISTS public.cultivares_catalog (
                       cultivar TEXT NOT NULL,
                       cultura TEXT,
+                      cod_cultura TEXT,
                       nome_cientifico TEXT,
                       rnc TEXT,
                       created_at TIMESTAMPTZ DEFAULT now(),
@@ -611,6 +612,7 @@ def ensure_cultivares_catalog_schema():
                 )
                 try:
                     cur.execute("ALTER TABLE public.cultivares_catalog ADD COLUMN IF NOT EXISTS rnc TEXT")
+                    cur.execute("ALTER TABLE public.cultivares_catalog ADD COLUMN IF NOT EXISTS cod_cultura TEXT")
                 except Exception:
                     pass
     finally:
