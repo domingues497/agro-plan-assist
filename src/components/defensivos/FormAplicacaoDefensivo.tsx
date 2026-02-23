@@ -23,7 +23,7 @@ import { useTalhoesForApp } from "@/hooks/useTalhoesForApp";
 import { useEpocas } from "@/hooks/useEpocas";
 
 type FormAplicacaoDefensivoProps = {
-  onSubmit: (data: { produtor_numerocm: string; area: string; safra_id?: string; tipo?: "PROGRAMACAO" | "PREVIA"; epoca_id?: string; talhao_ids?: string[]; defensivos: Omit<DefensivoItem, "id">[] }) => void;
+  onSubmit: (data: { produtor_numerocm: string; area: string; safra_id?: string; tipo?: "PROGRAMACAO" | "PREVIA"; epoca_id?: string; cultura?: string | null; talhao_ids?: string[]; defensivos: Omit<DefensivoItem, "id">[] }) => void;
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: {
@@ -32,6 +32,8 @@ type FormAplicacaoDefensivoProps = {
     area?: string;
     tipo?: "PROGRAMACAO" | "PREVIA";
     epoca_id?: string;
+    safra_id?: string;
+    cultura?: string;
     defensivos?: DefensivoItem[];
     talhao_ids?: string[];
   };
@@ -66,6 +68,7 @@ export const FormAplicacaoDefensivo = ({
   const { aplicacoes = [] } = useAplicacoesDefensivos();
   const [safraId, setSafraId] = useState<string>("");
   const [epocaId, setEpocaId] = useState<string>("2e667834-eac8-415e-98d0-ec63ba150e2c");
+  const [cultura, setCultura] = useState<string>("");
   const [openSafra, setOpenSafra] = useState(false);
   const isUuidLocal = (s?: string | null) => !!s && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(s));
   const { programacoes: cultProgramacoes = [], isLoading: isCultLoading } = useProgramacaoCultivares();
@@ -112,9 +115,16 @@ export const FormAplicacaoDefensivo = ({
       } else {
         setEpocaId("2e667834-eac8-415e-98d0-ec63ba150e2c");
       }
-      const candidates = (initialData.defensivos || []).map((d) => String((d as any).safra_id || "").trim());
+      if (initialData.safra_id) {
+        setSafraId(String(initialData.safra_id));
+      } else {
+        const candidates = (initialData.defensivos || []).map((d) => String((d as any).safra_id || "").trim());
       const picked = candidates.find((s) => isUuidLocal(s)) || candidates.find((s) => !!s) || "";
       if (picked) setSafraId(String(picked));
+      }
+      if (initialData.cultura) {
+        setCultura(initialData.cultura);
+      }
       if (initialData.defensivos && initialData.defensivos.length > 0) {
         setDefensivos(
           initialData.defensivos.map((def) => ({
@@ -314,7 +324,7 @@ export const FormAplicacaoDefensivo = ({
       area_hectares: selectedAreaHa,
       alvo: aplicacoes && aplicacoes.length > 0 ? aplicacoes.join(", ") : def.alvo,
     }));
-    onSubmit({ produtor_numerocm: produtorNumerocm, area, tipo, epoca_id: epocaId, safra_id: safraId, talhao_ids: selectedTalhaoIds, defensivos: defensivosToSubmit });
+    onSubmit({ produtor_numerocm: produtorNumerocm, area, tipo, epoca_id: epocaId, cultura: cultura || null, safra_id: safraId, talhao_ids: selectedTalhaoIds, defensivos: defensivosToSubmit });
   };
 
   const selectedProdutor = produtores?.find((p) => p.numerocm === produtorNumerocm);
@@ -733,6 +743,15 @@ export const FormAplicacaoDefensivo = ({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2 lg:col-span-2">
+            <Label>Cultura</Label>
+            <Input
+              value={cultura}
+              onChange={(e) => setCultura(e.target.value)}
+              placeholder="Informe a cultura desta programação"
+            />
           </div>
 
 

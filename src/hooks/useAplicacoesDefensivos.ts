@@ -31,6 +31,7 @@ export type AplicacaoDefensivo = {
   safra_id?: string;
   tipo?: "PROGRAMACAO" | "PREVIA";
   epoca_id?: string;
+   cultura?: string | null;
   created_at: string;
   updated_at: string;
   defensivos: DefensivoItem[];
@@ -43,6 +44,7 @@ export type CreateAplicacaoDefensivo = {
   safra_id?: string;
   tipo?: "PROGRAMACAO" | "PREVIA";
   epoca_id?: string;
+  cultura?: string | null;
   talhao_ids?: string[];
   defensivos: Omit<DefensivoItem, "id">[];
 };
@@ -146,6 +148,10 @@ export const useAplicacoesDefensivos = () => {
       return createMutation.mutateAsync({
         produtor_numerocm: aplicacao.produtor_numerocm || "",
         area: aplicacao.area,
+        safra_id: aplicacao.safra_id,
+        tipo: aplicacao.tipo,
+        epoca_id: aplicacao.epoca_id,
+        cultura: aplicacao.cultura ?? null,
         defensivos: aplicacao.defensivos.map(({ id, ...def }) => def),
       });
     },
@@ -160,6 +166,10 @@ export const useAplicacoesDefensivos = () => {
       return createMutation.mutateAsync({
         produtor_numerocm,
         area,
+        safra_id: aplicacao.safra_id,
+        tipo: aplicacao.tipo,
+        epoca_id: aplicacao.epoca_id,
+        cultura: aplicacao.cultura ?? null,
         defensivos: aplicacao.defensivos.map(({ id, ...def }) => def),
       });
     },

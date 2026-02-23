@@ -4239,7 +4239,7 @@ def list_aplicacoes_defensivos():
                     except Exception:
                         pass
 
-            cur.execute("SELECT a.id, a.user_id, a.produtor_numerocm, a.area, a.safra_id, a.tipo, a.epoca_id, a.created_at, a.updated_at, (SELECT s.ano_inicio || '/' || s.ano_fim FROM public.safras s WHERE s.id = a.safra_id LIMIT 1) as safra_nome FROM public.aplicacoes_defensivos a ORDER BY a.created_at DESC")
+            cur.execute("SELECT a.id, a.user_id, a.produtor_numerocm, a.area, a.safra_id, a.tipo, a.epoca_id, a.cultura, a.created_at, a.updated_at, (SELECT s.ano_inicio || '/' || s.ano_fim FROM public.safras s WHERE s.id = a.safra_id LIMIT 1) as safra_nome FROM public.aplicacoes_defensivos a ORDER BY a.created_at DESC")
             rows = cur.fetchall()
             cols = [d[0] for d in cur.description]
             apps = [dict(zip(cols, r)) for r in rows]
@@ -4278,6 +4278,7 @@ def create_aplicacao_defensivos():
     produtor_numerocm = payload.get("produtor_numerocm")
     area = payload.get("area")
     tipo = (payload.get("tipo") or "PROGRAMACAO").strip().upper()
+    cultura = (payload.get("cultura") or "").strip() or None
     epoca_id = payload.get("epoca_id") or "2e667834-eac8-415e-98d0-ec63ba150e2c"
     safra_root = (payload.get("safra_id") or "").strip()
     defensivos = payload.get("defensivos") or []
@@ -4328,10 +4329,10 @@ def create_aplicacao_defensivos():
                             }), 409
                 cur.execute(
                     """
-                    INSERT INTO public.aplicacoes_defensivos (id, user_id, produtor_numerocm, area, safra_id, tipo, epoca_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO public.aplicacoes_defensivos (id, user_id, produtor_numerocm, area, safra_id, tipo, epoca_id, cultura)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [id_val, user_id, produtor_numerocm, area, safra_header, tipo, epoca_id]
+                    [id_val, user_id, produtor_numerocm, area, safra_header, tipo, epoca_id, cultura]
                 )
                 # Persistir vínculo de talhões selecionados para relatórios
                 try:
@@ -4380,6 +4381,7 @@ def update_aplicacao_defensivos(id: str):
     area = payload.get("area")
     tipo = (payload.get("tipo") or "PROGRAMACAO").strip().upper()
     epoca_id = payload.get("epoca_id") or "2e667834-eac8-415e-98d0-ec63ba150e2c"
+    cultura = (payload.get("cultura") or "").strip() or None
     defensivos = payload.get("defensivos") or []
     talhao_ids = payload.get("talhao_ids") or []
     auth = request.headers.get("Authorization") or ""
@@ -4423,7 +4425,7 @@ def update_aplicacao_defensivos(id: str):
                                 "area": area,
                                 "safra_id": s,
                             }), 409
-                cur.execute("UPDATE public.aplicacoes_defensivos SET user_id = %s, produtor_numerocm = %s, area = %s, safra_id = %s, tipo = %s, epoca_id = %s, updated_at = now() WHERE id = %s", [user_id, produtor_numerocm, area, safra_header, tipo, epoca_id, id])
+                cur.execute("UPDATE public.aplicacoes_defensivos SET user_id = %s, produtor_numerocm = %s, area = %s, safra_id = %s, tipo = %s, epoca_id = %s, cultura = %s, updated_at = now() WHERE id = %s", [user_id, produtor_numerocm, area, safra_header, tipo, epoca_id, cultura, id])
                 # Atualizar vínculos de talhões
                 try:
                     cur.execute("DELETE FROM public.aplicacao_defensivos_talhoes WHERE aplicacao_id = %s", [id])

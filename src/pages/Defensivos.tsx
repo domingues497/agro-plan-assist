@@ -280,8 +280,10 @@ const Defensivos = () => {
                   id: editing.id,
                   produtor_numerocm: editing.produtor_numerocm || "",
                   area: editing.area,
+                  safra_id: editing.safra_id,
                   tipo: editing.tipo,
                   epoca_id: editing.epoca_id,
+                  cultura: editing.cultura || "",
                   defensivos: editing.defensivos,
                 }}
                 readOnly={isConsultor && !canEditDefensivos}

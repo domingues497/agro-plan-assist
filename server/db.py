@@ -109,6 +109,8 @@ def ensure_aplicacoes_defensivos_schema():
                       area TEXT NOT NULL,
                       safra_id TEXT,
                       tipo TEXT NOT NULL DEFAULT 'PROGRAMACAO',
+                      epoca_id TEXT,
+                      cultura TEXT,
                       created_at TIMESTAMPTZ DEFAULT now(),
                       updated_at TIMESTAMPTZ DEFAULT now()
                     );
@@ -180,6 +182,11 @@ def ensure_aplicacoes_defensivos_schema():
                 # Garantir coluna epoca_id em aplicacoes_defensivos
                 try:
                     cur.execute("ALTER TABLE public.aplicacoes_defensivos ADD COLUMN IF NOT EXISTS epoca_id TEXT DEFAULT '2e667834-eac8-415e-98d0-ec63ba150e2c'")
+                except Exception:
+                    pass
+                # Garantir coluna cultura em aplicacoes_defensivos
+                try:
+                    cur.execute("ALTER TABLE public.aplicacoes_defensivos ADD COLUMN IF NOT EXISTS cultura TEXT")
                 except Exception:
                     pass
                 # Garantir colunas em tabela de vínculo
