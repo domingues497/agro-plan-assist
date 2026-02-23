@@ -427,7 +427,11 @@ def list_produtores():
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            base = "SELECT id, numerocm, nome, numerocm_consultor, consultor, created_at, updated_at FROM public.produtores"
+            base = (
+                "SELECT id, numerocm, nome, numerocm_consultor, consultor, "
+                "tipocooperado, assistencia, compra_insumos, entrega_producao, entrega_producao_destino, paga_assistencia, observacao_flags, cod_empresa, "
+                "created_at, updated_at FROM public.produtores"
+            )
             params = []
             where = []
             role = None

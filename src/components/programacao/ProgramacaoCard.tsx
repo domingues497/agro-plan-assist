@@ -92,7 +92,8 @@ export function ProgramacaoCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold text-lg truncate">
-                {prog.produtor_numerocm} - {produtor?.nome || ""}
+                {prog.produtor_numerocm}
+                {produtor?.cod_empresa ? ` / ${produtor.cod_empresa}` : ""} - {produtor?.nome || ""}
               </h3>
               {prog.tipo === 'PREVIA' && (
                 <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200">
