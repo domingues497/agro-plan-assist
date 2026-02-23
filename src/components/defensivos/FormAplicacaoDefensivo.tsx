@@ -21,6 +21,7 @@ import { useAplicacoesDefensivos } from "@/hooks/useAplicacoesDefensivos";
 import { useProgramacaoAdubacao } from "@/hooks/useProgramacaoAdubacao";
 import { useTalhoesForApp } from "@/hooks/useTalhoesForApp";
 import { useEpocas } from "@/hooks/useEpocas";
+import { useCultivaresCatalog } from "@/hooks/useCultivaresCatalog";
 
 type FormAplicacaoDefensivoProps = {
   onSubmit: (data: { produtor_numerocm: string; area: string; safra_id?: string; tipo?: "PROGRAMACAO" | "PREVIA"; epoca_id?: string; cultura?: string | null; talhao_ids?: string[]; defensivos: Omit<DefensivoItem, "id">[] }) => void;
@@ -79,6 +80,15 @@ export const FormAplicacaoDefensivo = ({
     const s = String(safraId || "").trim();
     return cm && a && s ? `${cm}|${a}|${s}` : "";
   }, [produtorNumerocm, area, safraId]);
+  const { data: cultCatalog = [] } = useCultivaresCatalog();
+  const culturasOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of (cultCatalog || [])) {
+      const c = String(it?.cultura ?? "").trim();
+      if (c) set.add(c);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [cultCatalog]);
   
   const [defensivos, setDefensivos] = useState<Array<Omit<DefensivoItem, "id"> & { tempId: string; total?: number }>>([
     {
@@ -324,7 +334,7 @@ export const FormAplicacaoDefensivo = ({
       area_hectares: selectedAreaHa,
       alvo: aplicacoes && aplicacoes.length > 0 ? aplicacoes.join(", ") : def.alvo,
     }));
-    onSubmit({ produtor_numerocm: produtorNumerocm, area, tipo, epoca_id: epocaId, cultura: cultura || null, safra_id: safraId, talhao_ids: selectedTalhaoIds, defensivos: defensivosToSubmit });
+    onSubmit({ produtor_numerocm: produtorNumerocm, area, tipo, epoca_id: epocaId, cultura: (cultura ? cultura.toUpperCase().trim() : null), safra_id: safraId, talhao_ids: selectedTalhaoIds, defensivos: defensivosToSubmit });
   };
 
   const selectedProdutor = produtores?.find((p) => p.numerocm === produtorNumerocm);
@@ -747,11 +757,18 @@ export const FormAplicacaoDefensivo = ({
 
           <div className="space-y-2 lg:col-span-2">
             <Label>Cultura</Label>
-            <Input
-              value={cultura}
-              onChange={(e) => setCultura(e.target.value)}
-              placeholder="Informe a cultura desta programação"
-            />
+            <Select value={cultura} onValueChange={setCultura}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a cultura" />
+              </SelectTrigger>
+              <SelectContent>
+                {culturasOptions.map((cu) => (
+                  <SelectItem key={cu} value={cu}>
+                    {cu}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
 
