@@ -3799,11 +3799,16 @@ def list_talhoes():
                     LEFT JOIN public.talhao_safras ts ON ts.talhao_id = t.id
                     WHERE t.id = ANY(%s)
                       AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND (f.numerocm_consultor = %s OR f.numerocm = ANY(%s))))
-                      AND (%s IS NULL OR t.safras_todas OR EXISTS (SELECT 1 FROM public.talhao_safras ts2 WHERE ts2.talhao_id = t.id AND ts2.safra_id = %s))
+                      AND (
+                        %s IS NULL
+                        OR t.safras_todas
+                        OR EXISTS (SELECT 1 FROM public.talhao_safras ts2 WHERE ts2.talhao_id = t.id AND ts2.safra_id = %s)
+                        OR EXISTS (SELECT 1 FROM public.programacao_talhoes pt2 WHERE pt2.talhao_id = t.id AND pt2.safra_id = %s)
+                      )
                     GROUP BY t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.safras_todas, t.created_at, t.updated_at
                     ORDER BY t.nome
                     """,
-                    (safra_id, epoca_id, id_list, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), allowed_numerocm, safra_id, safra_id)
+                    (safra_id, epoca_id, id_list, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), allowed_numerocm, safra_id, safra_id, safra_id)
                 )
             elif fazenda_id:
                 print(f"DEBUG: list_talhoes fazenda_id={fazenda_id} safra_id={safra_id} epoca_id={epoca_id}")
@@ -3840,11 +3845,16 @@ def list_talhoes():
                     LEFT JOIN public.talhao_safras ts ON ts.talhao_id = t.id
                     WHERE t.fazenda_id = %s
                       AND (%s IS NULL OR EXISTS (SELECT 1 FROM public.fazendas f WHERE f.id = t.fazenda_id AND (f.numerocm_consultor = %s OR f.numerocm = ANY(%s))))
-                      AND (%s IS NULL OR t.safras_todas OR EXISTS (SELECT 1 FROM public.talhao_safras ts2 WHERE ts2.talhao_id = t.id AND ts2.safra_id = %s))
+                      AND (
+                        %s IS NULL
+                        OR t.safras_todas
+                        OR EXISTS (SELECT 1 FROM public.talhao_safras ts2 WHERE ts2.talhao_id = t.id AND ts2.safra_id = %s)
+                        OR EXISTS (SELECT 1 FROM public.programacao_talhoes pt2 WHERE pt2.talhao_id = t.id AND pt2.safra_id = %s)
+                      )
                     GROUP BY t.id, t.fazenda_id, t.nome, t.area, t.arrendado, t.safras_todas, t.created_at, t.updated_at
                     ORDER BY t.nome
                     """,
-                    [safra_id, epoca_id, fazenda_id, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), allowed_numerocm, safra_id, safra_id]
+                    [safra_id, epoca_id, fazenda_id, (cm_token if role == "consultor" else None), (cm_token if role == "consultor" else None), allowed_numerocm, safra_id, safra_id, safra_id]
                 )
                 # Debug output results
                 # rows_debug = cur.fetchall()

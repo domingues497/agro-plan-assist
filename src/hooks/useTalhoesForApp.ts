@@ -25,9 +25,13 @@ export function useTalhoesForApp(
         return { options: [] as TalhaoOption[], fallbackArea: 0, fromFazenda: false };
       }
 
+      const fazendaUuid = (() => {
+        const f = fazendas.find((fz) => String(fz.nomefazenda) === String(area));
+        return f?.id ? String(f.id) : "";
+      })();
+
       // 1. Buscar programações com filtro
       const params = new URLSearchParams();
-      if (produtorNumerocm) params.set("produtor_numerocm", produtorNumerocm);
       if (safraId) params.set("safra_id", safraId);
       // Note: area (nomefazenda) is not directly supported by list_programacoes without fazenda_id
       // But we can filter client-side for area if needed, or if we had fazenda_id
@@ -41,8 +45,9 @@ export function useTalhoesForApp(
         // Produtor and Safra are already filtered by backend, but double check doesn't hurt
         const sameProd = String(p.produtor_numerocm) === String(produtorNumerocm);
         const sameArea = String(p.area) === String(area);
+        const sameFazenda = fazendaUuid ? String(p.fazenda_uuid || "") === String(fazendaUuid) : true;
         const safraOk = String(p.safra_id || "") === String(safraId || "");
-        return sameProd && sameArea && safraOk;
+        return sameProd && sameArea && sameFazenda && safraOk;
       });
 
       // Helper para fallback da fazenda
@@ -56,6 +61,25 @@ export function useTalhoesForApp(
       };
 
       if (!progs || progs.length === 0) {
+        // Fallback: tentar carregar talhões pela fazenda diretamente na safra
+        if (fazendaUuid) {
+          const paramsTalhao = new URLSearchParams();
+          paramsTalhao.set("fazenda_id", fazendaUuid);
+          paramsTalhao.set("safra_id", String(safraId));
+          const r = await fetch(`${base}/talhoes?${paramsTalhao.toString()}`, { headers });
+          if (r.ok) {
+            const j2 = await r.json();
+            const items2 = (j2?.items || []) as any[];
+            const options = items2.map((t: any) => ({
+              id: String(t.id),
+              nome: String(t.nome || "Talhão"),
+              area: Number(t.area || 0) || 0
+            }));
+            if (options.length > 0) {
+              return { options, fallbackArea: 0, fromFazenda: true };
+            }
+          }
+        }
         return getFazendaFallback();
       }
 
@@ -73,6 +97,25 @@ export function useTalhoesForApp(
       }
 
       if (talhaoSet.size === 0) {
+        // fallback por fazenda/safra
+        if (fazendaUuid) {
+          const paramsTalhao = new URLSearchParams();
+          paramsTalhao.set("fazenda_id", fazendaUuid);
+          paramsTalhao.set("safra_id", String(safraId));
+          const r = await fetch(`${base}/talhoes?${paramsTalhao.toString()}`, { headers });
+          if (r.ok) {
+            const j2 = await r.json();
+            const items2 = (j2?.items || []) as any[];
+            const options = items2.map((t: any) => ({
+              id: String(t.id),
+              nome: String(t.nome || "Talhão"),
+              area: Number(t.area || 0) || 0
+            }));
+            if (options.length > 0) {
+              return { options, fallbackArea: 0, fromFazenda: true };
+            }
+          }
+        }
         return getFazendaFallback();
       }
 
@@ -94,6 +137,25 @@ export function useTalhoesForApp(
       }));
 
       if (options.length === 0) {
+        // fallback por fazenda/safra se não retornou pelos ids
+        if (fazendaUuid) {
+          const paramsTalhao = new URLSearchParams();
+          paramsTalhao.set("fazenda_id", fazendaUuid);
+          paramsTalhao.set("safra_id", String(safraId));
+          const r = await fetch(`${base}/talhoes?${paramsTalhao.toString()}`, { headers });
+          if (r.ok) {
+            const j3 = await r.json();
+            const items3 = (j3?.items || []) as any[];
+            const opts3 = items3.map((t: any) => ({
+              id: String(t.id),
+              nome: String(t.nome || "Talhão"),
+              area: Number(t.area || 0) || 0
+            }));
+            if (opts3.length > 0) {
+              return { options: opts3, fallbackArea: 0, fromFazenda: true };
+            }
+          }
+        }
         return getFazendaFallback();
       }
 
