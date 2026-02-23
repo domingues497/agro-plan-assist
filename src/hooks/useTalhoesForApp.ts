@@ -26,7 +26,8 @@ export function useTalhoesForApp(
       }
 
       const fazendaUuid = (() => {
-        const f = fazendas.find((fz) => String(fz.nomefazenda) === String(area));
+        const target = String(area || "").trim().toUpperCase();
+        const f = fazendas.find((fz) => String(fz.nomefazenda || "").trim().toUpperCase() === target);
         return f?.id ? String(f.id) : "";
       })();
 
@@ -43,10 +44,10 @@ export function useTalhoesForApp(
       
       const progs = items.filter((p: any) => {
         // Produtor and Safra are already filtered by backend, but double check doesn't hurt
-        const sameProd = String(p.produtor_numerocm) === String(produtorNumerocm);
-        const sameArea = String(p.area) === String(area);
-        const sameFazenda = fazendaUuid ? String(p.fazenda_uuid || "") === String(fazendaUuid) : true;
-        const safraOk = String(p.safra_id || "") === String(safraId || "");
+        const sameProd = String(p.produtor_numerocm || "").trim() === String(produtorNumerocm || "").trim();
+        const sameArea = String(p.area || "").trim().toUpperCase() === String(area || "").trim().toUpperCase();
+        const sameFazenda = fazendaUuid ? String(p.fazenda_uuid || "").trim() === String(fazendaUuid).trim() : true;
+        const safraOk = String(p.safra_id || "").trim() === String(safraId || "").trim();
         return sameProd && sameArea && sameFazenda && safraOk;
       });
 
